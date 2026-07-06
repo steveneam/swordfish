@@ -78,28 +78,58 @@ Bucket 0) · `scripts/doctor.ps1` has a PS-5.1 encoding parse bug (fix = Bucket 
 - ✅ Verify: CI smoke green; hardening assertions pass; idempotent re-run clean.
 - **CHECKPOINT.**
 
+### Bucket 1.5 — CI supply-chain hardening *(repo-only, no spend; added at Checkpoint 1)*
+- SHA-pin every GitHub Action (full commit SHA, tag in comment); zizmor workflow-lint job in
+  CI; default `permissions: read-all`; deploy-key jobs tightly scoped.
+- Renovate (hosted app; AGPL — service-use only, on the licensing ledger) maintains action
+  SHAs + image digests via PRs.
+- Context: trivy-action compromise 2026-03 — the CI runner holds the box SSH key, so a
+  compromised action is a box compromise. See `research/2026-07-07-vps-ops-research.md` §6.
+- ✅ Verify: zizmor green in CI; zero non-SHA action refs; Renovate onboarding PR open.
+- **CHECKPOINT** (light — may merge into the Bucket-2 review).
+
 ### Bucket 2 — Stage 1b: edge + control plane (Phases 3+) *(⛔ Gate: real DNS + TLS issuance)*
+- Pre-steps (host layer, from the Checkpoint-1 research pass):
+  Vultr firewall group (free) attached to syd1 allowing 22/80/443 only — the provider-side
+  layer Docker can't bypass (scripted + idempotent in `provisioning/vultr/`);
+  Docker `daemon.json` (json-file log caps + `live-restore`); unattended-upgrades
+  **reboot window** (no Ubuntu Pro attach — personal-use terms judged grey); 1–2 GB swap.
 - Traefik v3 + tecnativa/docker-socket-proxy (publish no app ports; resolves the vault's
-  Dokploy/socket-proxy compat gap on live hardware).
+  Dokploy/socket-proxy compat gap on live hardware). Proxy on its own internal network,
+  `CONTAINERS=1` only, `no-new-privileges`; security-headers/HSTS + modern-TLS middleware
+  as tracked config; JSON access logs.
 - Dokploy installed, **version-pinned**, behind TLS at `deploy.swordfish.cfd`.
+  Known 2026 failure mode: Dokploy *updates* can break/remove its managed Traefik — never
+  upgrade before `/etc/dokploy` + Traefik config are in the restic set (Bucket 3).
+- `assert-hardening.sh` extends: no `0.0.0.0` published ports besides Traefik 80/443;
+  ssh-audit grade added to the smoke workflow.
 - ✅ Verify: green-lock UI in the founder's browser; Dokploy MCP reachable from Claude Code;
-  RAM headroom recorded (2 GB tier watch-item).
+  RAM headroom recorded (2 GB tier watch-item); extended assertions green.
 - **CHECKPOINT.**
 
 ### Bucket 3 — Stage 1c: backups BEFORE workloads (Phase 7) *(invariant)*
 - Create `swordfish-syd1-backups` (US West) + bucket-scoped key; ~30-day versioning.
-- restic nightly systemd timer; retention 7d/4w/6m; prune policy.
+- restic nightly via **resticprofile** (config-as-code: retention, hooks, pings, scheduling
+  in one tracked YAML); retention 7d/4w/6m; prune policy; weekly
+  `restic check --read-data-subset=10%`.
+- **Dead-man's switch:** job pings on success only → Uptime Kuma push monitor (Bucket 4)
+  + healthchecks.io free tier as the off-infra witness that fires even if the box dies.
+- Pre-backup hooks for anything stateful later (dump before snapshot — file-level backup of
+  a running DB volume is not consistent). `/etc/dokploy` + Traefik config in the set.
 - **Execute a real restore drill** into a scratch dir/container; record RTO/RPO in `runbooks/`;
   monthly-pass cadence starts (this drill IS the monthly documented-command pass).
-- ✅ Verify: restored data matches source; timer fires on schedule.
+- ✅ Verify: restored data matches source; timer fires on schedule; dead-man alert test-fired.
 - **CHECKPOINT.**
 
 ### Bucket 4 — Stage 1d: dogfood deploy + monitoring (Phases 4/5/8) — the AI-operability test
 - Hello/status container built in CI → GHCR, digest-pinned, image bar enforced
   (multi-stage, minimal base, non-root, HEALTHCHECK).
 - Deploy hello + Uptime Kuma + Beszel **through the Dokploy MCP from Claude Code**;
-  `status.` + `metrics.` live behind TLS.
+  `status.` + `metrics.` live behind TLS. (Kuma confirmed at Checkpoint 1 — its push monitor
+  is the Bucket-3 dead-man switch; Gatus = documented config-as-code swap path.)
 - Wire ntfy push + UptimeRobot external check; test-fire an alert to the phone.
+- Image-update flow = Renovate PRs against digest-pinned compose (Watchtower is
+  discontinued); Diun optional as notify-only drift alert.
 - ✅ Verify: playbook definition-of-done checklist all-✓ → **Stage 1 complete; box graduates.**
 - **CHECKPOINT** (+ Dokploy-MCP verdict recorded: keep or trigger swap path).
 
@@ -112,19 +142,41 @@ Bucket 0) · `scripts/doctor.ps1` has a PS-5.1 encoding parse bug (fix = Bucket 
 ### Bucket 6 — Stage 3: Project 1 box + data disk *(⛔ Gate: production box + ≥50 GB block storage spend)*
 - Second box (bigger RAM), residency-matched region + block storage volume.
 - **Box-#2 triggers fire:** hardening graduates to Ansible + dev-sec roles; **Infisical deploys**
-  (secrets graduation per pinned decision 7).
+  (secrets graduation per pinned decision 7); **CrowdSec replaces fail2ban** (fleet-shared
+  bans + Traefik bouncer — added at Checkpoint 1).
 - Harden → control plane → backups → handoff. Project 1 materializes its corpus + connects to
   its retained managed plane itself (founder-directed). **CHECKPOINT.**
 
 ### Bucket 7 — Stage 4: Project 3 render offload *(⛔ Gate: bandwidth box spend, provider per vault matrix)*
 - High-egress box; render worker pulls job specs from the managed plane, pushes artifacts to
   object storage; no long-lived state. **CHECKPOINT.**
+- Provider matrix must weigh (Checkpoint-1 research): **Hetzner EU** (20 TB included,
+  ~€1/TB overage, 3–5× cheaper compute; latency-tolerant stateless fit — no AU region) and
+  **Cloudflare R2** (zero egress) as the artifact store, decoupling artifacts from the
+  render provider. B2 stays the backup target (write-heavy/restore-rarely economics).
 
 ### Bucket 8 — Stage 5: steady state / completion
 - OpenTofu graduation (box #3+); fleet monitoring consolidated; old PaaS tiers retired and the
   net saving recorded (closes the cost-ledger gap); North-Star `swordfish provision <box>`
   assembled from the accumulated provisioning scripts. **Done-when** per the vps-build-plan
   Stage-5 checklist.
+
+## Checkpoint-1 amendments (founder-approved 2026-07-07, research pass)
+
+Full findings: `research/2026-07-07-vps-ops-research.md`. The five calls:
+
+1. **Vultr firewall group** for syd1 (22/80/443 only) → Bucket-2 pre-step. Closes the
+   Docker-bypasses-ufw gap from outside the OS; free; scripted + idempotent.
+2. **No Ubuntu Pro attach** (personal-use terms judged grey) → unattended-upgrades reboot
+   window instead; revisit if the fleet earns paid Pro.
+3. **Bucket 1.5** (CI supply-chain hardening, repo-only) approved as a standalone mini-bucket.
+4. **Uptime Kuma kept** (push monitor = backup dead-man switch); Gatus recorded as the
+   config-as-code swap path.
+5. **Tailscale-over-443 break-glass** = documented upgrade only; the corporate-laptop install
+   probe stays founder-optional (IT-policy risk is the founder's call).
+
+Standing approval noted: tools/integrations from the research shortlist may be installed as
+their buckets arrive without a fresh per-tool gate — spend and irreversible-step gates unchanged.
 
 ## Change control
 

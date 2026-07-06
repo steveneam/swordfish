@@ -13,10 +13,23 @@
 - **Public-name rule:** TLS hostnames land in CT logs and bucket names are global — the
   guarded-token rule applies to every public infrastructure name. Neutral names only.
 
+## Host/edge parameters (Buckets 1.5–2 implement; Checkpoint-1 amendments)
+
+- Vultr firewall group on every box: inbound 22/80/443 only (Docker bypasses ufw — the
+  provider firewall is the layer it can't bypass; ufw stays as belt-and-braces).
+- Docker `daemon.json`: json-file log caps (`max-size`/`max-file`) + `live-restore: true`.
+- unattended-upgrades reboot window (kernel updates need reboots; no Ubuntu Pro attach).
+- Published-ports rule is executable: CI asserts no `0.0.0.0` publishes besides Traefik 80/443.
+- GitHub Actions: SHA-pinned only; zizmor lints workflows; Renovate maintains pins.
+- Dokploy: version-pinned; never upgrade before its config is in the backup set.
+
 ## Backup parameters (Bucket 3 implements)
 
-- restic → B2, nightly systemd timer, encrypted.
-- Retention: `--keep-daily 7 --keep-weekly 4 --keep-monthly 6`.
+- restic → B2, nightly, encrypted; driven by **resticprofile** (tracked YAML).
+- Retention: `--keep-daily 7 --keep-weekly 4 --keep-monthly 6`; weekly
+  `restic check --read-data-subset=10%`.
+- Dead-man switch: success-only ping → Uptime Kuma push monitor + healthchecks.io
+  (off-infra witness).
 - B2: per-box bucket + bucket-scoped key; account region **us-west-004** (US West); ~30-day
   file versioning as the delete/overwrite guard.
 - Restore drill: monthly (= the AGENTS.md rule-8 monthly pass); weekly scripted CI drill
