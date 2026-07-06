@@ -1,0 +1,13 @@
+# secrets & keys
+.env
+.env.*
+*.pem
+*.key
+inventory/secrets/
+
+# vault pointer + prompts (the vault's absolute path contains a guarded token)
+.context/
+
+# local-only harness state
+.claude/settings.local.json
+.claude/worktrees/
