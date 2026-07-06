@@ -204,25 +204,53 @@ sandboxed — they run with the agent's permissions, and the self-improving loop
 agent with shell access is a prompt-injection amplifier (messages/web content → skill →
 shell). There is a command-approval feature, but the design assumes a trusted environment.
 
-**Fit assessment:**
+**The benefits case (researched at founder request — what it actually offers):**
 
-- **During building: no.** Builds happen in Claude Code + CI; Hermes adds no hands there,
-  and an extra autonomous agent with chat/web channels holding portfolio context is an
-  anonymity-guard liability (same trust boundary as the wiki agent — names from outside are
-  guarded until proven otherwise).
-- **After launch: yes, as "eyes and voice" — never hands.** A phone-reachable ChatOps agent
-  over Telegram/443 fits the CI-as-hands/**443-as-eyes** model: "how's the box?" → reads
-  Beszel/Kuma/restic status, relays ntfy alerts, drafts runbook steps. Deployed *through
-  Dokploy* as a normal least-privilege container: **no docker socket, no host shell, no SSH
-  key** — read-only observability APIs + ntfy publish only. Hands stay CI + Dokploy MCP
-  behind founder gates.
+- **Runs while you sleep — built-in cron with delivery to any platform.** Scheduled health
+  checks, a morning briefing to Telegram ("disk, RAM, backup ping, cert expiry, anomalies"),
+  recurring reports, reactive alert triage — the steady-state ops loop a solo founder can't
+  staff. This is the genuinely differentiated feature vs. session-based agents.
+- **Skills turn runbooks into one-liners.** It builds procedural skills from experience —
+  "rotate that cert", "clear logs", "restart the status stack" become reliable one-line
+  requests. Skills are portable (agentskills.io standard) — reusable across the portfolio.
+- **Real ecosystem for infra tasks:** Cloudflare ships official agent Skills + MCP servers;
+  Composio provides a Cloudflare toolkit; a built-in domain-intel skill does DNS/WHOIS/SSL
+  inspection (read-only by nature). MCP tool *filtering*, command-approval mode, and
+  container isolation are the exact knobs a bounded deployment needs.
+- **Fleet-capable:** SSH/Docker terminal backends can run diagnostics and deploys across
+  boxes — relevant at Stage 3+ when there are multiple boxes.
+- **Model-agnostic:** Nous Portal, OpenRouter, OpenAI, or any endpoint; always-on gateway
+  idles cheap, LLM spend accrues per task.
+
+**Claims vs. this stack:** the viral demos — buy a domain, set DNS, issue SSL, configure
+NGINX/PM2 — are the *provisioning* story, and on Swordfish that job is already done better:
+idempotent gated scripts + CI are reproducible and auditable where a conversational agent is
+neither (and NGINX/PM2 is the demo stack; ours is Traefik/Dokploy). Hermes's marginal value
+here is **steady-state operations**, not box-building. Provisioning stays scripts; the moat
+stays `provisioning/`.
+
+**Fit assessment (updated after the benefits pass):**
+
+- **During building: no.** Builds happen in Claude Code + CI; an extra autonomous agent with
+  chat/web channels holding portfolio context is an anonymity-guard liability (same trust
+  boundary as the wiki agent — names from outside are guarded until proven otherwise).
+- **After launch: yes — via a graduated-autonomy pilot** (revisit at the Bucket-4/5
+  checkpoint):
+  - **E0 · Eyes** — read-only observability APIs (Beszel/Kuma/restic status) + ntfy publish;
+    cron morning briefing + alert triage to Telegram over 443. No shell, no socket, no SSH.
+  - **E1 · Propose** — command-approval mode ON: it drafts runbook commands, the founder
+    approves each mutation from the phone. Still no standing credentials.
+  - **E2 · Constrained hands** — only if E1 earns it: scoped exec on *dogfood workloads only*
+    (restart status stack, clear logs, rotate a cert), approval retained for mutations.
+  - **Never:** provider keys with spend power (box/domain purchase stays founder-gated),
+    guarded-token-adjacent content, docker socket on a shared box, provisioning authority.
 - **Portfolio angle:** each project could run its own instance on its own side (separation
   of duties holds — Swordfish provisions the box, never wires the agent into their apps).
   Also a candidate for the "Walter/vault service" dogfood slot.
-- **Timing:** it's a workload → invariants apply: nothing before Bucket-3 backups, and 2 GB
-  won't carry Dokploy + monitoring + Hermes — realistically post-Bucket-5 resize, with the
-  LLM API cost through an Approval Gate. **Parked on the dogfood roster; revisit at the
-  Bucket-4/5 checkpoint.**
+- **Timing + cost:** it's a workload → invariants apply: nothing before Bucket-3 backups,
+  and 2 GB won't carry Dokploy + monitoring + Hermes — post-Bucket-5 resize. Deploy through
+  Dokploy (itself a dogfood test). LLM API budget = Approval Gate. Pilot verdict after
+  2–4 weeks at E0/E1: keep (fewer founder round-trips) or drop (cost/noise/safety).
 
 ## Sources (primary)
 
@@ -233,4 +261,5 @@ shell). There is a command-approval feature, but the design assumes a trusted en
 - Monitoring: [2026 monitoring comparison](https://instapods.com/blog/best-server-monitoring-tools/) · [Watchtower discontinued](https://linuxhandbook.com/blog/watchtower-like-docker-tools/)
 - Supply chain: [trivy-action compromise](https://thehackernews.com/2026/03/trivy-security-scanner-github-actions.html) · [CrowdStrike analysis](https://www.crowdstrike.com/en-us/blog/from-scanner-to-stealer-inside-the-trivy-action-supply-chain-compromise/) · [Wiz GH Actions guide](https://www.wiz.io/blog/github-actions-security-guide) · [Renovate docker pinning](https://docs.renovatebot.com/docker/)
 - IaC/secrets: [OpenTofu adoption guide](https://www.env0.com/guides/opentofu-adoption-guide-state-encryption-provider-for-each-and-features-terraform-doesnt-have) · [secrets tooling 2026](https://infisical.com/blog/best-secret-management-tools)
+- Hermes Agent: [repo](https://github.com/nousresearch/hermes-agent) · [docs](https://hermes-agent.nousresearch.com/docs/) · [use cases](https://www.hostinger.com/tutorials/hermes-agent-use-cases) · [Cloudflare agent setup](https://developers.cloudflare.com/agent-setup/) · [awesome-hermes-agent](https://github.com/0xNyk/awesome-hermes-agent)
 - Providers/cloud: [Hetzner vs Vultr](https://getdeploying.com/hetzner-vs-vultr) · [Hetzner review](https://betterstack.com/community/guides/web-servers/hetzner-cloud-review/) · [R2 vs S3 vs B2](https://tech-insider.org/cloudflare-r2-vs-s3-vs-backblaze-b2-2026/) · [B2 pricing](https://www.backblaze.com/cloud-storage/pricing) · [Tailscale ports](https://tailscale.com/kb/1082/firewall-ports)

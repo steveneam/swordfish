@@ -13,9 +13,12 @@ _Stamped: 2026-07-07 (research/planning session, post-Bucket-1)_
   cloud layer). Headlines: stack choices all validated; one real gap = Docker bypasses ufw;
   2026 theme = CI supply-chain attacks (trivy-action compromise); Hetzner = no for syd1,
   yes for the Bucket-7 egress matrix; R2 = the artifact store, B2 stays backups.
-  Addendum §11: Hermes Agent (Nous Research) assessed — not a build tool; parked on the
-  dogfood roster as a post-resize "eyes and voice" ChatOps workload (least-privilege,
-  no socket/shell/SSH; revisit at the Bucket-4/5 checkpoint).
+  Addendum §11 (expanded on founder request — benefits pass): Hermes Agent's real value =
+  steady-state ops (cron briefings, alert triage, runbook one-liners via Telegram/443), not
+  provisioning (that stays scripts — the moat). Pilot documented as Checkpoint-1 amendment 6:
+  graduated autonomy E0 eyes → E1 propose → E2 constrained hands, dogfood-only, never
+  spend-capable keys/socket/provisioning; lands post-Bucket-5 resize; go/no-go at the
+  Bucket-4/5 checkpoint; LLM budget gates separately.
 - **Charter amended at the checkpoint** (founder-approved, see CHARTER.md
   "Checkpoint-1 amendments"): (1) Vultr firewall group = Bucket-2 pre-step; (2) no Ubuntu
   Pro — reboot window instead; (3) **new Bucket 1.5** (CI supply-chain: SHA-pin actions,

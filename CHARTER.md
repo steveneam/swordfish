@@ -137,7 +137,10 @@ Bucket 0) · `scripts/doctor.ps1` has a PS-5.1 encoding parse bug (fix = Bucket 
 - Headroom check → resize if needed. Handoff pack: control-plane access + connection details.
 - **Project 2 connects itself** (founder-directed) — Swordfish never touches the app side.
 - Backups extended over Project 2 volumes; weekly scripted CI restore drill lands (the
-  Stage-2 upgrade). **CHECKPOINT.**
+  Stage-2 upgrade).
+- Dogfood-roster option if headroom allows post-resize: **Hermes Agent pilot at tier E0/E1**
+  (Checkpoint-1 amendment 6; research §11) — ⛔ its LLM API budget gates separately.
+  **CHECKPOINT.**
 
 ### Bucket 6 — Stage 3: Project 1 box + data disk *(⛔ Gate: production box + ≥50 GB block storage spend)*
 - Second box (bigger RAM), residency-matched region + block storage volume.
@@ -174,6 +177,12 @@ Full findings: `research/2026-07-07-vps-ops-research.md`. The five calls:
    config-as-code swap path.
 5. **Tailscale-over-443 break-glass** = documented upgrade only; the corporate-laptop install
    probe stays founder-optional (IT-policy risk is the founder's call).
+6. **Hermes Agent pilot documented** (research §11): steady-state ops value (cron briefings,
+   alert triage, runbook one-liners over Telegram/443), NOT provisioning — that stays scripts.
+   Graduated autonomy E0 eyes → E1 propose (command approval) → E2 constrained hands on
+   dogfood workloads only; never spend-capable keys / socket / provisioning authority.
+   Lands post-Bucket-5 resize via Dokploy; LLM budget = Approval Gate; go/no-go at the
+   Bucket-4/5 checkpoint.
 
 Standing approval noted: tools/integrations from the research shortlist may be installed as
 their buckets arrive without a fresh per-tool gate — spend and irreversible-step gates unchanged.
