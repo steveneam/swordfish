@@ -43,6 +43,10 @@ if (Get-Command gh -ErrorAction SilentlyContinue) {
 }
 Add-Check 'gh auth' $ghOk $ghDetail
 
+# --- anonymity-guard pre-commit hook wired for this clone ---
+$hooksPath = (& git -C (Split-Path $PSScriptRoot -Parent) config core.hooksPath)
+Add-Check 'guard pre-commit hook' ($hooksPath -eq '.githooks') $(if ($hooksPath -eq '.githooks') { 'core.hooksPath = .githooks' } else { 'run: git config core.hooksPath .githooks' })
+
 # --- SSH keypair ---
 $key = Join-Path $env:USERPROFILE '.ssh\id_ed25519'
 Add-Check 'ssh keypair (ed25519)' (Test-Path $key) $(if (Test-Path $key) { "$key present" } else { 'run: ssh-keygen -t ed25519' })

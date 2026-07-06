@@ -1,0 +1,19 @@
+#!/bin/sh
+# Anonymity guard as a pre-commit gate (see CI-GUARD.md). Added after a guarded
+# name reached origin because the guard was run chained with the commit and its
+# exit code never gated anything (2026-07-07). Wire up once per clone:
+#   git config core.hooksPath .githooks
+# The canonical guard stays scripts/ci-grep-guard.ps1 - this hook only invokes it.
+
+repo_root=$(git rev-parse --show-toplevel) || exit 2
+
+if command -v pwsh >/dev/null 2>&1; then
+    ps=pwsh
+elif command -v powershell >/dev/null 2>&1; then
+    ps=powershell
+else
+    echo "pre-commit: no pwsh/powershell found - cannot run the anonymity guard; refusing to commit." >&2
+    exit 1
+fi
+
+"$ps" -NoProfile -ExecutionPolicy Bypass -File "$repo_root/scripts/ci-grep-guard.ps1"

@@ -35,7 +35,11 @@ hardened, and CI-verified:
   guard ran chained with `;` so its FAIL did not gate the commit. History rewritten
   (amend + force-push) within minutes. New rule: the guard runs ALONE and its exit code
   is checked BEFORE any commit command is issued; agent names from chat are treated as
-  guarded until proven otherwise.
+  guarded until proven otherwise. **Executable ratchet:** `.githooks/pre-commit` now runs
+  the guard and blocks the commit itself (`git config core.hooksPath .githooks`, once per
+  clone; doctor.ps1 probes the wiring). Residual: the tainted commit is unreachable on
+  origin but may persist in provider caches until GC — a support purge is the founder's
+  call if that residue matters.
 
 ## Next
 
