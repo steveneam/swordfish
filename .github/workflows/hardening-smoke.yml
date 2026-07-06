@@ -1,0 +1,70 @@
+name: hardening-smoke
+
+# CI-as-hands proof (CHARTER.md decision 2, Bucket 1): a GitHub runner is the
+# operational SSH channel - it connects to the box and asserts the Phase 0-2
+# hardening actually holds. Requires repo secret SSH_DEPLOY_KEY (the dedicated
+# swordfish-ci private key; the founder's laptop key never leaves the laptop).
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: Box FQDN or IP
+        required: false
+        default: syd1.swordfish.cfd
+
+jobs:
+  smoke:
+    name: hardening assertions via SSH
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ inputs.host || 'syd1.swordfish.cfd' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install CI deploy key
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+        run: |
+          [ -n "$SSH_DEPLOY_KEY" ] || { echo "SSH_DEPLOY_KEY secret is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+      - name: Wait for SSH (first boot can still be running)
+        run: |
+          for i in $(seq 1 20); do
+            if ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o BatchMode=yes "deploy@$HOST" true; then
+              echo "SSH reachable"; exit 0
+            fi
+            echo "attempt $i/20 - not reachable yet, retrying in 30s"; sleep 30
+          done
+          echo "SSH unreachable after 10 minutes"; exit 1
+
+      - name: Negative check - password auth refused
+        run: |
+          set +e
+          out=$(ssh -o PreferredAuthentications=password,keyboard-interactive -o PubkeyAuthentication=no \
+                    -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o BatchMode=yes \
+                    "deploy@$HOST" true 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          if [ $rc -eq 0 ]; then echo "FAIL: password login unexpectedly succeeded"; exit 1; fi
+          # the denial list must be publickey-only; 'password' appearing there = sshd misconfig
+          echo "$out" | grep -Eq 'Permission denied \(publickey\)\.' \
+            || { echo "FAIL: server offers auth methods beyond publickey"; exit 1; }
+          echo "PASS: password auth refused, server offers publickey only"
+
+      - name: Negative check - root login refused
+        run: |
+          if ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o BatchMode=yes \
+                 "root@$HOST" true 2>/dev/null; then
+            echo "FAIL: root login succeeded"; exit 1
+          fi
+          echo "PASS: root login refused"
+
+      - name: On-box hardening assertions
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" 'bash -s' < provisioning/checks/assert-hardening.sh

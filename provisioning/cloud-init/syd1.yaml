@@ -1,0 +1,103 @@
+#cloud-config
+# provisioning/cloud-init/syd1.yaml - Bucket 1 (Stage 1a), playbook Phases 0-2.
+# Hardened-at-first-boot user-data for the syd1 dogfood box (Vultr, Ubuntu 24.04 LTS).
+# Runbook: provisioning/vultr/create-box.ps1 encodes this file as user_data.
+#
+# Design notes (why, not what):
+# - All hardening lands BEFORE the box is first reachable, so the playbook's two
+#   classic lockout gates (password-off, ufw enable) are resolved in code: keys
+#   are baked in ahead of sshd hardening, and 22/tcp is allowed ahead of enable.
+# - sshd drop-in is 00-prefixed: OpenSSH keyword semantics are first-value-wins
+#   and sshd_config.d is included lexically ahead of the main body, so 00- beats
+#   the image's 50-cloud-init.conf and any provider default.
+# - fail2ban uses backend=systemd: Ubuntu 24.04 cloud images ship no rsyslog,
+#   so the default auth.log-based sshd jail would never fire.
+# - Two authorized keys: swordfish-ops (founder laptop, break-glass via hotspot;
+#   outbound 22 is blocked on the corporate network) and swordfish-ci (GitHub
+#   Actions runner - the CI-as-hands channel, CHARTER.md decision 2).
+
+hostname: syd1
+fqdn: syd1.swordfish.cfd
+manage_etc_hosts: true
+
+ssh_pwauth: false
+
+users:
+  - name: deploy
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAnQtAgKb8Do+rQwDyUxj9PbBsveE3ztqCM134y7EG0y swordfish-ops
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOOQNhU2jU6VuFQIoHpfTVnLSRY4+5KX3/QY/CUvTOCs swordfish-ci
+
+package_update: true
+package_upgrade: true
+packages:
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+  - ca-certificates
+  - curl
+
+write_files:
+  # key-only, no-root sshd. First-value-wins + lexical include order = this file
+  # is authoritative over 50-cloud-init.conf and the image's main sshd_config.
+  - path: /etc/ssh/sshd_config.d/00-swordfish-hardening.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      AllowUsers deploy
+      MaxAuthTries 3
+      X11Forwarding no
+
+  # unattended-upgrades: actually turn the timer behaviour on (the package
+  # alone does nothing without APT::Periodic).
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+  # sshd jail; systemd journal backend (no rsyslog on 24.04 cloud images).
+  - path: /etc/fail2ban/jail.local
+    permissions: "0644"
+    content: |
+      [DEFAULT]
+      backend = systemd
+      bantime = 1h
+      findtime = 10m
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+
+runcmd:
+  # --- Docker + compose plugin, official apt repo (playbook Phase 3 prereq;
+  #     installed now so Bucket 2 lands on a ready engine) ---
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - usermod -aG docker deploy
+
+  # --- firewall: default-deny, allow 22 BEFORE enable (lockout guard) ---
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+
+  # --- neutralize any provider/image drop-in that re-enables password auth,
+  #     then apply the hardened sshd config ---
+  - for f in /etc/ssh/sshd_config.d/*.conf; do [ "$f" = "/etc/ssh/sshd_config.d/00-swordfish-hardening.conf" ] || sed -i 's/^\s*PasswordAuthentication\s\+yes/PasswordAuthentication no/' "$f"; done
+  - systemctl restart ssh
+
+  # --- jail + patching services on ---
+  - systemctl enable --now fail2ban
+  - systemctl enable --now unattended-upgrades

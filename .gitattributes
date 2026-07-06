@@ -1,0 +1,5 @@
+# Box-bound files must stay LF: assert-hardening.sh is piped into bash over SSH,
+# and cloud-init YAML is base64-encoded verbatim as user-data.
+*.sh text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
