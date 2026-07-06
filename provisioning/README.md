@@ -13,4 +13,5 @@ Rules: **idempotent** (re-running on a healthy box is a no-op — this is also t
 - `cloud-init/` — per-box first-boot user-data (hardening lands before the box is reachable).
 - `vultr/` — provider API scripts (`create-box.ps1` — dry-run by default; `-Approve` = the spend gate).
 - `dns/` — registrar records (`set-a-record.ps1` — idempotent Porkbun upsert).
+- `host/` — idempotent host-layer converge scripts, applied over SSH by the `host-apply` workflow (Bucket 2 →). Anything here must also be mirrored into `cloud-init/` so rebuilds land converged.
 - `checks/` — assertions CI runs against live boxes (`assert-hardening.sh`, driven by the `hardening-smoke` workflow).

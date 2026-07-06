@@ -15,6 +15,9 @@
 # - Two authorized keys: swordfish-ops (founder laptop, break-glass via hotspot;
 #   outbound 22 is blocked on the corporate network) and swordfish-ci (GitHub
 #   Actions runner - the CI-as-hands channel, CHARTER.md decision 2).
+# - Bucket-2 host-layer pre-steps (daemon.json, reboot window, swap) are mirrored
+#   from provisioning/host/phase2-host.sh so a rebuilt box lands converged at
+#   first boot - keep this file, that script, and assert-hardening.sh in lockstep.
 
 hostname: syd1
 fqdn: syd1.swordfish.cfd
@@ -61,6 +64,32 @@ write_files:
       APT::Periodic::Update-Package-Lists "1";
       APT::Periodic::Unattended-Upgrade "1";
 
+  # Bucket-2 pre-steps (mirror of phase2-host.sh): log caps + live-restore.
+  # Written before Docker installs; the engine picks it up on first start.
+  - path: /etc/docker/daemon.json
+    permissions: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "3" },
+        "live-restore": true
+      }
+
+  # Bucket-2 pre-steps: unattended-upgrades may reboot in the pre-dawn Sydney
+  # window (18:30 UTC = 04:30 AEST / 05:30 AEDT; box clock stays UTC).
+  - path: /etc/apt/apt.conf.d/52-swordfish-reboot
+    permissions: "0644"
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "18:30";
+
+  # Bucket-2 pre-steps: swap is a safety net, not a working set.
+  - path: /etc/sysctl.d/99-swordfish-swap.conf
+    permissions: "0644"
+    content: |
+      vm.swappiness=10
+
   # sshd jail; systemd journal backend (no rsyslog on 24.04 cloud images).
   - path: /etc/fail2ban/jail.local
     permissions: "0644"
@@ -101,3 +130,11 @@ runcmd:
   # --- jail + patching services on ---
   - systemctl enable --now fail2ban
   - systemctl enable --now unattended-upgrades
+
+  # --- Bucket-2 pre-steps: 2 GB swapfile (mirror of phase2-host.sh) ---
+  - fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  - sysctl -q vm.swappiness=10
