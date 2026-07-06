@@ -1,0 +1,53 @@
+# Operational decisions digest
+
+> Slim ops-agent reference. **Canonical source = `CHARTER.md` (pinned-decisions table + buckets)** —
+> this page holds only the operational parameters an agent needs mid-task. Link, don't copy.
+> No secrets here: key **names** only; values live in gitignored `.env` / `inventory/secrets/`.
+
+## Naming
+
+- Apex domain: **`swordfish.cfd`** (Porkbun; auto-renew on; renewal $15.96/yr).
+- Boxes: region + ordinal → `syd1.swordfish.cfd`, `syd2.…`.
+- Services (flat, box-independent): `deploy.` (Dokploy) · `status.` (Uptime Kuma) · `metrics.` (Beszel).
+- B2 buckets: `swordfish-<box>-backups` (e.g. `swordfish-syd1-backups`).
+- **Public-name rule:** TLS hostnames land in CT logs and bucket names are global — the
+  guarded-token rule applies to every public infrastructure name. Neutral names only.
+
+## Backup parameters (Bucket 3 implements)
+
+- restic → B2, nightly systemd timer, encrypted.
+- Retention: `--keep-daily 7 --keep-weekly 4 --keep-monthly 6`.
+- B2: per-box bucket + bucket-scoped key; account region **us-west-004** (US West); ~30-day
+  file versioning as the delete/overwrite guard.
+- Restore drill: monthly (= the AGENTS.md rule-8 monthly pass); weekly scripted CI drill
+  arrives with Stage 2.
+
+## Access model
+
+- **CI-as-hands, 443-as-eyes** (outbound 22 blocked from founder network — probed 2026-07-07):
+  GHA runners execute box commands over SSH-22; laptop uses Vultr API / Dokploy UI+MCP /
+  provider HTTPS console; break-glass = phone hotspot. sshd stays on port 22.
+- SSH keypair: `~/.ssh/id_ed25519` (public key on the Vultr account as `swordfish-ops`).
+
+## Secrets model (v1)
+
+- On-box: compose secret-files (+ Dokploy env management for its stacks).
+- Laptop: gitignored `.env` holding `VULTR_API_KEY` · `PORKBUN_API_KEY` ·
+  `PORKBUN_SECRET_API_KEY` · `B2_APPLICATION_KEY_ID` · `B2_APPLICATION_KEY`.
+- Graduation: **Infisical deploys when box #2 goes live** (Stage 3 / Bucket 6).
+
+## Alerts
+
+- ntfy.sh push to founder's phone (random topic; self-host later if earned) +
+  UptimeRobot free email as the independent off-infra witness.
+
+## Budget
+
+- Stages 1–2 ceiling: **$30/mo gross**; every spend/resize still gates individually.
+- Account facts: Vultr validated with $250 credit; B2 free tier ≥ current needs;
+  domain is the only cash spent so far.
+
+## Probe (run anytime)
+
+`scripts/doctor.ps1` — 11 checks: toolchain, 443/22 state, domain DNS, all five key names.
+ASCII-only file (PS 5.1 parses it as ANSI — see header comment).
