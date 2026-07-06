@@ -191,6 +191,39 @@ provider's box rendered them.
 | OpenTofu | MPL-2.0 | IaC with state encryption | Bucket 8 |
 | Komodo | GPL-3.0 (run, not embedded) | Fleet-orchestration swap path | documented |
 
+## 11. Hermes Agent — assessed as a future dogfood workload, not a build tool
+
+[Hermes Agent](https://github.com/nousresearch/hermes-agent) (Nous Research, Feb 2026, MIT,
+~64k stars): open-source always-on AI agent — persistent memory, self-improving skills loop,
+40+ tools, OpenAI-compatible API, one gateway daemon serving Telegram/Discord/Slack/WhatsApp/
+Signal/email. Terminal backends: local shell, Docker, SSH, Modal/Daytona serverless.
+Min footprint ~1 vCPU / 2 GB + Docker + an LLM API key (ongoing spend).
+
+**Security reality:** its own docs say to treat it like SSH access. Skills are *not*
+sandboxed — they run with the agent's permissions, and the self-improving loop means an
+agent with shell access is a prompt-injection amplifier (messages/web content → skill →
+shell). There is a command-approval feature, but the design assumes a trusted environment.
+
+**Fit assessment:**
+
+- **During building: no.** Builds happen in Claude Code + CI; Hermes adds no hands there,
+  and an extra autonomous agent with chat/web channels holding portfolio context is an
+  anonymity-guard liability (same trust boundary as the wiki agent — names from outside are
+  guarded until proven otherwise).
+- **After launch: yes, as "eyes and voice" — never hands.** A phone-reachable ChatOps agent
+  over Telegram/443 fits the CI-as-hands/**443-as-eyes** model: "how's the box?" → reads
+  Beszel/Kuma/restic status, relays ntfy alerts, drafts runbook steps. Deployed *through
+  Dokploy* as a normal least-privilege container: **no docker socket, no host shell, no SSH
+  key** — read-only observability APIs + ntfy publish only. Hands stay CI + Dokploy MCP
+  behind founder gates.
+- **Portfolio angle:** each project could run its own instance on its own side (separation
+  of duties holds — Swordfish provisions the box, never wires the agent into their apps).
+  Also a candidate for the "Walter/vault service" dogfood slot.
+- **Timing:** it's a workload → invariants apply: nothing before Bucket-3 backups, and 2 GB
+  won't carry Dokploy + monitoring + Hermes — realistically post-Bucket-5 resize, with the
+  LLM API cost through an Approval Gate. **Parked on the dogfood roster; revisit at the
+  Bucket-4/5 checkpoint.**
+
 ## Sources (primary)
 
 - ufw bypass: [zeonedge.com](https://zeonedge.com/blog/ufw-docker-firewall-bypass-fix) · [chaifeng/ufw-docker](https://github.com/chaifeng/ufw-docker) · [Vultr firewall docs](https://docs.vultr.com/products/network/firewall)

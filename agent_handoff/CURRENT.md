@@ -13,6 +13,9 @@ _Stamped: 2026-07-07 (research/planning session, post-Bucket-1)_
   cloud layer). Headlines: stack choices all validated; one real gap = Docker bypasses ufw;
   2026 theme = CI supply-chain attacks (trivy-action compromise); Hetzner = no for syd1,
   yes for the Bucket-7 egress matrix; R2 = the artifact store, B2 stays backups.
+  Addendum §11: Hermes Agent (Nous Research) assessed — not a build tool; parked on the
+  dogfood roster as a post-resize "eyes and voice" ChatOps workload (least-privilege,
+  no socket/shell/SSH; revisit at the Bucket-4/5 checkpoint).
 - **Charter amended at the checkpoint** (founder-approved, see CHARTER.md
   "Checkpoint-1 amendments"): (1) Vultr firewall group = Bucket-2 pre-step; (2) no Ubuntu
   Pro — reboot window instead; (3) **new Bucket 1.5** (CI supply-chain: SHA-pin actions,
