@@ -28,8 +28,11 @@ jobs:
         run: |
           [ -n "$SSH_DEPLOY_KEY" ] || { echo "SSH_DEPLOY_KEY secret is not set"; exit 1; }
           mkdir -p ~/.ssh
-          printf '%s\n' "$SSH_DEPLOY_KEY" > ~/.ssh/id_ed25519
+          # strip CRs defensively: a secret pasted/piped from Windows once arrived
+          # CR-tainted and openssh fails it with "error in libcrypto" (2026-07-07)
+          printf '%s\n' "$SSH_DEPLOY_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null || { echo "secret does not parse as a private key"; exit 1; }
 
       - name: Wait for SSH (first boot can still be running)
         run: |
