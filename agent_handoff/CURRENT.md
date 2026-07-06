@@ -1,32 +1,35 @@
 # CURRENT — session handoff (one file, overwritten each wrap)
 
-_Stamped: 2026-07-07 01:05 +10:00_
+_Stamped: 2026-07-07 01:38 +10:00_
 
 ## State
 
-**CHARTER.md approved + written** (Prompt-1 session: orient → 10-item founder interview → charter).
-All interview items pinned — see the table in `CHARTER.md`. Key facts: box = Vultr Sydney
-`vhf-1c-2gb` $12/mo (account validated, $250 credit, SSH pubkey `swordfish-ops` uploaded);
-domain = `swordfish.cfd` (bought, DNS still propagating — NXDOMAIN at wrap); outbound port 22
-confirmed BLOCKED from founder's network → CI-as-hands/443-as-eyes model pinned; B2 = per-box
-bucket US West (account NOT yet opened); secrets = compose files v1, Infisical at box #2;
-alerts = ntfy + UptimeRobot; budget ceiling Stages 1–2 = $30/mo; dogfood workload = Swordfish's
-own monitoring stack via CI + Dokploy MCP. Known bug: `scripts/doctor.ps1` fails to parse under
-Windows PowerShell 5.1 (encoding) — fix is Bucket-0 scope. No box purchased; no spend beyond the
-domain; Vultr token + future B2 keys live in gitignored `.env`.
+**Bucket 0 COMPLETE — at its checkpoint awaiting founder review.** Charter approved earlier this
+session (`CHARTER.md`, commit 9428caf). Bucket-0 delivery (commit a33a197, CI green):
+`scripts/doctor.ps1` fixed (PS-5.1 ASCII/encoding parse bug) + hardened (key-presence now
+requires non-empty values; fast 3s TCP probes; new checks: outbound-22 state, `swordfish.cfd`
+resolution) — **11/11 PASS** on the founder's laptop; `inventory/decisions.md` operational
+digest created (links to CHARTER.md, no duplication, no secrets); planned `syd1.swordfish.cfd`
+row added to `inventory/boxes.md`.
+
+**Stage-0 accounts: ALL validated live.** Vultr (token OK, $250 credit, pubkey `swordfish-ops`
+uploaded) · Porkbun API (ping + per-domain DNS read OK) · B2 (auth OK, us-west-004, admin key
+has writeBuckets/writeKeys) · `swordfish.cfd` fully propagated (resolves even on the corporate
+resolver). Outbound 22 confirmed blocked → CI-as-hands model. pwsh 7 not installed on the
+laptop (PS 5.1 authoritative locally; CI runners have pwsh). No box, no spend beyond the domain.
 
 ## Next
 
-1. **Bucket 0** (Stage-0 close-out) on founder go: fix doctor.ps1 + extend probes; record pinned
-   decisions into `inventory/`; verify all-green.
-2. **[founder]** Open Backblaze B2 account — region **US West** — app key into `.env`
-   (placeholders already there). Optional: flip Porkbun API Access on + key into `.env`.
-3. Bucket 1 after Bucket-0 checkpoint: provisioning package. **Box purchase = Approval Gate —
-   do NOT create the instance until the founder clears it.**
+1. **Founder reviews the Bucket-0 checkpoint** → on go, **Bucket 1** (Stage 1a): cloud-init
+   (deploy user, key-only SSH, ufw, unattended-upgrades, fail2ban, Docker) + Vultr box-create
+   script + A-record + GHA hardening-smoke workflow. **Ends at the ⛔ $12/mo box-purchase
+   Approval Gate — do NOT create the instance without the founder's explicit approve.**
+2. Vault side: founder pastes the vault-sync block (chat, 01:33 stamp) into the wiki-agent
+   session — CHARTER.md landed → sync-operational-mirror + 5 filed deltas.
 
 ## Constraints in force
 
-No local Docker (CI + VPS only) · 443 is the reliable channel (port 22 confirmed blocked) ·
-zero guarded tokens in tracked files (guard before every commit; applies to hostnames/buckets
-too — they're public) · backups before workloads · Projects are 1/2/3 only · every spend is an
-Approval Gate · founder is the sole author (no AI attribution).
+No local Docker (CI + VPS only) · 443 is the reliable channel (22 blocked, probed) · zero
+guarded tokens in tracked files — extends to public names (CT logs, bucket names) · backups
+before workloads · Projects are 1/2/3 only · every spend is an Approval Gate · founder is the
+sole author (no AI attribution).
