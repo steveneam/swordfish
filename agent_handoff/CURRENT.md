@@ -26,19 +26,23 @@ pending (dead-man URL).** Backups now precede workloads (invariant satisfied):
 - Opportunistic seam landed: `provisioning/dns/` → `provisioning/porkbun/`, new
   `provisioning/b2/` (Checkpoint-2 amendment 6).
 
-## Bucket-3 gate: two founder actions, then closed
+## Bucket-3 gate: dead-man WIRED + TEST-FIRED (run 28855438740, 2026-07-07 19:20 +10)
 
-1. **healthchecks.io** (free tier): create account + a check named
-   `swordfish-syd1-backup` (period 1 day, grace 6 h) → then
-   `gh secret set HEALTHCHECKS_PING_URL --body <ping-url>` → re-dispatch
-   `backups-apply` with `test_deadman: true` → confirm the notification arrived.
-   (Until then hc-ping warns per run; backups themselves are unaffected.)
-2. **Password manager:** copy `inventory/secrets/restic-syd1.password` and
+healthchecks.io account created (founder), ping URL loaded as
+`HEALTHCHECKS_PING_URL`, `backups-apply` re-dispatched with `test_deadman: true`:
+success ping after a real backup, then /fail (check DOWN → email) + success
+(UP) — alert path exercised end-to-end. Remaining founder touches (UI-only,
+neither changes the ping URL):
+
+1. healthchecks.io: rename "My First Check" → `swordfish-syd1-backup`; set
+   **grace 1 h → 6 h** (1 h would false-alarm on a slow nightly); confirm the
+   DOWN/UP test emails arrived at the account inbox.
+2. **Password manager:** copy `inventory/secrets/restic-syd1.password` AND
    `inventory/secrets/b2-syd1-restic.env` founder-side — the repo password is
    unrecoverable and is the whole DR story.
 
-Timer's first natural fire = tonight 15:00 UTC (01:00 AEST); the dead-man
-witnesses it once the URL is set.
+Timer's first natural fire = tonight 15:00 UTC (01:00 AEST); healthchecks
+"Last Ping" will witness it (currently shows the test-fire pings).
 
 ## Next — Bucket-3 CHECKPOINT, then Bucket 4
 
