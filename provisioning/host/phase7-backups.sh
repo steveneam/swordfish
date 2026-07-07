@@ -20,7 +20,9 @@ RESTICPROFILE_VERSION=0.33.1
 RESTICPROFILE_SHA256=1d7027d15e3e2456e585a210f811d0f72ec40f6b3388f00425642ed579165d70  # no_self_update build
 BACKUP_DIR=/opt/swordfish/backup
 ETC=/etc/resticprofile
-PROFILE_NAME=syd1
+# per-box profile, named by the box's own short hostname (profiles.yaml carries
+# one profile per box in lockstep with this rule)
+PROFILE_NAME="${PROFILE_NAME:-$(hostname -s)}"
 
 changed=0
 note() { echo "$1"; }

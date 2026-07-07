@@ -24,6 +24,15 @@ on:
         required: false
         type: boolean
         default: false
+      install_ping_urls:
+        description: Install the dead-man ping URLs from repo secrets (set false for a parallel-run successor box until it has its OWN receivers - the secrets hold the incumbent box's URLs and sharing them makes acks ambiguous)
+        required: false
+        type: boolean
+        default: true
+      deploy_fqdn:
+        description: Control-plane FQDN the posture re-assert probes (parallel-run boxes carry a temp name until DNS cutover)
+        required: false
+        default: deploy.swordfish.cfd
 
 # this job holds the box SSH key - keep its GITHUB_TOKEN read-only so a
 # compromised step can't also write to the repo (Bucket 1.5 posture)
@@ -36,6 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HOST: ${{ inputs.host || 'syd1.swordfish.cfd' }}
+      DEPLOY_FQDN: ${{ inputs.deploy_fqdn || 'deploy.swordfish.cfd' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -70,6 +80,7 @@ jobs:
           RESTIC_B2_KEY: ${{ secrets.RESTIC_B2_KEY }}
           HC_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
           KUMA_URL: ${{ secrets.KUMA_PUSH_URL }}
+          INSTALL_PINGS: ${{ inputs.install_ping_urls }}
         run: |
           [ -n "$RESTIC_PASSWORD" ] || { echo "RESTIC_PASSWORD secret is not set"; exit 1; }
           { [ -n "$RESTIC_B2_KEY_ID" ] && [ -n "$RESTIC_B2_KEY" ]; } || { echo "RESTIC_B2_KEY_ID / RESTIC_B2_KEY secrets are not set"; exit 1; }
@@ -79,19 +90,23 @@ jobs:
             s 'sudo tee /etc/resticprofile/password.txt >/dev/null && sudo chmod 600 /etc/resticprofile/password.txt'
           printf 'B2_ACCOUNT_ID=%s\nB2_ACCOUNT_KEY=%s\n' "$RESTIC_B2_KEY_ID" "$RESTIC_B2_KEY" | tr -d '\r' | \
             s 'sudo tee /etc/resticprofile/b2.env >/dev/null && sudo chmod 600 /etc/resticprofile/b2.env'
-          if [ -n "$HC_URL" ]; then
-            printf '%s\n' "$HC_URL" | tr -d '\r' | \
-              s 'sudo tee /etc/resticprofile/hc-url >/dev/null && sudo chmod 600 /etc/resticprofile/hc-url'
-            echo "dead-man URL installed (healthchecks)"
+          if [ "$INSTALL_PINGS" != "true" ]; then
+            echo "SKIPPED: ping URLs not installed (install_ping_urls=false - parallel-run box gets its own receivers later; hc-ping warns per run until then)"
           else
-            echo "WARN: HEALTHCHECKS_PING_URL not set - off-infra dead-man ping stays dormant (hc-ping warns per run)"
-          fi
-          if [ -n "$KUMA_URL" ]; then
-            printf '%s\n' "$KUMA_URL" | tr -d '\r' | \
-              s 'sudo tee /etc/resticprofile/kuma-url >/dev/null && sudo chmod 600 /etc/resticprofile/kuma-url'
-            echo "dead-man URL installed (kuma push)"
-          else
-            echo "WARN: KUMA_PUSH_URL not set - on-infra dead-man ping stays dormant (hc-ping warns per run)"
+            if [ -n "$HC_URL" ]; then
+              printf '%s\n' "$HC_URL" | tr -d '\r' | \
+                s 'sudo tee /etc/resticprofile/hc-url >/dev/null && sudo chmod 600 /etc/resticprofile/hc-url'
+              echo "dead-man URL installed (healthchecks)"
+            else
+              echo "WARN: HEALTHCHECKS_PING_URL not set - off-infra dead-man ping stays dormant (hc-ping warns per run)"
+            fi
+            if [ -n "$KUMA_URL" ]; then
+              printf '%s\n' "$KUMA_URL" | tr -d '\r' | \
+                s 'sudo tee /etc/resticprofile/kuma-url >/dev/null && sudo chmod 600 /etc/resticprofile/kuma-url'
+              echo "dead-man URL installed (kuma push)"
+            else
+              echo "WARN: KUMA_PUSH_URL not set - on-infra dead-man ping stays dormant (hc-ping warns per run)"
+            fi
           fi
           echo "secrets installed"
 
@@ -118,13 +133,15 @@ jobs:
 
       - name: First real backup (end-to-end, fires the dead-man ping)
         run: |
+          BOX="${HOST%%.*}"
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
-              "deploy@$HOST" 'sudo resticprofile -c /etc/resticprofile/profiles.yaml --name syd1 backup'
+              "deploy@$HOST" "sudo resticprofile -c /etc/resticprofile/profiles.yaml --name $BOX backup"
 
       - name: Evidence - snapshots + timers
         run: |
+          BOX="${HOST%%.*}"
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
-              "deploy@$HOST" 'sudo resticprofile -c /etc/resticprofile/profiles.yaml --name syd1 snapshots && systemctl list-timers "resticprofile-*" --no-pager'
+              "deploy@$HOST" "sudo resticprofile -c /etc/resticprofile/profiles.yaml --name $BOX snapshots && systemctl list-timers 'resticprofile-*' --no-pager"
 
       - name: Test-fire dead-man alert (opt-in input)
         if: ${{ inputs.test_deadman }}
@@ -138,4 +155,4 @@ jobs:
       - name: Re-assert full hardening posture
         run: |
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
-              "deploy@$HOST" 'bash -s' < provisioning/checks/assert-hardening.sh
+              "deploy@$HOST" "DEPLOY_FQDN=$DEPLOY_FQDN bash -s" < provisioning/checks/assert-hardening.sh

@@ -1,8 +1,11 @@
 # yaml-language-server: $schema=https://creativeprojects.github.io/resticprofile/jsonschema/config.json
 #
-# resticprofile config for syd1 - nightly restic -> B2, encrypted (CHARTER pinned
+# resticprofile config - nightly restic -> B2, encrypted (CHARTER pinned
 # decision 5; runbook: runbooks/backup-restore.md). Shipped to
 # /etc/resticprofile/profiles.yaml by backups-apply + phase7-backups.sh.
+# PER-BOX PROFILES: one profile per box, named by `hostname -s` (phase7 selects
+# it that way); boxes differ only in their bucket - everything else inherits
+# from syd1 so retention/schedule/hook policy can never drift between boxes.
 #
 # Secrets stay OUT of this file (0600 root, written by backups-apply from repo secrets):
 #   /etc/resticprofile/password.txt  repo password (founder-held copy = the DR key)
@@ -61,3 +64,9 @@ syd1:
     schedule: "Sat *-*-* 17:00:00"
     schedule-permission: system
     schedule-lock-wait: 15m
+
+# syd2 (Bucket 5, Stage-2 shared box): same policy, its own bucket
+# (per-box bucket + bucket-scoped key = blast-radius isolation, decision 6)
+syd2:
+  inherit: syd1
+  repository: "b2:swordfish-syd2-backups:restic"
