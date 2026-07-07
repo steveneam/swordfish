@@ -111,6 +111,8 @@ check "sockets: proxies+dokploy only"    "! docker ps -q | xargs -r -n1 docker i
 check "backups: dogfood dump hook"       "sudo test -x /etc/resticprofile/pre-backup.d/20-dogfood-sqlite-dumps"
 check "backups: sqlite3 for dump hook"   "command -v sqlite3"
 check "backups: kuma-url 0600 root"      "sudo stat -c '%a %U' /etc/resticprofile/kuma-url | grep -qx '600 root'"
+check "dogfood: hello running"           "docker ps --filter name=swordfish-hello --format '{{.Status}}' | grep -q '^Up'"
+check "dogfood: hello route live"        "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve hello.swordfish.cfd:443:127.0.0.1 https://hello.swordfish.cfd | grep -qE '^(200|30[128])$'"
 check "dogfood: status route live"       "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve status.swordfish.cfd:443:127.0.0.1 https://status.swordfish.cfd | grep -qE '^(200|30[128])$'"
 check "dogfood: metrics route live"      "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve metrics.swordfish.cfd:443:127.0.0.1 https://metrics.swordfish.cfd | grep -qE '^(200|30[128])$'"
 check "edge: ratelimit middleware defined" "sudo grep -q 'swordfish-ratelimit' /etc/dokploy/traefik/dynamic/50-swordfish-hardening.yml"
