@@ -118,8 +118,13 @@ fi
 # --- 4. bootstrap route: deploy.swordfish.cfd -> dokploy:3000 ------------------
 # Shape mirrors dokploy's updateServerTraefik() exactly, so when the founder sets
 # Server Domain in the UI dokploy rewrites this file to the same content (no-op
-# handover). Only written while it is missing or still the stock localhost stub.
-if [ ! -f "$DYN/dokploy.yml" ] || sudo grep -q 'docker.localhost' "$DYN/dokploy.yml"; then
+# handover). Written when missing, still the stock localhost stub, OR missing the
+# websecure router: saving Server Domain with the HTTPS toggle off makes dokploy
+# DELETE dokploy-router-app-secure - with 3000 unpublished that 404s the UI with
+# no recovery path except this converge (locked the founder out live, 2026-07-07).
+# The control plane staying reachable over TLS is an invariant this enforces.
+if [ ! -f "$DYN/dokploy.yml" ] || sudo grep -q 'docker.localhost' "$DYN/dokploy.yml" \
+   || ! sudo grep -q 'dokploy-router-app-secure' "$DYN/dokploy.yml"; then
     sudo tee "$DYN/dokploy.yml" >/dev/null <<EOF
 http:
   routers:

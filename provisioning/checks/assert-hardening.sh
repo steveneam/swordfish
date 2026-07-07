@@ -76,6 +76,7 @@ check "ports: only traefik on 0.0.0.0"   "! docker ps --format '{{.Names}} {{.Po
 check "ports: traefik only 80/443"       "! docker ps --filter name=swordfish-traefik --format '{{.Ports}}' | tr ',' '\n' | grep -E '(0\.0\.0\.0|\[::\]):' | grep -vE ':(80|443)->'"
 check "edge: 80 redirects to https"      "curl -s -o /dev/null -w '%{http_code}' --max-time 10 --resolve deploy.swordfish.cfd:80:127.0.0.1 http://deploy.swordfish.cfd | grep -qE '^30(1|8)$'"
 check "edge: 443 answers TLS (SNI)"      "curl -sk --max-time 10 --resolve deploy.swordfish.cfd:443:127.0.0.1 https://deploy.swordfish.cfd -o /dev/null"
+check "edge: dokploy route live (no 404)" "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve deploy.swordfish.cfd:443:127.0.0.1 https://deploy.swordfish.cfd | grep -qE '^(200|30[128])$'"
 check "edge: acme storage 0600"          "sudo stat -c %a /etc/dokploy/traefik/dynamic/acme.json | grep -qx 600"
 check "dokploy: service 1/1"             "docker service ls --format '{{.Name}} {{.Replicas}}' | grep -q '^dokploy 1/1'"
 check "dokploy: postgres 1/1"            "docker service ls --format '{{.Name}} {{.Replicas}}' | grep -q '^dokploy-postgres 1/1'"
