@@ -1,11 +1,11 @@
 # CURRENT — session handoff (one file, overwritten each wrap)
 
-_Stamped: 2026-07-07 19:15 +10:00 (Bucket 3 built + executed — backups live, restore drill green)_
+_Stamped: 2026-07-07 19:30 +10:00 (Bucket 3 COMPLETE — gate closed, founder confirmations on record)_
 
 ## State
 
-**Bucket 3 BUILT AND VERIFIED on the box — checkpoint open, one founder action
-pending (dead-man URL).** Backups now precede workloads (invariant satisfied):
+**Bucket 3 COMPLETE (gate closed 2026-07-07 19:30 +10).** Backups precede
+workloads (invariant satisfied):
 
 - B2: `swordfish-syd1-backups` (US West, private, 30-day version retention) +
   bucket-scoped key — created + idempotency-verified by
@@ -26,23 +26,18 @@ pending (dead-man URL).** Backups now precede workloads (invariant satisfied):
 - Opportunistic seam landed: `provisioning/dns/` → `provisioning/porkbun/`, new
   `provisioning/b2/` (Checkpoint-2 amendment 6).
 
-## Bucket-3 gate: dead-man WIRED + TEST-FIRED (run 28855438740, 2026-07-07 19:20 +10)
+## Bucket-3 gate: CLOSED (founder confirmations 2026-07-07 19:30 +10)
 
-healthchecks.io account created (founder), ping URL loaded as
-`HEALTHCHECKS_PING_URL`, `backups-apply` re-dispatched with `test_deadman: true`:
-success ping after a real backup, then /fail (check DOWN → email) + success
-(UP) — alert path exercised end-to-end. Remaining founder touches (UI-only,
-neither changes the ping URL):
+- Dead-man wired + test-fired (run 28855438740): success ping after a real
+  backup, /fail → DOWN email, success → UP email — **founder confirmed both
+  emails received**.
+- healthchecks check renamed `swordfish-syd1-backup`, grace set 6 h (founder).
+- **Founder saved both DR secrets to the password manager** (restic repo
+  password + B2 scoped key).
 
-1. healthchecks.io: rename "My First Check" → `swordfish-syd1-backup`; set
-   **grace 1 h → 6 h** (1 h would false-alarm on a slow nightly); confirm the
-   DOWN/UP test emails arrived at the account inbox.
-2. **Password manager:** copy `inventory/secrets/restic-syd1.password` AND
-   `inventory/secrets/b2-syd1-restic.env` founder-side — the repo password is
-   unrecoverable and is the whole DR story.
-
-Timer's first natural fire = tonight 15:00 UTC (01:00 AEST); healthchecks
-"Last Ping" will witness it (currently shows the test-fire pings).
+Only unwitnessed event left: the first *natural* timer fire, tonight 15:00 UTC
+(01:00 AEST) — the dead-man now guards exactly that; healthchecks "Last Ping"
+tomorrow is the confirmation. No action needed unless it alerts.
 
 ## Next — Bucket-3 CHECKPOINT, then Bucket 4
 
