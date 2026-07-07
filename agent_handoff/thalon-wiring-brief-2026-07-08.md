@@ -43,12 +43,33 @@ addendum 2"). This brief is what you need to be ready for wiring, expected to op
    (a path inside `THALON_DATA_DIR` is easiest — it's already in the backup set), and
    rough duration/size. Our `pre-backup.d` will call it before the 15:00 UTC snapshot;
    raw live-DB files stay OUT of the snapshot (dump-before-snapshot invariant).
-5. **Who flips `thalon.org` DNS** (registrar access is founder/Thalon-side): the records
-   are an A `@` → `103.249.236.41` + `www` per your 301 plan. Sequence matters for TLS:
-   we create the domains in Dokploy BEFORE the first deploy, then DNS points at syd2,
-   then certs issue on first hit (Let's Encrypt TLS-ALPN; takes a minute or two).
+5. **Who flips `thalon.org` DNS** (registrar access is founder/Thalon-side) — now
+   **launch-gated, see "Stealth mode" below**: the records are an A `@` →
+   `103.249.236.41` + `www` per your 301 plan, but they are NOT created at wiring time.
+   Sequence at launch: domains exist in Dokploy → DNS points at syd2 → certs issue on
+   first hit (Let's Encrypt TLS-ALPN; takes a minute or two).
 6. **Env var list** you'll need day-one (gateway key, site URL, seam selections) — you
    set these yourself via the Dokploy env surface once you hold the credential.
+
+## Stealth mode until launch (founder call, 2026-07-08)
+
+Thalon is still building, so `thalon.org` stays **unwired** until the launch call:
+
+- **Why unwired beats hidden-behind-auth:** the moment a TLS certificate is issued for
+  `thalon.org`, the hostname is published to Certificate Transparency logs — permanently
+  and enumerably. No edge auth can undo that. Deferring DNS + cert means no CT entry,
+  no reverse-IP linkage, no public trace at all. The founder's co-location acceptance
+  simply activates at launch instead of at wiring.
+- **Interim:** `thalon-web` deploys and is fully testable behind a **neutral staging
+  hostname on `swordfish.cfd`** (functional name, nothing publicly Thalon-linked), with
+  edge **BasicAuth** + **`X-Robots-Tag: noindex, nofollow`** on that router. The founder
+  holds the preview credentials. Your own workspace auth gate stacks on top —
+  defense in depth, and yours stays the layer that matters at launch.
+- **Launch is cheap:** one API call adds the `thalon.org` + `www` domains to the same
+  application, founder flips DNS, certs issue in minutes, staging BasicAuth drops.
+  Nothing redeploys; the app doesn't move.
+- Ask-back for you: make sure the app derives its public origin from an env var
+  (site URL / canonical base), so staging→launch is an env change, not a build.
 
 ## Operating notes worth knowing (learned on this box, so you don't relearn)
 

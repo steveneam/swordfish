@@ -1,16 +1,24 @@
-# Dogfood workloads (Bucket 4)
+# Dogfood workloads (Bucket 4; replayed on syd2 at Bucket 5)
 
-Uptime Kuma (`status.`) + Beszel (`metrics.`) + hello (`hello.`) on syd1 —
-Dokploy project **swordfish**, deployed and operated **through the Dokploy MCP
-from Claude Code** (the AI-operability test, CHARTER pinned decision 10).
+Uptime Kuma (`status.`) + Beszel (`metrics.`) + hello (`hello.`) — Dokploy
+project **swordfish**, first deployed on syd1 **through the Dokploy MCP from
+Claude Code** (the AI-operability test, CHARTER pinned decision 10), replayed
+on syd2 2026-07-08 **through the raw Dokploy REST API** (`x-api-key` header;
+same procedures, MCP tool name ↔ `router.procedure` endpoint 1:1 — the
+portability proof for the integration-surface ruling).
 
 ## Source of truth + apply channel
 
-| service | tracked file | Dokploy composeId | live at |
+syd2 IDs (current box; syd1 rows below it retire at cutover):
+
+| service | tracked file | Dokploy id (syd2) | live at |
 |---|---|---|---|
-| status (Uptime Kuma 2.4.0-rootless) | `compose/status/compose.yaml` | `5h4OEMKIBVnmSqzMy_TtH` | https://status.swordfish.cfd |
-| metrics (Beszel 0.18.7 hub+agent+socket-proxy) | `compose/metrics/compose.yaml` | `koQq7S1xUJgfR7yQEZ4ij` | https://metrics.swordfish.cfd |
-| hello (deploy receipt, `apps/hello/`) | Dokploy application, applicationId `wtPRsmmiQ_yJRVKTjCXuq` (appName `swordfish-hello-vfvt10`) | — | https://hello.swordfish.cfd |
+| status (Uptime Kuma 2.4.0-rootless) | `compose/status/compose.yaml` | composeId `LozRPFJ8LCLK88hvc7ke5` | status.swordfish.cfd (pre-cutover: status2.) |
+| metrics (Beszel 0.18.7 hub+agent+socket-proxy) | `compose/metrics/compose.yaml` | composeId `1PiSAb1dg6TiRGw9X1C4Q` | metrics.swordfish.cfd (pre-cutover: metrics2.) |
+| hello (deploy receipt, `apps/hello/`) | Dokploy application, applicationId `-a2FMiW1gq30KstVf37w6` (appName `swordfish-hello-ksv6id`) | — | hello.swordfish.cfd |
+
+syd1 (frozen, retires at cutover): status `5h4OEMKIBVnmSqzMy_TtH` · metrics
+`koQq7S1xUJgfR7yQEZ4ij` · hello `wtPRsmmiQ_yJRVKTjCXuq` (`swordfish-hello-vfvt10`).
 
 Change protocol: edit the tracked compose → `compose-update` (composeFile) →
 `compose-deploy` via MCP. Never edit in the Dokploy UI — the repo copy wins at
@@ -31,6 +39,11 @@ Their state is in the nightly backup set as SQLite dumps (`20-dogfood-sqlite-dum
   `composeFile` — immediately `compose-update` it to `raw` or deploys fail.
 - `appName` gets a random suffix at create and is **immutable after** —
   container/volume names carry it (recorded in each compose header).
+  **Pass an `appName` base at `application.create`** (learned syd2 replay,
+  2026-07-08): omit it and Dokploy generates a fully random name
+  (`app-navigate-1080p-...`) that breaks the `swordfish-hello` container
+  assertion; pass `appName: swordfish-hello` and Dokploy keeps the base +
+  adds its suffix. The posture assertion enforces the convention.
 - Compose domains are implemented as **injected Traefik labels** (see
   `compose-getConvertedCompose`), not dynamic files — a domain change needs a
   redeploy to take effect; Traefik sees the labels via the edge socket-proxy.
