@@ -22,6 +22,7 @@
 #   - monitorList / notificationList arrive as server-push events right after
 #     login, not as call results - register handlers BEFORE logging in
 
+import os
 import secrets
 import sys
 import time
@@ -30,7 +31,14 @@ from pathlib import Path
 import requests
 import socketio
 
-BASE = "https://status.swordfish.cfd"
+# Box-relative since the Bucket-5 migration: KUMA_BASE overrides the target
+# (pre-cutover the successor's Kuma lives at a temp neutral name, e.g.
+# https://status2.swordfish.cfd); BOX names the push monitor. Defaults track
+# the CURRENT box (syd2) - syd1's instance is converged and frozen, do not
+# re-run against it. Admin password + ntfy topic deliberately carry over:
+# the service identity graduates with the box.
+BASE = os.environ.get("KUMA_BASE", "https://status.swordfish.cfd")
+BOX = os.environ.get("BOX", "syd2")
 USER = "swordfish"
 REPO = Path(__file__).resolve().parents[2]
 SEC = REPO / "inventory" / "secrets"
@@ -134,7 +142,7 @@ def main():
         "accepted_statuscodes": ["200-299"], "notificationIDList": {}, "conditions": [],
     }
     push_id = ensure_monitor({
-        "type": "push", "name": "swordfish-syd1-backup",
+        "type": "push", "name": f"swordfish-{BOX}-backup",
         "interval": 108000, "retryInterval": 3600, "maxretries": 0, **base_fields,
     })
     http_ids = [ensure_monitor({

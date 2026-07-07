@@ -46,9 +46,10 @@ jobs:
 
       - name: Collect box evidence (journal + service state + timers)
         run: |
-          remote="sudo journalctl -u resticprofile-backup@profile-syd1.service --since '$SINCE' --no-pager"
+          BOX="${HOST%%.*}"
+          remote="sudo journalctl -u resticprofile-backup@profile-$BOX.service --since '$SINCE' --no-pager"
           remote="$remote; echo '--- service ---'"
-          remote="$remote; sudo systemctl show resticprofile-backup@profile-syd1.service -p ExecMainStatus -p ExecMainExitTimestamp"
+          remote="$remote; sudo systemctl show resticprofile-backup@profile-$BOX.service -p ExecMainStatus -p ExecMainExitTimestamp"
           remote="$remote; echo '--- timers ---'"
           remote="$remote; sudo systemctl list-timers 'resticprofile-*' --no-pager || true"
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o BatchMode=yes \

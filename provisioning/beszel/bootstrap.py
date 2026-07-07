@@ -13,13 +13,21 @@
 #   - the syd1 system record (host "agent" = the compose service DNS name on
 #     the internal agent network, port 45876)
 
+import os
 import secrets
 import sys
 from pathlib import Path
 
 import requests
 
-BASE = "https://metrics.swordfish.cfd"
+# Box-relative since the Bucket-5 migration: BESZEL_BASE overrides the target
+# (pre-cutover the successor's hub lives at a temp neutral name, e.g.
+# https://metrics2.swordfish.cfd); BOX names the system record. Defaults track
+# the CURRENT box (syd2) - syd1's hub is converged and frozen. Admin creds
+# carry over (service identity graduates with the box); the hub KEY does not -
+# a fresh hub mints a new keypair, so BESZEL_AGENT_KEY must be re-saved.
+BASE = os.environ.get("BESZEL_BASE", "https://metrics.swordfish.cfd")
+BOX = os.environ.get("BOX", "syd2")
 EMAIL = "ops@swordfish.cfd"
 REPO = Path(__file__).resolve().parents[2]
 SEC = REPO / "inventory" / "secrets"
@@ -58,15 +66,15 @@ def main():
     r = s.get(BASE + "/api/collections/systems/records", timeout=15)
     r.raise_for_status()
     systems = {rec["name"]: rec for rec in r.json()["items"]}
-    if "syd1" in systems:
-        rec = systems["syd1"]
-        print(f"system exists: syd1 (status {rec['status']})")
+    if BOX in systems:
+        rec = systems[BOX]
+        print(f"system exists: {BOX} (status {rec['status']})")
     else:
         r = s.post(BASE + "/api/collections/systems/records",
-                   json={"name": "syd1", "host": "agent", "port": "45876",
+                   json={"name": BOX, "host": "agent", "port": "45876",
                          "users": [user_id], "status": "pending"}, timeout=15)
         r.raise_for_status()
-        print("system created: syd1")
+        print(f"system created: {BOX}")
     print("REMINDER: if the hub key changed, save BESZEL_AGENT_KEY in the Dokploy")
     print("metrics service env + redeploy (compose/metrics/compose.yaml header)")
 
