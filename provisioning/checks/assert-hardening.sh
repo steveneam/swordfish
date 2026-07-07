@@ -83,7 +83,10 @@ check "ports: only traefik on 0.0.0.0"   "! docker ps --format '{{.Names}} {{.Po
 check "ports: traefik only 80/443"       "! docker ps --filter name=swordfish-traefik --format '{{.Ports}}' | tr ',' '\n' | grep -E '(0\.0\.0\.0|\[::\]):' | grep -vE ':(80|443)->'"
 check "edge: 80 redirects to https"      "curl -s -o /dev/null -w '%{http_code}' --max-time 10 --resolve $DEPLOY_FQDN:80:127.0.0.1 http://$DEPLOY_FQDN | grep -qE '^30(1|8)$'"
 check "edge: 443 answers TLS (SNI)"      "curl -sk --max-time 10 --resolve $DEPLOY_FQDN:443:127.0.0.1 https://$DEPLOY_FQDN -o /dev/null"
-check "edge: dokploy route live (no 404)" "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve $DEPLOY_FQDN:443:127.0.0.1 https://$DEPLOY_FQDN | grep -qE '^(200|30[128])$'"
+# accepted 30x includes 307: a FRESH dokploy answers with a 307 to /register
+# (observed live on syd2 first boot, 2026-07-08) - the check's intent is
+# "app answers through the route", not "already initialized"
+check "edge: dokploy route live (no 404)" "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve $DEPLOY_FQDN:443:127.0.0.1 https://$DEPLOY_FQDN | grep -qE '^(200|30[1278])$'"
 check "edge: acme storage 0600"          "sudo stat -c %a /etc/dokploy/traefik/dynamic/acme.json | grep -qx 600"
 check "dokploy: service 1/1"             "docker service ls --format '{{.Name}} {{.Replicas}}' | grep -q '^dokploy 1/1'"
 check "dokploy: postgres 1/1"            "docker service ls --format '{{.Name}} {{.Replicas}}' | grep -q '^dokploy-postgres 1/1'"
@@ -119,9 +122,9 @@ check "backups: dogfood dump hook"       "sudo test -x /etc/resticprofile/pre-ba
 check "backups: sqlite3 for dump hook"   "command -v sqlite3"
 check "backups: kuma-url 0600 root"      "sudo stat -c '%a %U' /etc/resticprofile/kuma-url | grep -qx '600 root'"
 check "dogfood: hello running"           "docker ps --filter name=swordfish-hello --format '{{.Status}}' | grep -q '^Up'"
-check "dogfood: hello route live"        "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve hello.swordfish.cfd:443:127.0.0.1 https://hello.swordfish.cfd | grep -qE '^(200|30[128])$'"
-check "dogfood: status route live"       "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve status.swordfish.cfd:443:127.0.0.1 https://status.swordfish.cfd | grep -qE '^(200|30[128])$'"
-check "dogfood: metrics route live"      "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve metrics.swordfish.cfd:443:127.0.0.1 https://metrics.swordfish.cfd | grep -qE '^(200|30[128])$'"
+check "dogfood: hello route live"        "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve hello.swordfish.cfd:443:127.0.0.1 https://hello.swordfish.cfd | grep -qE '^(200|30[1278])$'"
+check "dogfood: status route live"       "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve status.swordfish.cfd:443:127.0.0.1 https://status.swordfish.cfd | grep -qE '^(200|30[1278])$'"
+check "dogfood: metrics route live"      "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve metrics.swordfish.cfd:443:127.0.0.1 https://metrics.swordfish.cfd | grep -qE '^(200|30[1278])$'"
 check "edge: ratelimit middleware defined" "sudo grep -q 'swordfish-ratelimit' /etc/dokploy/traefik/dynamic/50-swordfish-hardening.yml"
 
 echo "== $((total - fails))/$total assertions pass"
