@@ -98,5 +98,22 @@ check "backups: weekly check timer"      "systemctl is-enabled --quiet resticpro
 check "backups: weekly prune timer"      "systemctl is-enabled --quiet resticprofile-prune@profile-syd1.timer"
 check "backups: repo live, >=1 snapshot" "sudo resticprofile -c /etc/resticprofile/profiles.yaml --name syd1 snapshots --json | grep -q short_id"
 
+# dogfood workloads (Bucket 4; tracked in compose/status + compose/metrics,
+# deployed via the Dokploy MCP - the AI-operability surface). Container names
+# carry Dokploy-generated compose-project suffixes, so match by fragment.
+check "dogfood: kuma healthy"            "docker ps --filter name=kuma --format '{{.Status}}' | grep -q '(healthy)'"
+check "dogfood: beszel hub running"      "docker ps --filter name=beszel-1 --format '{{.Status}}' | grep -q '^Up'"
+check "dogfood: beszel agent running"    "docker ps --filter name=agent-1 --format '{{.Status}}' | grep -q '^Up'"
+# the box-wide socket invariant: the raw docker socket is mounted ONLY into
+# tecnativa socket-proxies and the Dokploy control plane itself - an app
+# container holding the socket = a box compromise waiting for an app CVE
+check "sockets: proxies+dokploy only"    "! docker ps -q | xargs -r -n1 docker inspect -f '{{.Name}} {{range .Mounts}}{{.Source}} {{end}}' | grep docker.sock | grep -vE 'socket-proxy|^/dokploy\.'"
+check "backups: dogfood dump hook"       "sudo test -x /etc/resticprofile/pre-backup.d/20-dogfood-sqlite-dumps"
+check "backups: sqlite3 for dump hook"   "command -v sqlite3"
+check "backups: kuma-url 0600 root"      "sudo stat -c '%a %U' /etc/resticprofile/kuma-url | grep -qx '600 root'"
+check "dogfood: status route live"       "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve status.swordfish.cfd:443:127.0.0.1 https://status.swordfish.cfd | grep -qE '^(200|30[128])$'"
+check "dogfood: metrics route live"      "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve metrics.swordfish.cfd:443:127.0.0.1 https://metrics.swordfish.cfd | grep -qE '^(200|30[128])$'"
+check "edge: ratelimit middleware defined" "sudo grep -q 'swordfish-ratelimit' /etc/dokploy/traefik/dynamic/50-swordfish-hardening.yml"
+
 echo "== $((total - fails))/$total assertions pass"
 [ "$fails" -eq 0 ]
