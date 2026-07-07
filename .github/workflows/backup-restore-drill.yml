@@ -1,0 +1,88 @@
+name: backup-restore-drill
+
+# THE monthly pass (AGENTS.md rule 8; CHARTER Bucket 3): restore the latest
+# snapshot from B2 onto a fresh runner - deliberately WITHOUT touching the box -
+# proving the CI secrets + the encrypted repo alone are enough to get the data
+# back after total box loss. Measures RTO (timed restore) and RPO (age of the
+# restored snapshot), then verifies restored CONTENT, not just exit codes.
+# Record each run in runbooks/backup-restore.md.
+# Requires repo secrets RESTIC_PASSWORD, RESTIC_B2_KEY_ID, RESTIC_B2_KEY.
+# No SSH key needed - this workflow never contacts the box.
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: restic repository
+        required: false
+        default: "b2:swordfish-syd1-backups:restic"
+
+permissions:
+  contents: read
+
+jobs:
+  drill:
+    name: restore latest snapshot on the runner
+    runs-on: ubuntu-latest
+    env:
+      RESTIC_REPOSITORY: ${{ inputs.repository || 'b2:swordfish-syd1-backups:restic' }}
+      RESTIC_PASSWORD: ${{ secrets.RESTIC_PASSWORD }}
+      B2_ACCOUNT_ID: ${{ secrets.RESTIC_B2_KEY_ID }}
+      B2_ACCOUNT_KEY: ${{ secrets.RESTIC_B2_KEY }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install restic at the box pin (read from phase7-backups.sh - one source of truth)
+        run: |
+          ver=$(grep -m1 '^RESTIC_VERSION=' provisioning/host/phase7-backups.sh | cut -d= -f2)
+          sum=$(grep -m1 '^RESTIC_SHA256=' provisioning/host/phase7-backups.sh | cut -d= -f2)
+          curl -fsSL -o restic.bz2 "https://github.com/restic/restic/releases/download/v${ver}/restic_${ver}_linux_amd64.bz2"
+          echo "$sum  restic.bz2" | sha256sum -c -
+          bunzip2 restic.bz2
+          chmod +x restic && sudo mv restic /usr/local/bin/restic
+          restic version
+
+      - name: Repository integrity check (metadata)
+        run: restic check
+
+      - name: Timed restore (RTO) + snapshot age (RPO)
+        run: |
+          t0=$(date +%s)
+          restic restore latest --target ./drill-restore
+          rto=$(( $(date +%s) - t0 ))
+          snap_json=$(restic snapshots latest --json)
+          snap_id=$(echo "$snap_json"   | jq -r '.[0].short_id')
+          snap_time=$(echo "$snap_json" | jq -r '.[0].time')
+          rpo_h=$(( ( $(date +%s) - $(date -d "$snap_time" +%s) ) / 3600 ))
+          files=$(find drill-restore -type f | wc -l)
+          size=$(du -sh drill-restore | cut -f1)
+          {
+            echo "## Restore drill"
+            echo "- snapshot: \`$snap_id\` taken $snap_time"
+            echo "- RTO (B2 -> runner, full latest snapshot): ${rto}s"
+            echo "- RPO (snapshot age at drill): ${rpo_h}h (nightly cadence: worst case ~24h)"
+            echo "- restored: $files files, $size"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify restored content (files, not exit codes)
+        run: |
+          f() { [ -e "drill-restore$1" ] || { echo "FAIL: missing $1"; exit 1; }; }
+          f /etc/dokploy/traefik/traefik.yml
+          f /etc/dokploy/traefik/dynamic/acme.json
+          f /var/backups/swordfish/dokploy-postgres.sql.gz
+          f /opt/swordfish/edge/compose.yaml
+          # the control-plane dump must be an intact, real pg_dump
+          gunzip -t drill-restore/var/backups/swordfish/dokploy-postgres.sql.gz
+          zcat drill-restore/var/backups/swordfish/dokploy-postgres.sql.gz | head -5 | grep -q 'PostgreSQL database dump'
+          # the restored edge config must match what the repo says the box runs -
+          # a mismatch means either backup staleness or unconverged box drift,
+          # and the monthly pass is exactly where that should surface
+          cmp drill-restore/etc/dokploy/traefik/traefik.yml compose/edge/traefik/traefik.yml
+          cmp drill-restore/opt/swordfish/edge/compose.yaml compose/edge/compose.yaml
+          echo "PASS: restored content verified (format + repo cross-check)"
+
+      - name: Cleanup restored data
+        if: always()
+        run: rm -rf drill-restore

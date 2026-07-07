@@ -83,5 +83,20 @@ check "dokploy: postgres 1/1"            "docker service ls --format '{{.Name}} 
 check "dokploy: redis 1/1"               "docker service ls --format '{{.Name}} {{.Replicas}}' | grep -q '^dokploy-redis 1/1'"
 check "dokploy: image at pin"            "docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' | grep -q 'dokploy/dokploy:v0.29.10'"
 
+# backups (Bucket 3; converged by provisioning/host/phase7-backups.sh +
+# provisioning/backup/ via backups-apply.yml - keep pins/names in lockstep).
+# The snapshot check talks to B2 live: this smoke IS the standing verification
+# that backups exist, not just that the machinery is installed.
+check "restic: binary at pin"            "restic version | grep -q 'restic 0.19.1 '"
+check "resticprofile: binary at pin"     "resticprofile version | grep -q 'version 0.33.1'"
+check "backups: profiles.yaml present"   "sudo test -s /etc/resticprofile/profiles.yaml"
+check "backups: repo password 0600 root" "sudo stat -c '%a %U' /etc/resticprofile/password.txt | grep -qx '600 root'"
+check "backups: b2 key 0600 root"        "sudo stat -c '%a %U' /etc/resticprofile/b2.env | grep -qx '600 root'"
+check "backups: dokploy-pg dump hook"    "sudo test -x /etc/resticprofile/pre-backup.d/10-dokploy-postgres-dump"
+check "backups: nightly backup timer"    "systemctl is-enabled --quiet resticprofile-backup@profile-syd1.timer"
+check "backups: weekly check timer"      "systemctl is-enabled --quiet resticprofile-check@profile-syd1.timer"
+check "backups: weekly prune timer"      "systemctl is-enabled --quiet resticprofile-prune@profile-syd1.timer"
+check "backups: repo live, >=1 snapshot" "sudo resticprofile -c /etc/resticprofile/profiles.yaml --name syd1 snapshots --json | grep -q short_id"
+
 echo "== $((total - fails))/$total assertions pass"
 [ "$fails" -eq 0 ]

@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=https://creativeprojects.github.io/resticprofile/jsonschema/config.json
+#
+# resticprofile config for syd1 - nightly restic -> B2, encrypted (CHARTER pinned
+# decision 5; runbook: runbooks/backup-restore.md). Shipped to
+# /etc/resticprofile/profiles.yaml by backups-apply + phase7-backups.sh.
+#
+# Secrets stay OUT of this file (0600 root, written by backups-apply from repo secrets):
+#   /etc/resticprofile/password.txt  repo password (founder-held copy = the DR key)
+#   /etc/resticprofile/b2.env        bucket-scoped B2 key (B2_ACCOUNT_ID/B2_ACCOUNT_KEY)
+#   /etc/resticprofile/hc-url        healthchecks.io ping URL (dead-man's switch)
+#
+# All times UTC (the box clock is UTC). Nightly backup 15:00 = 01:00 AEST /
+# 02:00 AEDT pre-dawn Sydney; prune Sat + check Sun 17:00; all clear of the
+# 18:30 unattended-upgrades reboot window (phase2-host.sh).
+
+version: "1"
+
+syd1:
+  repository: "b2:swordfish-syd1-backups:restic"
+  password-file: /etc/resticprofile/password.txt
+  env-file: /etc/resticprofile/b2.env
+  # first contact creates the repo; a no-op on every run after
+  initialize: true
+
+  backup:
+    # explicit allow-list, no blanket /var/lib/docker: the raw dokploy-postgres
+    # volume is deliberately absent - file-level backup of a running DB is not
+    # consistent; the pre-backup pg_dump (pre-backup.d/) is what restores
+    source:
+      - /etc/dokploy                          # control plane + Traefik dynamic + acme.json
+      - /opt/swordfish                        # edge compose + backup layer as-deployed
+      - /var/backups/swordfish                # pre-backup dumps land here
+      - /var/lib/docker/volumes/dokploy/_data # dokploy's /root/.docker (registry creds)
+    exclude-caches: true
+    # stateful-workload pattern: every executable in pre-backup.d runs before the
+    # snapshot (dump-before-snapshot); add a file there, not a line here
+    run-before: "run-parts --exit-on-error /etc/resticprofile/pre-backup.d"
+    run-after: "/etc/resticprofile/hc-ping.sh success"
+    run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
+    schedule: "*-*-* 15:00:00"
+    schedule-permission: system
+    schedule-lock-wait: 15m
+
+  # applied after every backup; prune stays with the Saturday job
+  retention:
+    after-backup: true
+    keep-daily: 7
+    keep-weekly: 4
+    keep-monthly: 6
+    prune: false
+
+  check:
+    read-data-subset: "10%"
+    run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
+    schedule: "Sun *-*-* 17:00:00"
+    schedule-permission: system
+    schedule-lock-wait: 15m
+
+  prune:
+    run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
+    schedule: "Sat *-*-* 17:00:00"
+    schedule-permission: system
+    schedule-lock-wait: 15m

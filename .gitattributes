@@ -3,3 +3,5 @@
 *.sh text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
+# pre-backup hooks carry no extension (run-parts skips names with dots)
+provisioning/backup/pre-backup.d/* text eol=lf

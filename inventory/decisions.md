@@ -43,17 +43,26 @@
   these via a Renovate regex manager = deferred nice-to-have).
 - LE email lives in `compose/edge/traefik/traefik.yml` (repo is private; not CT-exposed).
 
-## Backup parameters (Bucket 3 implements)
+## Backup parameters (Bucket 3, applied 2026-07-07 — lockstep: `provisioning/backup/profiles.yaml` · `phase7-backups.sh` · `assert-hardening.sh`; runbook: `runbooks/backup-restore.md`)
 
 - restic → B2, nightly, encrypted; driven by **resticprofile** (tracked YAML).
-- Retention: `--keep-daily 7 --keep-weekly 4 --keep-monthly 6`; weekly
-  `restic check --read-data-subset=10%`.
-- Dead-man switch: success-only ping → Uptime Kuma push monitor + healthchecks.io
-  (off-infra witness).
-- B2: per-box bucket + bucket-scoped key; account region **us-west-004** (US West); ~30-day
-  file versioning as the delete/overwrite guard.
-- Restore drill: monthly (= the AGENTS.md rule-8 monthly pass); weekly scripted CI drill
-  arrives with Stage 2.
+  Pins: restic **0.19.1** + resticprofile **0.33.1** (`no_self_update` build),
+  sha256-verified in `phase7-backups.sh` — the drill workflow reads the same pin.
+- Times (UTC, systemd timers): backup nightly **15:00** · prune Sat 17:00 ·
+  `check --read-data-subset=10%` Sun 17:00; retention 7d/4w/6m after each backup.
+- Dead-man switch: success-only ping → Uptime Kuma push monitor (Bucket 4) +
+  healthchecks.io (off-infra witness). Failure pings on backup/check/prune for
+  immediate signal.
+- B2: per-box bucket + bucket-scoped key; account region **us-west-004** (US West); 30-day
+  file versioning as the delete/overwrite guard (`provisioning/b2/create-backup-bucket.ps1`).
+- CI secret names: `RESTIC_PASSWORD` · `RESTIC_B2_KEY_ID` / `RESTIC_B2_KEY` ·
+  `HEALTHCHECKS_PING_URL` (single-box v1 — per-box naming graduates with Infisical at box #2).
+- Restore drill: monthly `backup-restore-drill` workflow, runner-side (box never
+  contacted — total-box-loss path) = the AGENTS.md rule-8 monthly pass; weekly scripted
+  CI drill arrives with Stage 2.
+- Pre-backup hook pattern: executables in `/etc/resticprofile/pre-backup.d/`
+  (dump-before-snapshot; `10-dokploy-postgres-dump` covers the control-plane DB —
+  the raw pgdata volume is deliberately not in the set).
 
 ## AI gateway (Checkpoint-2 posture)
 

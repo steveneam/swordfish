@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# 10-dokploy-postgres-dump - pre-backup hook (Bucket 3): dump the control-plane
+# Postgres before the snapshot. File-level backup of a running DB volume is not
+# consistent - this dump is what restores; the raw dokploy-postgres volume is
+# deliberately NOT in the backup set (profiles.yaml).
+#
+# THE stateful-workload pattern: dump-before-snapshot. Future stateful services
+# get their own executable in this directory. Filenames carry NO extension on
+# purpose - run-parts silently skips names containing dots.
+# Runs as root (systemd system unit) via profiles.yaml run-before.
+
+set -euo pipefail
+
+dump_dir=/var/backups/swordfish
+cid=$(docker ps --filter label=com.docker.swarm.service.name=dokploy-postgres --format '{{.ID}}' | head -n1)
+[ -n "$cid" ] || { echo "FAIL: dokploy-postgres container not running - refusing to snapshot without a fresh dump"; exit 1; }
+
+mkdir -p "$dump_dir"
+# write complete, then move into place - a snapshot can never catch a torn dump
+docker exec "$cid" pg_dump -U dokploy -d dokploy | gzip > "$dump_dir/dokploy-postgres.sql.gz.tmp"
+[ -s "$dump_dir/dokploy-postgres.sql.gz.tmp" ] || { echo "FAIL: dump came out empty"; exit 1; }
+mv -f "$dump_dir/dokploy-postgres.sql.gz.tmp" "$dump_dir/dokploy-postgres.sql.gz"
+echo "OK: dokploy-postgres dumped ($(stat -c%s "$dump_dir/dokploy-postgres.sql.gz") bytes)"

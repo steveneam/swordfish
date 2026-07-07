@@ -14,11 +14,13 @@ Dokploy is the control plane behind it at `deploy.swordfish.cfd`, **version-pinn
 - **Never change the Let's Encrypt email in the UI** — it round-trips
   `/etc/dokploy/traefik/traefik.yml`, and the next converge reverts it. Change it in
   `compose/edge/traefik/traefik.yml`.
-- **Never upgrade Dokploy before Bucket-3 backups** cover `/etc/dokploy` (2026 failure
-  mode on record: updates removed the managed Traefik — issue Dokploy/dokploy#4245).
-  Upgrade protocol (post-Bucket-3): re-read upstream `install.sh` at the new tag,
-  re-derive the vendored steps in `phase3-edge.sh`, bump the pin there **and** in
-  `assert-hardening.sh`, run `edge-apply`, verify, only then `docker service update`.
+- **Never upgrade Dokploy unless backups cover `/etc/dokploy`** (2026 failure mode
+  on record: updates removed the managed Traefik — issue Dokploy/dokploy#4245).
+  Covered since Bucket 3 (2026-07-07: nightly restic set + control-plane pg_dump —
+  `runbooks/backup-restore.md`), so upgrades are unblocked. Protocol: re-read
+  upstream `install.sh` at the new tag, re-derive the vendored steps in
+  `phase3-edge.sh`, bump the pin there **and** in `assert-hardening.sh`, run
+  `edge-apply`, verify, only then `docker service update`.
 
 ## How the pieces meet Dokploy's contract
 
