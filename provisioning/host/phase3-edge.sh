@@ -89,7 +89,9 @@ sync_file() { # src dst  (644; sets changed + traefik_restart flags on drift)
         sudo install -m 644 "$1" "$2"
         note "CHANGED: $2 updated from repo"
         changed=1
-        [ "$2" = "/etc/dokploy/traefik/traefik.yml" ] && traefik_restart=1
+        # plain if, not `[ ] &&`: a false test as a function's last command
+        # returns 1 and set -e kills the whole converge (hit live 2026-07-07)
+        if [ "$2" = "/etc/dokploy/traefik/traefik.yml" ]; then traefik_restart=1; fi
     fi
 }
 sync_file "$EDGE_DIR/traefik/traefik.yml" /etc/dokploy/traefik/traefik.yml
