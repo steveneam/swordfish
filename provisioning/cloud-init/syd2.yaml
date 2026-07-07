@@ -32,6 +32,10 @@ hostname: syd2
 fqdn: syd2.swordfish.cfd
 manage_etc_hosts: true
 
+# every schedule in this stack is authored in UTC; BinaryLane's image ships
+# Australia/Sydney (hit live 2026-07-08), Vultr's shipped UTC - pin it
+timezone: Etc/UTC
+
 ssh_pwauth: false
 
 users:

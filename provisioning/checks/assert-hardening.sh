@@ -64,6 +64,7 @@ check "docker: deploy in group"        "id -nG deploy | grep -qw docker"
 
 # host layer (Bucket 2 pre-steps; applied by provisioning/host/phase2-host.sh,
 # mirrored in cloud-init for rebuilds - keep all three in lockstep)
+check "clock: UTC"                     "[ \"\$(date +%Z)\" = UTC ]"
 check "docker: log caps configured"    "sudo grep -q 'max-size' /etc/docker/daemon.json"
 check "docker: swarm active"           "docker info --format '{{.Swarm.LocalNodeState}}' | grep -qx active"
 check "swap: /swapfile active"         "sudo swapon --show=NAME --noheadings | grep -qx /swapfile"

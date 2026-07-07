@@ -20,6 +20,24 @@ set -euo pipefail
 changed=0
 note() { echo "$1"; }
 
+# --- 0. box clock is UTC (design assumption for EVERY schedule) -----------------
+# All schedules (backup 15:00, prune/check 17:00, reboot window 18:30) are
+# authored in UTC. Vultr's Ubuntu image shipped UTC; BinaryLane's ships
+# Australia/Sydney (hit live on syd2 2026-07-08: the nightly backup timer
+# resolved to 15:00 AEST = mid-afternoon). Converge the clock, then poke any
+# resticprofile timers so their calendar next-elapse recalculates.
+if [ "$(date +%Z)" = "UTC" ]; then
+    note "OK: box clock is UTC"
+else
+    sudo timedatectl set-timezone Etc/UTC
+    for t in $(systemctl list-unit-files --type=timer 'resticprofile-*' --no-legend 2>/dev/null | awk '{print $1}'); do
+        sudo systemctl try-restart "$t" || true
+        note "CHANGED: $t restarted (next-elapse recalculated for UTC)"
+    done
+    note "CHANGED: timezone set to Etc/UTC (was $(timedatectl show -p Timezone --value 2>/dev/null || echo unknown))"
+    changed=1
+fi
+
 # --- 1. Docker daemon.json ---------------------------------------------------
 # NO live-restore: the daemon hard-refuses swarm init with it set ("incompatible
 # with swarm mode", hit live on syd1 2026-07-07) and Dokploy is swarm-based
