@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# 20-dogfood-sqlite-dumps - pre-backup hook (Bucket 4): consistent SQLite
+# dumps of the dogfood monitoring state before the snapshot - Uptime Kuma
+# (monitor defs, push token, ntfy config) + Beszel hub (PocketBase). The raw
+# volumes stay OUT of the backup set, same reasoning as
+# 10-dokploy-postgres-dump: file-level backup of a live DB is not consistent;
+# the dump is what restores.
+#
+# sqlite3 runs on the HOST (phase7-backups.sh installs it) - dumps must not
+# depend on what happens to be inside an app image. Volumes are resolved by
+# name fragment because Dokploy suffixes its compose project names. If a
+# workload disappears this hook FAILS the backup on purpose: removing a
+# workload must be an explicit, tracked edit here - never silent rot.
+# Runs as root (systemd system unit) via profiles.yaml run-before.
+
+set -euo pipefail
+
+dump_dir=/var/backups/swordfish
+mkdir -p "$dump_dir"
+
+dump_volume_dbs() { # volume-name-fragment out-prefix
+    local vol mp found=0 db out
+    vol=$(docker volume ls -q --filter "name=$1" | head -n1)
+    [ -n "$vol" ] || { echo "FAIL: no docker volume matching '$1' - workload gone? edit this hook rather than letting backups rot"; exit 1; }
+    mp=$(docker volume inspect --format '{{.Mountpoint}}' "$vol")
+    for db in "$mp"/*.db; do
+        [ -e "$db" ] || continue
+        found=1
+        out="$dump_dir/$2-$(basename "$db")"
+        # write complete, then move into place - a snapshot can never catch a torn dump
+        sqlite3 "$db" ".backup '$out.tmp'"
+        [ -s "$out.tmp" ] || { echo "FAIL: dump of $db came out empty"; exit 1; }
+        mv -f "$out.tmp" "$out"
+        echo "OK: $db -> $out ($(stat -c%s "$out") bytes)"
+    done
+    [ "$found" -eq 1 ] || { echo "FAIL: no *.db files found in volume $vol"; exit 1; }
+}
+
+dump_volume_dbs kuma-data kuma
+dump_volume_dbs beszel-data beszel

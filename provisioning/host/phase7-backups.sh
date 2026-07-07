@@ -61,6 +61,17 @@ else
     changed=1
 fi
 
+# --- 2.5 sqlite3 for the dogfood dump hooks (Bucket 4) -----------------------------
+# pre-backup.d/20-dogfood-sqlite-dumps runs sqlite3 on the host so dumps never
+# depend on what an app image happens to contain
+if command -v sqlite3 >/dev/null; then
+    note "OK: sqlite3 present"
+else
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq sqlite3 >/dev/null
+    note "CHANGED: sqlite3 installed (dogfood SQLite dump hooks need it)"
+    changed=1
+fi
+
 # --- 3. config + hooks from the shipped repo copy ---------------------------------
 sudo install -d -m 700 "$ETC" "$ETC/pre-backup.d"
 sudo install -d -m 700 /var/backups/swordfish

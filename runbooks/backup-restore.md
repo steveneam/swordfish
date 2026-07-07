@@ -16,6 +16,9 @@ what a human needs around them.
   **deliberately absent** — the pre-backup `pg_dump` hook is what restores
   (dump-before-snapshot; the pattern for every future stateful workload:
   drop an executable in `provisioning/backup/pre-backup.d/`, no extension).
+  Bucket 4 added `20-dogfood-sqlite-dumps`: host-side `sqlite3 .backup` of the
+  Uptime Kuma db (monitors, push token, ntfy config) + Beszel hub PocketBase
+  dbs into `/var/backups/swordfish/` — raw kuma/beszel volumes likewise absent.
 - **Schedule** (UTC; systemd timers on the box): backup nightly 15:00 ·
   prune Sat 17:00 · `check --read-data-subset=10%` Sun 17:00.
   Retention 7 daily / 4 weekly / 6 monthly, applied after each backup.
@@ -27,6 +30,9 @@ what a human needs around them.
 | repo password | `/etc/resticprofile/password.txt` | `RESTIC_PASSWORD` | `inventory/secrets/restic-syd1.password` + password manager |
 | bucket-scoped B2 key | `/etc/resticprofile/b2.env` | `RESTIC_B2_KEY_ID` / `RESTIC_B2_KEY` | `inventory/secrets/b2-syd1-restic.env` + password manager |
 | dead-man ping URL | `/etc/resticprofile/hc-url` | `HEALTHCHECKS_PING_URL` | healthchecks.io account |
+| kuma push URL | `/etc/resticprofile/kuma-url` | `KUMA_PUSH_URL` | `inventory/secrets/kuma-push-url.txt` (regenerable in Kuma UI) |
+| kuma admin login | — | — | `inventory/secrets/kuma-admin.password` (user `swordfish`) + password manager |
+| beszel admin login | — | — | `inventory/secrets/beszel-admin.password` (user `ops@swordfish.cfd`) + password manager |
 
 **The repo password + B2 key are the whole DR story** — with them, restore needs
 nothing from the box or laptop. Losing the password = losing every backup; it must
@@ -50,10 +56,11 @@ don't re-run until green.
 
 ## Dead-man's switch
 
-`hc-ping.sh success` fires after every nightly backup → healthchecks.io
-(off-infra witness: alerts when the ping goes **missing**, even if the box died);
-`fail` pings fire on backup/check/prune failure for immediate signal. Uptime Kuma
-push monitor joins as the second listener in Bucket 4.
+`hc-ping.sh success` fires after every nightly backup → **two independent
+receivers**: healthchecks.io (off-infra witness: alerts when the ping goes
+**missing**, even if the box died) and, since Bucket 4, the Uptime Kuma push
+monitor `swordfish-syd1-backup` (on-infra half → ntfy phone push); `fail`
+pings fire on backup/check/prune failure for immediate signal.
 
 - Check settings: period **1 day**, grace **6 h** (backup 15:00 UTC → alert by
   ~21:00 UTC / 07:00 AEST worst case).

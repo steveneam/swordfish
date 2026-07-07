@@ -8,8 +8,9 @@ name: backups-apply
 # fires the dead-man success ping), then re-asserts the full hardening posture.
 # Dispatch-only - a human decides when a live box changes.
 # Requires repo secrets SSH_DEPLOY_KEY, RESTIC_PASSWORD, RESTIC_B2_KEY_ID,
-# RESTIC_B2_KEY; HEALTHCHECKS_PING_URL is optional until the founder creates
-# the check (hc-ping warns per run until then).
+# RESTIC_B2_KEY; HEALTHCHECKS_PING_URL and KUMA_PUSH_URL are each optional
+# (hc-ping warns per run for any missing receiver) - together they are the
+# dead-man's two halves: off-infra witness + on-infra Kuma push (Bucket 4).
 
 on:
   workflow_dispatch:
@@ -68,6 +69,7 @@ jobs:
           RESTIC_B2_KEY_ID: ${{ secrets.RESTIC_B2_KEY_ID }}
           RESTIC_B2_KEY: ${{ secrets.RESTIC_B2_KEY }}
           HC_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
+          KUMA_URL: ${{ secrets.KUMA_PUSH_URL }}
         run: |
           [ -n "$RESTIC_PASSWORD" ] || { echo "RESTIC_PASSWORD secret is not set"; exit 1; }
           { [ -n "$RESTIC_B2_KEY_ID" ] && [ -n "$RESTIC_B2_KEY" ]; } || { echo "RESTIC_B2_KEY_ID / RESTIC_B2_KEY secrets are not set"; exit 1; }
@@ -80,9 +82,16 @@ jobs:
           if [ -n "$HC_URL" ]; then
             printf '%s\n' "$HC_URL" | tr -d '\r' | \
               s 'sudo tee /etc/resticprofile/hc-url >/dev/null && sudo chmod 600 /etc/resticprofile/hc-url'
-            echo "dead-man URL installed"
+            echo "dead-man URL installed (healthchecks)"
           else
-            echo "WARN: HEALTHCHECKS_PING_URL not set - dead-man ping stays dormant (hc-ping warns per run)"
+            echo "WARN: HEALTHCHECKS_PING_URL not set - off-infra dead-man ping stays dormant (hc-ping warns per run)"
+          fi
+          if [ -n "$KUMA_URL" ]; then
+            printf '%s\n' "$KUMA_URL" | tr -d '\r' | \
+              s 'sudo tee /etc/resticprofile/kuma-url >/dev/null && sudo chmod 600 /etc/resticprofile/kuma-url'
+            echo "dead-man URL installed (kuma push)"
+          else
+            echo "WARN: KUMA_PUSH_URL not set - on-infra dead-man ping stays dormant (hc-ping warns per run)"
           fi
           echo "secrets installed"
 
