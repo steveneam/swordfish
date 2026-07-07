@@ -155,7 +155,7 @@ Bucket 0) · `scripts/doctor.ps1` has a PS-5.1 encoding parse bug (fix = Bucket 
 - Harden → control plane → backups → handoff. Project 1 materializes its corpus + connects to
   its retained managed plane itself (founder-directed). **CHECKPOINT.**
 
-### Bucket 7 — Stage 4: Project 3 render offload *(⛔ Gate: bandwidth box spend, provider per vault matrix)*
+### Bucket 7 — Stage 4: Thalon render offload *(⛔ Gate: bandwidth box spend, provider per vault matrix)*
 - High-egress box; render worker pulls job specs from the managed plane, pushes artifacts to
   object storage; no long-lived state. **CHECKPOINT.**
 - Analytics lane: pg_duckdb + Parquet-on-R2 (Checkpoint-2 amendment 5).
@@ -269,6 +269,40 @@ Stage-1 definition-of-done accepted (62/62 posture, run 28859416115; operating d
    (CI-as-hands, dispatch-only) asserts the nightly backup succeeded and BOTH witness pings
    were receiver-acknowledged inside a window — the standing "confirm both legs each morning"
    documentary check graduated to a dispatchable CI check.
+
+## Bucket-4 checkpoint addendum 2 — Thalon unmask + tenant note (founder call 2026-07-08)
+
+Source: the founder-relayed tenant note from the Thalon lead session
+(`E:\thalon\.context\notes\swordfish-tenant-note-2026-07-08.md`). The calls:
+
+1. **Project 3 unmasked = Thalon.** Guard token C removed from `scripts/ci-grep-guard.ps1`;
+   Thalon may be named in tracked files. Tokens A and B unchanged — Projects 1/2 stay guarded.
+   Wherever earlier records say "Project 3", read Thalon.
+2. **DNS co-location accepted:** `thalon.org` (+ `www` 301) will point at syd2's IP alongside
+   the `swordfish.cfd` service hostnames; the reverse-IP / CT-log linkage between the domains
+   is understood and accepted (Thalon-specific exception to the neutral-naming rule — see
+   `CI-GUARD.md`).
+3. **Tenant sequencing re-scoped:** first syd2 tenant = the **Thalon web app** (dogfood-class
+   per checkpoint ruling 4 — Swordfish may wire it); second = the chartered Thalon **render
+   offload**. Thalon-side prep (Dockerfile, CI image build, deploy ADR) runs in parallel and
+   does not block Bucket 5.
+4. **Handoff pack owed to Thalon when syd2 verifies** (per ruling 5's integration surface):
+   Dokploy project + per-project scoped API credential (REST/MCP/CLI at `deploy.`) · GHCR
+   pull-credential slot for `ghcr.io/steveneam/thalon-web` (CI-built, digest-pinned, non-root,
+   HEALTHCHECK — image bar matched; no-local-Docker holds) · domain wiring `thalon.org` + `www`
+   with TLS at our edge and `swordfish-ratelimit` on public routers (domains created before
+   first deploy) · persistent volume for `THALON_DATA_DIR` added to the restic backup set ·
+   runtime env via Dokploy env.
+5. **Joint design item on the Bucket-5 radar — embedded-DB backup consistency:** Thalon's DB
+   is PGlite (embedded file-backed Postgres, WASM — no server socket; `pg_dump` cannot attach),
+   so the dump-before-snapshot invariant must be satisfied by an **app-level export hook**
+   (dump-to-file endpoint or in-container CLI) that our `pre-backup.d` calls before the
+   15:00 UTC snapshot. Thalon owes the proposal with the tenant handoff.
+6. **Sizing datapoints for syd2:** web app = one Node process (`next start`), ~300–600 MB
+   steady, spiky only on network-bound LLM calls; render worker = headless Chromium + FFmpeg +
+   local TTS, multi-GB CPU/RAM bursts, dogfood cadence at first (artifacts→object-storage
+   stays the deferred Bucket-7 pattern); web-ingest spawns a bounded short-lived Crawl4AI
+   Python subprocess.
 
 ## Change control
 

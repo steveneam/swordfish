@@ -6,7 +6,7 @@ Swordfish is the portfolio's **infrastructure / DevOps ops engine** — it provi
 
 ## ⛔ The one hard constraint
 
-This repository must contain **zero references to the three guarded portfolio project names** — the migration targets are only ever **Project 1 / Project 2 / Project 3** — in any **git-tracked** file: no files, strings, config, or comments.
+This repository must contain **zero references to the two guarded portfolio project names** — those migration targets are only ever **Project 1 / Project 2** — in any **git-tracked** file: no files, strings, config, or comments. (**Project 3 was unmasked as Thalon** by founder call 2026-07-08: guard token C removed, the name may now appear in tracked files. Tokens A and B stay guarded.)
 
 - The guarded tokens are defined as **fragments** inside `scripts/ci-grep-guard.ps1`, on purpose, so this protocol, that guard, and every other tracked file stay clean and never trip their own check.
 - Enforcement is `scripts/ci-grep-guard.ps1`: a case-insensitive grep over **git-tracked files only** (the correct CI semantics — CI only ever sees committed files). It must return **zero hits**; it exits non-zero on any hit. Run it before every commit. See `CI-GUARD.md`.
@@ -16,8 +16,8 @@ This repository must contain **zero references to the three guarded portfolio pr
 ## Separation of duties (binding)
 
 - **Swordfish provisions + hardens + operates boxes** and hands off connection details (control-plane access + connection strings). It does **not** reach into the ship-first projects' codebases — **Project 1 and Project 2 connect their own apps** to the provisioned boxes (founder-directed; no Swordfish interaction on the app side).
-- Swordfish's own hands-on / **dogfood** workloads — the ones it may touch — are: **itself** (control plane / monitoring / tooling), **Project 3's offload workload**, or **a Walter/vault service**.
-- **Keep-managed boundary:** Project 1's compliance-bound data plane and Project 3's managed control plane stay on managed services — only mispriced compute / data-disk / bandwidth moves to a box. Never migrate a clinical/stateful data plane.
+- Swordfish's own hands-on / **dogfood** workloads — the ones it may touch — are: **itself** (control plane / monitoring / tooling), **Thalon's workloads** (web app + render offload; Thalon = former Project 3), or **a Walter/vault service**.
+- **Keep-managed boundary:** Project 1's compliance-bound data plane and Thalon's managed control plane stay on managed services — only mispriced compute / data-disk / bandwidth moves to a box. Never migrate a clinical/stateful data plane.
 
 ## Operating rules
 

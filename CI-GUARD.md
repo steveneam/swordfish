@@ -1,10 +1,12 @@
 # CI Guard — anonymity check
 
-This repository ships a hard invariant: it must contain **zero references to the three guarded portfolio project names** (the anonymized migration targets — written here only as Project 1 / Project 2 / Project 3) in any **git-tracked** file — no files, strings, config, or comments. Swordfish is deliberately project-agnostic; the Project-N ↔ real-name key is held by the founder, outside this repo.
+This repository ships a hard invariant: it must contain **zero references to the two guarded portfolio project names** (the anonymized migration targets — written here only as Project 1 / Project 2) in any **git-tracked** file — no files, strings, config, or comments. Swordfish is deliberately project-agnostic; the Project-N ↔ real-name key is held by the founder, outside this repo.
+
+> **Unmask on record (founder call, 2026-07-08):** the former third guarded project — **Project 3 = Thalon** — was unmasked; its guard token (token C) was removed from the script, and Thalon may now be named in tracked files. Tokens A and B remain guarded; everything below applies to them unchanged.
 
 ## The check
 
-`scripts/ci-grep-guard.ps1` runs a case-insensitive grep for the three guarded tokens over **git-tracked files only** and:
+`scripts/ci-grep-guard.ps1` runs a case-insensitive grep for the two guarded tokens over **git-tracked files only** and:
 
 - prints every offending `path:line`, if any;
 - exits **0** when there are zero hits (clean);
@@ -32,7 +34,9 @@ The grep guard protects tracked *files* — but some strings this repo chooses b
 - **TLS hostnames are published to Certificate Transparency logs** the moment a certificate is issued. Anyone can enumerate every hostname this project has ever certified.
 - **Object-storage bucket names live in a global, probeable namespace.**
 
-So every public-visible name is **neutral by design**: hostnames derive from the engine + region + function only (apex `swordfish.cfd`; boxes `syd1.`; services `deploy.` / `status.` / `metrics.`), and buckets follow `swordfish-<box>-backups`. Never a guarded token, never a real project name, never anything that maps a workload to its owner. Naming a new public surface? Derive it from *what it does*, not *who it serves*. (Pinned at the founder charter, decision 4/6.)
+So every public-visible name is **neutral by design**: hostnames derive from the engine + region + function only (apex `swordfish.cfd`; boxes `syd1.`; services `deploy.` / `status.` / `metrics.`), and buckets follow `swordfish-<box>-backups`. Never a guarded token, never a guarded project's real name, never anything that maps a guarded workload to its owner. Naming a new public surface? Derive it from *what it does*, not *who it serves*. (Pinned at the founder charter, decision 4/6.)
+
+**Accepted exception (founder call, 2026-07-08):** Thalon is unmasked, and `thalon.org` (+ `www` 301) will point at the shared box's IP alongside the `swordfish.cfd` service hostnames — the reverse-IP / CT-log linkage between those domains is understood and accepted. This acceptance is Thalon-specific; it does not extend to the two guarded projects.
 
 ## What this does NOT do
 
