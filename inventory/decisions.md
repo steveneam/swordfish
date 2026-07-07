@@ -24,6 +24,9 @@
 - Published-ports rule is executable: CI asserts no `0.0.0.0` publishes besides Traefik 80/443.
 - GitHub Actions: SHA-pinned only; zizmor lints workflows; Renovate maintains pins.
 - Dokploy: version-pinned; never upgrade before its config is in the backup set.
+- Rate-limit middleware (Bucket 4+): **public app routers only — never the control-plane
+  router** (reachability invariant). Forward-auth SSO: not before box #2 (Checkpoint-2
+  amendment 4; adopts at Bucket 6 and must exempt Dokploy API/MCP header-auth routes).
 
 ## Edge pins (Bucket 2, applied 2026-07-07 — lockstep: `phase3-edge.sh` · `compose/edge/` · `assert-hardening.sh`)
 
@@ -51,6 +54,22 @@
   file versioning as the delete/overwrite guard.
 - Restore drill: monthly (= the AGENTS.md rule-8 monthly pass); weekly scripted CI drill
   arrives with Stage 2.
+
+## AI gateway (Checkpoint-2 posture)
+
+- Projects stay on **Vercel AI Gateway** (host-independent, zero-markup BYOK) until the
+  self-hosted **Bifrost** dogfood service is deployed + drilled (Bucket-5 era) — app-side
+  swap is one base-URL env var; that seam goes in every handoff pack.
+- Bifrost keys: provider keys (Groq/Gemini) as compose secret-files (→ Infisical at box #2);
+  per-project virtual keys with spend caps; agent keys issued the same way (one spend
+  choke point for humans + agents).
+
+## Storage geometry (Checkpoint-2)
+
+- Disk demand is portfolio-aggregate (>100 GB combined) → per-workload homes, never one
+  giant disk: **R2** = artifacts (zero egress) · **B2** = backups only · per-box block
+  storage/HDD volume = reference data (Bucket 6). Analytics: pg_duckdb + Parquet-on-R2
+  (Bucket 7).
 
 ## Access model
 

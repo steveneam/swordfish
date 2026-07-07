@@ -133,8 +133,12 @@ Bucket 0) · `scripts/doctor.ps1` has a PS-5.1 encoding parse bug (fix = Bucket 
 - ✅ Verify: playbook definition-of-done checklist all-✓ → **Stage 1 complete; box graduates.**
 - **CHECKPOINT** (+ Dokploy-MCP verdict recorded: keep or trigger swap path).
 
-### Bucket 5 — Stage 2: graduation + Project 2 handoff *(⛔ Gate: resize only, within the $30 ceiling)*
-- Headroom check → resize if needed. Handoff pack: control-plane access + connection details.
+### Bucket 5 — Stage 2: graduation + Project 2 handoff *(⛔ Gate: box spend, within the $30 ceiling)*
+- Headroom check → **box-path fork** (Checkpoint-2 amendment 2): resize-in-place vs
+  graduate-by-migrating; either way gated. Handoff pack: control-plane access + connection
+  details + parity notes (Next.js standalone/sharp/cache-volume, gateway base-URL seam,
+  Postgres+RLS pattern — parity plan §9).
+- Bifrost AI gateway lands as a dogfood service (Checkpoint-2 amendment 1).
 - **Project 2 connects itself** (founder-directed) — Swordfish never touches the app side.
 - Backups extended over Project 2 volumes; weekly scripted CI restore drill lands (the
   Stage-2 upgrade).
@@ -147,12 +151,14 @@ Bucket 0) · `scripts/doctor.ps1` has a PS-5.1 encoding parse bug (fix = Bucket 
 - **Box-#2 triggers fire:** hardening graduates to Ansible + dev-sec roles; **Infisical deploys**
   (secrets graduation per pinned decision 7); **CrowdSec replaces fail2ban** (fleet-shared
   bans + Traefik bouncer — added at Checkpoint 1).
+- Forward-auth SSO in front of admin UIs adopts here (Checkpoint-2 amendment 4).
 - Harden → control plane → backups → handoff. Project 1 materializes its corpus + connects to
   its retained managed plane itself (founder-directed). **CHECKPOINT.**
 
 ### Bucket 7 — Stage 4: Project 3 render offload *(⛔ Gate: bandwidth box spend, provider per vault matrix)*
 - High-egress box; render worker pulls job specs from the managed plane, pushes artifacts to
   object storage; no long-lived state. **CHECKPOINT.**
+- Analytics lane: pg_duckdb + Parquet-on-R2 (Checkpoint-2 amendment 5).
 - Provider matrix must weigh (Checkpoint-1 research): **Hetzner EU** (20 TB included,
   ~€1/TB overage, 3–5× cheaper compute; latency-tolerant stateless fit — no AU region) and
   **Cloudflare R2** (zero egress) as the artifact store, decoupling artifacts from the
@@ -186,6 +192,32 @@ Full findings: `research/2026-07-07-vps-ops-research.md`. The five calls:
 
 Standing approval noted: tools/integrations from the research shortlist may be installed as
 their buckets arrive without a fresh per-tool gate — spend and irreversible-step gates unchanged.
+
+## Checkpoint-2 amendments (founder-approved 2026-07-07, platform-parity research pass)
+
+Full findings: `research/2026-07-07-platform-parity-plan.md` (PaaS→VPS parity map). The calls:
+
+1. **AI gateway posture:** projects stay on Vercel AI Gateway (host-independent, zero-markup
+   BYOK — decoupled from hosting) until self-hosted **Bifrost** (Apache-2.0, single Go binary)
+   is deployed + drilled as a dogfood service in the Bucket-5 era; app-side swap = one
+   base-URL env var. LiteLLM / Portkey Gateway = documented alternatives.
+2. **Bucket-5 box-path fork stays open by design** (founder: decide when things are more
+   built out): resize-in-place (Vultr 8 GB, US$40 — needs a ceiling amendment) vs
+   graduate-by-migrating (BinaryLane SYD 4vCPU/8GB/100GB ≈US$26, inside the ceiling —
+   doubles as the portability drill). Decide at the Bucket-4/5 checkpoint.
+3. **Disk demand is portfolio-aggregate** (>100 GB combined across projects, no single
+   driver): served per-workload — R2 for artifacts (zero egress), per-box block-storage/HDD
+   volumes for reference data; never one giant disk. Confirms the multi-box trajectory.
+4. **Forward-auth SSO: not before box #2** (agent ruling, founder-delegated). The Bucket-2
+   lockout incident made control-plane reachability the precious invariant — an auth proxy
+   in front of Dokploy adds a failure mode in front of the recovery path and must exempt
+   API/MCP header-auth routes. Per-app auth + 2FA suffices while UIs are few; adopt at
+   Bucket 6 with the fleet set (Ansible/Infisical/CrowdSec). Traefik rate-limit middleware
+   on **public app routers** still lands Bucket 4 — never on the control-plane router.
+5. **Analytics lane pinned:** pg_duckdb 1.0 (MIT) + Parquet-on-R2 is the Bucket-7 pattern
+   for Project 3 offload (verify pg_ducklake license at adoption).
+6. **Bucket-3 opportunistic add:** surface the `provisioning/<provider>/` adapter seam
+   (file moves only — provider-specific surface is create-box / firewall / DNS).
 
 ## Change control
 

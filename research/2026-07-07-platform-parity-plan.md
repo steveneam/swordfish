@@ -280,6 +280,13 @@ hence the 16 GB gate in §2.3.
 
 ## 10. Open questions for the founder
 
+> **RESOLVED 2026-07-07 (same day, founder in the loop)** — answers landed as
+> `CHARTER.md` **Checkpoint-2 amendments** (canonical) + `inventory/decisions.md`
+> operational mirrors. Short form: (1) box-path fork stays open until built out;
+> (2) yes — Vercel AI Gateway until Bifrost is drilled; (3) disk want is
+> portfolio-aggregate >100 GB → per-workload homes; (4) forward-auth delegated →
+> ruling: not before box #2. Kept below as originally asked, for the record.
+
 1. **Bucket-5 path:** resize-in-place (Vultr, US$40, needs ceiling bump) or
    graduate-by-migrating (BinaryLane, ≈US$26, proves portability)? No decision needed until
    the Bucket-4 checkpoint; flagged now so it can simmer.

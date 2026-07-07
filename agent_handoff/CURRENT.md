@@ -1,42 +1,28 @@
 # CURRENT — session handoff (one file, overwritten each wrap)
 
-_Stamped: 2026-07-07 18:27 +10:00 (platform-parity research & planning session)_
+_Stamped: 2026-07-07 18:41 +10:00 (platform-parity research → Checkpoint-2 amendments)_
 
 ## State
 
-**Bucket 2 COMPLETE (gate closed, 4c28ed1). Bucket 3 NOT started — this session was
-founder-directed research/planning only.** Box still carries NOTHING until Bucket-3
-backups (invariant).
+**Bucket 2 COMPLETE (gate closed). Bucket 3 NOT started.** Box carries NOTHING until
+Bucket-3 backups (invariant). This session: parity research + founder Q&A →
+**Checkpoint-2 amendments landed in CHARTER.md** (canonical), mirrored in
+`inventory/decisions.md`; full findings in `research/2026-07-07-platform-parity-plan.md`
+(§10 marked resolved).
 
-New artifact: **`research/2026-07-07-platform-parity-plan.md`** — the PaaS→VPS parity
-map (Vercel / Render / Supabase / AWS → OSS-on-box equivalents) + target architecture.
-Headlines:
+The six Checkpoint-2 calls (short form — charter is canonical):
 
-- **Gaps to close for parity: 4** — AI gateway (Bifrost, Apache-2.0, recommended; LiteLLM
-  /Portkey alternatives; Vercel AI Gateway is host-independent so apps can swap by env
-  var later), object storage (R2/B2 managed; SeaweedFS if sovereignty; MinIO is dead),
-  bigger box, DuckDB/Parquet analytics lane (pg_duckdb 1.0 + Parquet-on-R2; Bucket 7).
-  Everything else (deploys, previews, cron, workers, volumes, TLS) Dokploy+Traefik
-  already covers.
-- **Founder spec >8 GB / >100 GB / AU latency fits the $30 ceiling:** BinaryLane SYD
-  4vCPU/8GB/100GB NVMe ≈ AU$39.20 ex GST (≈US$26). Bucket-5 fork flagged: resize-in-place
-  (Vultr US$40, ceiling bump) vs **graduate-by-migrating to BinaryLane (= portability
-  drill)**. OVH SYD has a 10 Mbps post-quota cap (trap). Hetzner stays the Bucket-7
-  egress candidate.
-- Supabase: RLS is plain Postgres — à-la-carte on-box (Postgres 17 ± PostgREST ± Better
-  Auth) for new workloads; Project 1's managed plane untouched (invariant); full
-  self-host Supabase = 16 GB box + own gated bucket only.
-- Atlassian edge notes (founder-supplied, local/untracked): adopt forward-auth choke
-  point, Traefik rate-limit middleware, broker-pattern validation of Dokploy MCP,
-  preview-deploy canaries; reject Envoy/anycast/autoscale at our scale.
-- Portability: provider-specific surface = 3 calls (create-box/firewall/DNS) → keep
-  `provisioning/<provider>/` adapter seam; migration = provision + converge + restic
-  restore + DNS flip; the monthly restore drill IS the migration rehearsal.
-- Terminal: SSH + Dokploy web terminal (443) + CI-as-hands. **Pi (pi.dev, MIT)** assessed
-  as a strong harness candidate for the post-Bucket-5 on-box agent pilot (would call our
-  own gateway; budget-capped key; E0→E1 autonomy) — not on the 2 GB box.
-- 4 open founder questions at §10 of the research doc (Bucket-5 path · gateway posture ·
-  Supabase stance + which project drives the >100 GB · forward-auth yes/no).
+1. AI gateway: projects stay on Vercel AI Gateway until self-hosted **Bifrost**
+   (Apache-2.0) is deployed + drilled (Bucket-5 era); swap = base-URL env var.
+2. Bucket-5 box-path fork stays open: resize-in-place (Vultr 8GB US$40) vs
+   graduate-by-migrating (BinaryLane SYD 8GB/100GB ≈US$26 = portability drill).
+   Decide at the Bucket-4/5 checkpoint.
+3. Disk want is portfolio-aggregate >100GB → per-workload homes (R2 artifacts ·
+   B2 backups · per-box volumes for reference data), never one giant disk.
+4. Forward-auth SSO: **not before box #2** (reachability invariant; must exempt
+   Dokploy API/MCP routes); rate-limit middleware Bucket 4 on public routers only.
+5. Analytics lane pinned: pg_duckdb 1.0 + Parquet-on-R2 at Bucket 7.
+6. Bucket-3 opportunistic: surface `provisioning/<provider>/` adapter seam.
 
 ## Next — Bucket 3: backups BEFORE workloads (invariant, unchanged)
 
@@ -49,12 +35,11 @@ Headlines:
    Uptime Kuma push monitor joins in Bucket 4.
 4. **Real restore drill** into scratch, RTO/RPO in `runbooks/` — starts the
    monthly-pass cadence. Dokploy upgrades stay frozen until this bucket lands.
-5. Opportunistic while touching files: make the `provisioning/<provider>/` adapter
-   boundary visible (file-moves only, no behavior change).
-6. Standing: Renovate digest PRs (review as they come) · FortiGuard recategorization
-   submitted 2026-07-07 (~1-2 days; office stays eyes-limited regardless — control-plane
-   UI/MCP on phone/hotspot only; never send the API key through the corp proxy) · vault
-   research-sync if still pending.
+5. Opportunistic: `provisioning/<provider>/` adapter seam (file moves only).
+6. Standing: Renovate digest PRs (review as they come) · FortiGuard
+   recategorization submitted 2026-07-07 (~1-2 days; office stays eyes-limited
+   regardless — control-plane UI/MCP on phone/hotspot only; never send the API
+   key through the corp proxy) · vault research-sync if still pending.
 
 ## Constraints in force
 
