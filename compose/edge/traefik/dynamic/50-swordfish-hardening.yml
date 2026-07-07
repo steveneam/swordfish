@@ -13,6 +13,14 @@
 
 http:
   middlewares:
+    # Attached per-router via each Dokploy domain's middlewares list (Bucket 4)
+    # - PUBLIC app routers only, NEVER the deploy. control-plane router: an
+    # attacker tripping a rate limit must not be able to lock the founder out
+    # of the recovery path (Checkpoint-2 amendment 4 reasoning).
+    swordfish-ratelimit:
+      rateLimit:
+        average: 25
+        burst: 50
     swordfish-security-headers:
       headers:
         stsSeconds: 31536000
