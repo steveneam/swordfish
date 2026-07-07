@@ -1,71 +1,61 @@
 # CURRENT — session handoff (one file, overwritten each wrap)
 
-_Stamped: 2026-07-08 01:20 +10:00 (Bucket-4 CHECKPOINT CLOSED — Stage 1 graduated; Bucket 5 opens next session)_
+_Stamped: 2026-07-08 02:16 +10:00 (Thalon unmasked; Bucket-5 opener built — founder purchase is the next touch)_
 
 ## State
 
-**Bucket-4 checkpoint held with the founder and recorded in `CHARTER.md`
-(“Bucket-4 checkpoint record”). Stage 1 COMPLETE, syd1 graduated. All
-verification is green and live:**
+**Two commits this session, both pushed, guard green on each:**
 
-- **Dokploy-MCP verdict: KEEP** (founder-ratified; quirks in `runbooks/dogfood.md`).
-- **Dead-man NATURAL fire verified tonight** — 15:00 UTC timer ran (exit 0),
-  BOTH legs receiver-acknowledged (healthchecks.io + Kuma push), proven by the
-  NEW ratchet `.github/workflows/verify-deadman.yml` (run 28877105328).
-  The manual “confirm legs each morning” check is now a dispatchable CI job
-  (default window: 26 hours).
-- Fresh graduation-stamp posture run: hardening-smoke green (run 28872534047);
-  zizmor + ci-guard green on the checkpoint commits (b989f49, 49e1ac2).
+1. **Project 3 unmasked = Thalon** (founder call 2026-07-08, relayed tenant note
+   from `E:\thalon\.context\notes\swordfish-tenant-note-2026-07-08.md`).
+   Guard token C removed from `scripts/ci-grep-guard.ps1` — **tokens A/B
+   (Projects 1/2) stay guarded**. AGENTS.md + CI-GUARD.md now say two guarded
+   names; `thalon.org` DNS co-location on syd2 founder-accepted (CT-log linkage
+   acknowledged). Full record: **CHARTER.md "Bucket-4 checkpoint addendum 2"**
+   — tenant sequencing (Thalon web app = first syd2 tenant, render offload
+   second), the handoff pack owed to Thalon at syd2 verification, the **PGlite
+   app-level export hook** joint design item (pre-backup.d calls it before the
+   15:00 UTC snapshot — Thalon owes the proposal), and syd2 sizing datapoints.
+2. **Bucket-5 opener:** `provisioning/cloud-init/syd2.yaml` (functional payload
+   byte-identical to syd1 — verified by diff; Ubuntu 24.04-ONLY + swap
+   assumption documented) + `provisioning/binarylane/syd2-purchase-step-card.md`
+   (five form invariants: SYD · Ubuntu 24.04 LTS · Standard 4 vCPU/8 GB
+   AUD 39.20 · `syd2.swordfish.cfd` · user-data pasted; then API token →
+   `.env` as `BINARYLANE_API_TOKEN`). CHARTER gate-evidence corrected:
+   form-create first (token only exists post-purchase), adapter owns
+   everything after.
 
-## Founder decisions on record (all in CHARTER.md checkpoint record)
+Note: editing AGENTS.md breaks the CLAUDE.md hardlink (Edit replaces the file)
+— it was re-created this session; re-check `fsutil hardlink list` after any
+AGENTS.md edit.
 
-1. **Bucket-5 fork → graduate-by-migrating to BinaryLane** Standard
-   4 vCPU / 8 GB / 100 GB NVMe / 4 TB, AUD $39.20/mo ≈ US$26 (confirmed
-   available on the founder's new BinaryLane account 2026-07-08; CPU-Optimised
-   ≥4-thread + 16 GB HDD plans out of stock — Bucket-7 datapoint).
-   **Parallel-run:** Vultr box stays until syd2 passes full verification;
-   then instance destroyed, account + credit retained as fallback.
-2. **Spend gate satisfied in principle** (founder walked the purchase flow);
-   BinaryLane's wizard requires the purchase to finish account activation →
-   API token only exists post-purchase. Therefore syd2 is created **via the UI
-   form WITH our cloud-init user-data pasted in** (hardened at first boot),
-   then everything after is scripted.
-3. **Hermes pilot: GO** (E0→E1→E2 ladder; LLM budget gates separately).
-   **Pi coding agent approved** (pi.dev, MIT) — candidate ops agent harness,
-   scoped at Bucket 5.
-4. **Project 3 pull-forward:** its offload workload becomes an early tenant of
-   syd2 (dogfood-class — Swordfish may wire it). Keep-managed boundary
-   unchanged. Real name = guarded token; never in tracked files.
-5. **Integration surface ruling:** projects wire in via Dokploy REST API +
-   MCP + CLI at `deploy.swordfish.cfd` with per-project scoped creds at
-   handoff; no custom Swordfish API layer.
+## Next — founder touch, then scripted
 
-## Next — Bucket-5 opener (single founder-touch, then scripted)
-
-1. Agent: adapt `provisioning/cloud-init/syd1.yaml` → `syd2` user-data
-   (hostname; **Ubuntu 24.04 LTS ONLY** — cloud-init pins Docker apt to
-   `noble`; check swap: Vultr image shipped /swapfile, BinaryLane may not) +
-   step-card for the founder.
-2. Founder: complete BinaryLane purchase per step-card (Sydney · Ubuntu
-   24.04 LTS · Standard 8 GB · hostname `syd2.swordfish.cfd` · user-data
-   pasted) → create API token → `.env` as `BINARYLANE_API_TOKEN`.
-3. Agent: `provisioning/binarylane/` adapter (amendment-6 seam), A-record
-   `syd2`, hardening-smoke vs syd2, then edge → backups → dogfood replay
-   (the portability drill), verify-deadman on syd2, DNS cutover + soak →
-   only then destroy the Vultr instance.
+1. **[founder]** Execute `provisioning/binarylane/syd2-purchase-step-card.md`
+   (purchase + paste user-data + API token into `.env`), then say:
+   "syd2 purchased, IP = x.x.x.x, token in .env".
+2. Agent: `provisioning/binarylane/` adapter (amendment-6 seam) → A-record
+   `syd2` → hardening-smoke vs syd2 (verify the swap assumption, record in
+   `inventory/boxes.md`) → edge → backups + tested restore → dogfood replay
+   (the portability drill) → verify-deadman on syd2 → DNS cutover + soak →
+   only then destroy the Vultr instance (account + credit stay as fallback).
+3. Bucket-5 also carries: Thalon handoff pack at verification (Dokploy project
+   + scoped cred, GHCR pull slot for `ghcr.io/steveneam/thalon-web`,
+   `thalon.org` + `www` domains with `swordfish-ratelimit`, `THALON_DATA_DIR`
+   volume into the restic set) · PGlite export-hook wiring · Bifrost dogfood ·
+   Hermes E0 + Pi scoping.
 
 ## Standing
 
 - Traefik 3.7.6 Renovate PR when it opens: edge pin bump = edge-apply protocol.
-- verify-deadman can replace the morning eyeball: dispatch with default
-  26-hour window any time; assertions cover backup exit + both ping legs.
+- verify-deadman replaces the morning eyeball (dispatch, 26-hour window).
 
 ## Constraints in force
 
 No local Docker (CI + VPS only) · 443 is the reliable channel · zero guarded
-tokens in tracked files (extends to DNS/CT logs) · backups before workloads ·
-every spend is an Approval Gate (BinaryLane purchase pre-approved at the
-Bucket-4 checkpoint, re-confirmed by the founder executing it) · founder is
-the sole author.
+tokens (now A/B only — Thalon is unmasked) in tracked files · backups before
+workloads · every spend is an Approval Gate (BinaryLane purchase pre-approved,
+re-confirmed by the founder executing the step-card) · founder is the sole
+author.
 
 _All work is committed and pushed — it is safe to clear this session._
