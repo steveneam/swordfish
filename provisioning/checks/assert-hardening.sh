@@ -54,8 +54,8 @@ check "docker: deploy in group"        "id -nG deploy | grep -qw docker"
 
 # host layer (Bucket 2 pre-steps; applied by provisioning/host/phase2-host.sh,
 # mirrored in cloud-init for rebuilds - keep all three in lockstep)
-check "docker: live-restore on"        "docker info --format '{{.LiveRestoreEnabled}}' | grep -qx true"
 check "docker: log caps configured"    "sudo grep -q 'max-size' /etc/docker/daemon.json"
+check "docker: swarm active"           "docker info --format '{{.Swarm.LocalNodeState}}' | grep -qx active"
 check "swap: /swapfile active"         "sudo swapon --show=NAME --noheadings | grep -qx /swapfile"
 check "swap: fstab entry"              "grep -q '^/swapfile ' /etc/fstab"
 check "swap: swappiness=10"            "sysctl -n vm.swappiness | grep -qx 10"

@@ -17,7 +17,9 @@
 
 - Vultr firewall group on every box: inbound 22/80/443 only (Docker bypasses ufw — the
   provider firewall is the layer it can't bypass; ufw stays as belt-and-braces).
-- Docker `daemon.json`: json-file log caps (`max-size`/`max-file`) + `live-restore: true`.
+- Docker `daemon.json`: json-file log caps (`max-size`/`max-file`). **No `live-restore`** —
+  the daemon refuses swarm init with it set (hit live on syd1, 2026-07-07) and Dokploy
+  is swarm-based; swarm task restarts + `restart: always` on the edge cover daemon restarts.
 - unattended-upgrades reboot window (kernel updates need reboots; no Ubuntu Pro attach).
 - Published-ports rule is executable: CI asserts no `0.0.0.0` publishes besides Traefik 80/443.
 - GitHub Actions: SHA-pinned only; zizmor lints workflows; Renovate maintains pins.

@@ -21,10 +21,13 @@ changed=0
 note() { echo "$1"; }
 
 # --- 1. Docker daemon.json ---------------------------------------------------
+# NO live-restore: the daemon hard-refuses swarm init with it set ("incompatible
+# with swarm mode", hit live on syd1 2026-07-07) and Dokploy is swarm-based
+# (ADR 0001). Swarm's own task restarts + restart:always on the edge containers
+# are the daemon-restart survival story instead.
 desired_daemon_json='{
   "log-driver": "json-file",
-  "log-opts": { "max-size": "10m", "max-file": "3" },
-  "live-restore": true
+  "log-opts": { "max-size": "10m", "max-file": "3" }
 }'
 
 if [ -f /etc/docker/daemon.json ] && echo "$desired_daemon_json" | sudo cmp -s /etc/docker/daemon.json -; then
@@ -36,13 +39,13 @@ else
     fi
     echo "$desired_daemon_json" | sudo tee /etc/docker/daemon.json >/dev/null
     sudo systemctl restart docker
-    # docker must come back and agree live-restore is on, else fail loudly
+    # docker must come back healthy with the log caps active, else fail loudly
     for i in $(seq 1 12); do
-        if sudo docker info --format '{{.LiveRestoreEnabled}}' 2>/dev/null | grep -qx true; then break; fi
-        [ "$i" -eq 12 ] && { echo "FAIL: docker did not come back with live-restore after restart"; exit 1; }
+        if sudo docker info --format '{{.LoggingDriver}}' 2>/dev/null | grep -qx json-file; then break; fi
+        [ "$i" -eq 12 ] && { echo "FAIL: docker did not come back after restart"; exit 1; }
         sleep 5
     done
-    note "CHANGED: daemon.json written, docker restarted, live-restore confirmed"
+    note "CHANGED: daemon.json written, docker restarted healthy"
     changed=1
 fi
 

@@ -75,15 +75,15 @@ write_files:
       APT::Periodic::Update-Package-Lists "1";
       APT::Periodic::Unattended-Upgrade "1";
 
-  # Bucket-2 pre-steps (mirror of phase2-host.sh): log caps + live-restore.
-  # Written before Docker installs; the engine picks it up on first start.
+  # Bucket-2 pre-steps (mirror of phase2-host.sh): log caps. NO live-restore -
+  # the daemon refuses swarm init with it set (hit live on syd1 2026-07-07) and
+  # the Dokploy control plane is swarm-based (ADR 0001).
   - path: /etc/docker/daemon.json
     permissions: "0644"
     content: |
       {
         "log-driver": "json-file",
-        "log-opts": { "max-size": "10m", "max-file": "3" },
-        "live-restore": true
+        "log-opts": { "max-size": "10m", "max-file": "3" }
       }
 
   # Bucket-2 pre-steps: unattended-upgrades may reboot in the pre-dawn Sydney
