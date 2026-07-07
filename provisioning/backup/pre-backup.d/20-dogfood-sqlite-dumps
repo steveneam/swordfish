@@ -8,8 +8,12 @@
 #
 # sqlite3 runs on the HOST (phase7-backups.sh installs it) - dumps must not
 # depend on what happens to be inside an app image. Volumes are resolved by
-# name fragment because Dokploy suffixes its compose project names. If a
-# workload disappears this hook FAILS the backup on purpose: removing a
+# name fragment because Dokploy suffixes its compose project names.
+#
+# SELF-ARMING rot guard: on a box where a workload has never been dumped
+# (backups land BEFORE workloads - a fresh box legitimately has no kuma/beszel
+# yet, hit live on syd2 2026-07-08) a missing volume is a loud SKIP. The moment
+# the workload's first dump lands, absence becomes a hard FAIL: removing a
 # workload must be an explicit, tracked edit here - never silent rot.
 # Runs as root (systemd system unit) via profiles.yaml run-before.
 
@@ -21,7 +25,14 @@ mkdir -p "$dump_dir"
 dump_volume_dbs() { # volume-name-fragment out-prefix
     local vol mp found=0 db out
     vol=$(docker volume ls -q --filter "name=$1" | head -n1)
-    [ -n "$vol" ] || { echo "FAIL: no docker volume matching '$1' - workload gone? edit this hook rather than letting backups rot"; exit 1; }
+    if [ -z "$vol" ]; then
+        if ls "$dump_dir/$2-"*.db >/dev/null 2>&1; then
+            echo "FAIL: no docker volume matching '$1' but previous '$2' dumps exist - workload gone? edit this hook rather than letting backups rot"
+            exit 1
+        fi
+        echo "SKIP: no docker volume matching '$1' yet - workload not deployed on this box (guard arms at its first successful dump)"
+        return 0
+    fi
     mp=$(docker volume inspect --format '{{.Mountpoint}}' "$vol")
     for db in "$mp"/*.db; do
         [ -e "$db" ] || continue
