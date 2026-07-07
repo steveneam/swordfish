@@ -27,8 +27,11 @@ addendum 2"). This brief is what you need to be ready for wiring, expected to op
    compatible. The credential can only touch your project.
 2. **GHCR pull credential slot** for `ghcr.io/steveneam/thalon-web` (stored in your
    Dokploy application's docker provider; covered by our backups).
-3. **Domain wiring**: `thalon.org` + `www` (301) → syd2, TLS at our edge, with our
-   `swordfish-ratelimit` middleware on the public routers (25 rps avg / 50 burst per IP).
+3. **Domain wiring — staged (see "Stealth mode" below):** at handoff you get a
+   **neutral staging hostname on `swordfish.cfd`** (real TLS, edge BasicAuth + noindex,
+   nothing publicly Thalon-linked); `thalon.org` + `www` (301) are added at YOUR launch
+   call. Both carry our `swordfish-ratelimit` middleware on the public routers
+   (25 rps avg / 50 burst per IP).
 4. **Persistent volume** for `THALON_DATA_DIR`, added to the restic backup set.
 5. Runtime env via the Dokploy env surface — yours to manage with the scoped credential.
 
@@ -80,13 +83,16 @@ Thalon is still building, so `thalon.org` stays **unwired** until the launch cal
 - Sizing acks from your note are accepted as-is: web app (~300–600 MB steady) is well
   inside headroom; the render worker (multi-GB bursts) lands as the SECOND workload at
   dogfood cadence after the web app is stable; Crawl4AI subprocess noted.
-- Alerting: our Kuma will add an HTTP monitor on `thalon.org` once it's live (cert-expiry
-  watch included) — DOWN/UP alerts reach the founder's phone via ntfy.
+- Alerting: our Kuma watches the staging hostname from day one (DOWN/UP alerts to the
+  founder's phone via ntfy), and swaps to `thalon.org` at launch (cert-expiry watch
+  included).
 
 ## Sequencing
 
-Swordfish: deadman natural-fire → cutover + soak → **hand credential + volume + domains**
-(the pack above) → you deploy `thalon-web` via your scoped credential → export hook lands
-in `pre-backup.d` → render worker second. Coordination via the founder, as before.
+Swordfish: deadman natural-fire → cutover + soak → **hand credential + volume + staging
+domain** (the pack above) → you deploy `thalon-web` behind the staging name via your
+scoped credential → export hook lands in `pre-backup.d` → render worker second →
+**launch call (yours + founder's): `thalon.org` domains added + DNS flips + BasicAuth
+drops**. Coordination via the founder, as before.
 
 _Swordfish repo: `E:\swordfish`; session handoff at `agent_handoff/CURRENT.md`._
