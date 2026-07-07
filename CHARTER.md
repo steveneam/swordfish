@@ -243,10 +243,14 @@ Stage-1 definition-of-done accepted (62/62 posture, run 28859416115; operating d
    purchase flow to the plan screen — target plan **Standard 4 vCPU / 8 GB / 100 GB NVMe /
    4 TB @ AUD $39.20/mo (≈US$26)** confirmed AVAILABLE on the account; CPU-Optimised ≥4-thread
    and the 16 GB HDD plans showed out-of-stock (recorded as a Bucket-7 availability datapoint).
-   Box creation goes through the scripted API path (`provisioning/binarylane/` adapter,
-   cloud-init user-data at create — the portability drill), NOT the UI form; image must be
-   **Ubuntu 24.04 LTS** (cloud-init pins the Docker apt suite to `noble`; fail2ban config
-   assumes 24.04 cloud images) — not BinaryLane's 26.04 default.
+   Image must be **Ubuntu 24.04 LTS** (cloud-init pins the Docker apt suite to `noble`;
+   fail2ban config assumes 24.04 cloud images) — not BinaryLane's 26.04 default.
+   *Sequencing correction (01:20, supersedes the scripted-create line above):* BinaryLane's
+   wizard requires the purchase to complete account activation, and the API token only exists
+   post-purchase — so syd2 itself is created **via the purchase form with the cloud-init
+   user-data pasted in** (hardened at first boot; step-card in `provisioning/binarylane/`);
+   the `provisioning/binarylane/` adapter then owns everything after, including the rebuild
+   path, keeping the portability drill intact.
 3. **Hermes pilot: GO** (founder, this checkpoint) — per Checkpoint-1 amendment 6 ladder:
    E0 eyes → E1 propose → E2 constrained hands on dogfood workloads only; lands post-migration
    via Dokploy; its LLM API budget remains a separate Approval Gate. **Pi coding agent
