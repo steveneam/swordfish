@@ -46,7 +46,7 @@ don't re-run until green.
 
 | date (UTC) | snapshot | RTO (restore) | RPO (snapshot age) | notes |
 |---|---|---|---|---|
-| _first drill pending_ | | | | |
+| 2026-07-07 | `f810278c` | 3 s (12 files, 192K) | 0 h (drill ran minutes after first backup; steady-state worst case ~24 h) | first drill — run 28854625726; `restic check` clean; pg_dump + repo cross-check green |
 
 ## Dead-man's switch
 
