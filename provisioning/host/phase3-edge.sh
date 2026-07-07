@@ -31,7 +31,10 @@ DOKPLOY_VERSION=v0.29.10   # pinned (CHARTER Bucket 2); never bump before Bucket
 POSTGRES_IMAGE=postgres:16 # vendored from install.sh at the pin
 REDIS_IMAGE=redis:7        # vendored from install.sh at the pin
 EDGE_DIR=/opt/swordfish/edge
-DEPLOY_FQDN=deploy.swordfish.cfd
+# Overridable for the parallel-run window (Bucket 5): the successor box carries
+# a temp neutral FQDN (deploy2.) until DNS cutover, then a re-run with the real
+# FQDN re-points the bootstrap route. Default = the production control plane.
+DEPLOY_FQDN="${DEPLOY_FQDN:-deploy.swordfish.cfd}"
 DYN=/etc/dokploy/traefik/dynamic
 
 changed=0
@@ -118,13 +121,16 @@ fi
 # --- 4. bootstrap route: deploy.swordfish.cfd -> dokploy:3000 ------------------
 # Shape mirrors dokploy's updateServerTraefik() exactly, so when the founder sets
 # Server Domain in the UI dokploy rewrites this file to the same content (no-op
-# handover). Written when missing, still the stock localhost stub, OR missing the
-# websecure router: saving Server Domain with the HTTPS toggle off makes dokploy
+# handover). Written when missing, still the stock localhost stub, missing the
+# websecure router, OR routed at a different FQDN (the Bucket-5 cutover re-point:
+# re-running with the real DEPLOY_FQDN converges the route away from the temp
+# name): saving Server Domain with the HTTPS toggle off makes dokploy
 # DELETE dokploy-router-app-secure - with 3000 unpublished that 404s the UI with
 # no recovery path except this converge (locked the founder out live, 2026-07-07).
 # The control plane staying reachable over TLS is an invariant this enforces.
 if [ ! -f "$DYN/dokploy.yml" ] || sudo grep -q 'docker.localhost' "$DYN/dokploy.yml" \
-   || ! sudo grep -q 'dokploy-router-app-secure' "$DYN/dokploy.yml"; then
+   || ! sudo grep -q 'dokploy-router-app-secure' "$DYN/dokploy.yml" \
+   || ! sudo grep -qF "Host(\`$DEPLOY_FQDN\`)" "$DYN/dokploy.yml"; then
     sudo tee "$DYN/dokploy.yml" >/dev/null <<EOF
 http:
   routers:

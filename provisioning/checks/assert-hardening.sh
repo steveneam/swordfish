@@ -7,6 +7,13 @@
 
 set -u
 
+# Box-relative parameters (Bucket 5, parallel-run): the control-plane FQDN is
+# overridable (successor box carries deploy2. until DNS cutover) and the backup
+# profile name follows the box's own short hostname (profile "syd1" on syd1,
+# "syd2" on syd2 - keep provisioning/backup/profiles.yaml naming in lockstep).
+DEPLOY_FQDN="${DEPLOY_FQDN:-deploy.swordfish.cfd}"
+BOX="$(hostname -s)"
+
 total=0
 fails=0
 check() {
@@ -74,9 +81,9 @@ check "edge: traefik has no raw socket"  "! docker inspect swordfish-traefik -f 
 check "edge: socket-proxy socket is ro"  "docker inspect swordfish-socket-proxy -f '{{range .Mounts}}{{.Source}}={{.RW}} {{end}}' | grep -q 'docker.sock=false'"
 check "ports: only traefik on 0.0.0.0"   "! docker ps --format '{{.Names}} {{.Ports}}' | grep -v '^swordfish-traefik ' | grep -E '(0\.0\.0\.0|\[::\]):'"
 check "ports: traefik only 80/443"       "! docker ps --filter name=swordfish-traefik --format '{{.Ports}}' | tr ',' '\n' | grep -E '(0\.0\.0\.0|\[::\]):' | grep -vE ':(80|443)->'"
-check "edge: 80 redirects to https"      "curl -s -o /dev/null -w '%{http_code}' --max-time 10 --resolve deploy.swordfish.cfd:80:127.0.0.1 http://deploy.swordfish.cfd | grep -qE '^30(1|8)$'"
-check "edge: 443 answers TLS (SNI)"      "curl -sk --max-time 10 --resolve deploy.swordfish.cfd:443:127.0.0.1 https://deploy.swordfish.cfd -o /dev/null"
-check "edge: dokploy route live (no 404)" "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve deploy.swordfish.cfd:443:127.0.0.1 https://deploy.swordfish.cfd | grep -qE '^(200|30[128])$'"
+check "edge: 80 redirects to https"      "curl -s -o /dev/null -w '%{http_code}' --max-time 10 --resolve $DEPLOY_FQDN:80:127.0.0.1 http://$DEPLOY_FQDN | grep -qE '^30(1|8)$'"
+check "edge: 443 answers TLS (SNI)"      "curl -sk --max-time 10 --resolve $DEPLOY_FQDN:443:127.0.0.1 https://$DEPLOY_FQDN -o /dev/null"
+check "edge: dokploy route live (no 404)" "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve $DEPLOY_FQDN:443:127.0.0.1 https://$DEPLOY_FQDN | grep -qE '^(200|30[128])$'"
 check "edge: acme storage 0600"          "sudo stat -c %a /etc/dokploy/traefik/dynamic/acme.json | grep -qx 600"
 check "dokploy: service 1/1"             "docker service ls --format '{{.Name}} {{.Replicas}}' | grep -q '^dokploy 1/1'"
 check "dokploy: postgres 1/1"            "docker service ls --format '{{.Name}} {{.Replicas}}' | grep -q '^dokploy-postgres 1/1'"
@@ -93,10 +100,10 @@ check "backups: profiles.yaml present"   "sudo test -s /etc/resticprofile/profil
 check "backups: repo password 0600 root" "sudo stat -c '%a %U' /etc/resticprofile/password.txt | grep -qx '600 root'"
 check "backups: b2 key 0600 root"        "sudo stat -c '%a %U' /etc/resticprofile/b2.env | grep -qx '600 root'"
 check "backups: dokploy-pg dump hook"    "sudo test -x /etc/resticprofile/pre-backup.d/10-dokploy-postgres-dump"
-check "backups: nightly backup timer"    "systemctl is-enabled --quiet resticprofile-backup@profile-syd1.timer"
-check "backups: weekly check timer"      "systemctl is-enabled --quiet resticprofile-check@profile-syd1.timer"
-check "backups: weekly prune timer"      "systemctl is-enabled --quiet resticprofile-prune@profile-syd1.timer"
-check "backups: repo live, >=1 snapshot" "sudo resticprofile -c /etc/resticprofile/profiles.yaml --name syd1 snapshots --json | grep -q short_id"
+check "backups: nightly backup timer"    "systemctl is-enabled --quiet resticprofile-backup@profile-$BOX.timer"
+check "backups: weekly check timer"      "systemctl is-enabled --quiet resticprofile-check@profile-$BOX.timer"
+check "backups: weekly prune timer"      "systemctl is-enabled --quiet resticprofile-prune@profile-$BOX.timer"
+check "backups: repo live, >=1 snapshot" "sudo resticprofile -c /etc/resticprofile/profiles.yaml --name $BOX snapshots --json | grep -q short_id"
 
 # dogfood workloads (Bucket 4; tracked in compose/status + compose/metrics,
 # deployed via the Dokploy MCP - the AI-operability surface). Container names
