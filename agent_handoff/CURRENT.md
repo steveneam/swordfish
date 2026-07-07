@@ -43,7 +43,12 @@ backups (invariant).
 4. **Real restore drill** into scratch, RTO/RPO in `runbooks/` — starts the
    monthly-pass cadence. Dokploy upgrades stay frozen until this bucket lands.
 5. Standing: Renovate digest PRs (review as they come) · FortiGuard
-   recategorization (founder) · vault research-sync if still pending.
+   recategorization **submitted 2026-07-07** via the public fortiguard.com form
+   (Fortinet-only, company not involved; expect ~1-2 days) — note the office
+   FortiGate MITMs TLS regardless, so control-plane UI/MCP work stays on
+   phone/hotspot as the standing posture (office = eyes-limited: git/CI/Vultr
+   console only; never send the API key through the corp proxy) · vault
+   research-sync if still pending.
 
 ## Constraints in force
 
