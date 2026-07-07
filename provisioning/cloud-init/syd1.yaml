@@ -56,6 +56,17 @@ write_files:
       MaxAuthTries 3
       X11Forwarding no
 
+  # Bucket-2 host layer (mirror of phase2-host.sh): sshd crypto floor. Stock
+  # OpenSSH offers NIST-curve kex + hmac-sha1 - ssh-audit grades those [fail]
+  # and the smoke workflow gates on them.
+  - path: /etc/ssh/sshd_config.d/01-swordfish-crypto.conf
+    permissions: "0644"
+    content: |
+      KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
+      HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256
+      Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr
+      MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com
+
   # unattended-upgrades: actually turn the timer behaviour on (the package
   # alone does nothing without APT::Periodic).
   - path: /etc/apt/apt.conf.d/20auto-upgrades

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# phase2-host.sh - Bucket 2 pre-steps (host layer, Checkpoint-1 research pass):
+# phase2-host.sh - Bucket 2 host layer (pre-steps from the Checkpoint-1 research
+# pass + the sshd crypto floor the ssh-audit smoke gate requires):
 #   1. Docker daemon.json: json-file log caps (a chatty container cannot fill the
 #      disk) + live-restore (daemon restarts/upgrades do not kill containers).
 #   2. unattended-upgrades reboot window: kernel/libc updates actually take effect
@@ -7,9 +8,12 @@
 #      18:30 UTC = 04:30 AEST / 05:30 AEDT - pre-dawn Sydney; box clock stays UTC.
 #   3. 2 GB swapfile + swappiness=10: on a 2 GB box the OOM killer is the real
 #      enemy; swap buys graceful degradation instead (RAM headroom watch-item).
-# Runbook: CHARTER.md Bucket 2 pre-steps; executed over SSH by
-# .github/workflows/host-apply.yml (CI-as-hands). Runs as deploy (NOPASSWD sudo).
-# Idempotent: re-running on a converged box is a no-op; only changes restart docker.
+#   4. sshd crypto restriction: stock OpenSSH offers NIST-curve kex + hmac-sha1,
+#      which ssh-audit grades [fail] - the smoke workflow gates on those.
+# Runbook: CHARTER.md Bucket 2; executed over SSH by
+# .github/workflows/host-apply.yml / edge-apply.yml (CI-as-hands). Runs as deploy
+# (NOPASSWD sudo). Idempotent: re-running on a converged box is a no-op; only
+# changes restart docker/sshd.
 
 set -euo pipefail
 
@@ -90,9 +94,34 @@ else
     changed=1
 fi
 
+# --- 4. sshd crypto restriction (ssh-audit [fail]-clean) -----------------------
+# curve25519/sntrup kex + ed25519/rsa-sha2 host keys + AEAD/etm only. Every real
+# client (GitHub runners, founder laptop + phone, Vultr-adjacent tooling) speaks
+# these; the file is validated with sshd -t BEFORE restart so a typo can never
+# lock the box (validation failure removes the drop-in and aborts loudly).
+crypto_conf=/etc/ssh/sshd_config.d/01-swordfish-crypto.conf
+desired_crypto_conf='KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
+HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr
+MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com'
+
+if [ -f "$crypto_conf" ] && echo "$desired_crypto_conf" | sudo cmp -s "$crypto_conf" -; then
+    note "OK: sshd crypto already converged ($crypto_conf)"
+else
+    echo "$desired_crypto_conf" | sudo tee "$crypto_conf" >/dev/null
+    if ! sudo sshd -t; then
+        sudo rm -f "$crypto_conf"
+        echo "FAIL: sshd rejected the crypto drop-in - removed it, sshd untouched"
+        exit 1
+    fi
+    sudo systemctl restart ssh
+    note "CHANGED: sshd crypto restricted (validated with sshd -t before restart)"
+    changed=1
+fi
+
 # ------------------------------------------------------------------------------
 if [ "$changed" -eq 0 ]; then
     echo "== converged: no changes (idempotent re-run clean)"
 else
-    echo "== applied: box now carries the Bucket-2 host-layer pre-steps"
+    echo "== applied: box now carries the Bucket-2 host layer"
 fi
