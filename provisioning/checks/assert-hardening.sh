@@ -21,6 +21,9 @@ check() {
 }
 
 echo "== $(hostname -f 2>/dev/null || hostname) | $(uname -r) | up $(uptime -p 2>/dev/null || true)"
+# headroom record (2 GB tier watch-item, CHARTER Bucket 2 verify): every smoke
+# run logs it so the resize call at Bucket 5 has a history, not a guess
+echo "== mem: $(free -m | awk '/^Mem:/{print $3 "M used / " $2 "M total, " $7 "M avail"}') | swap: $(free -m | awk '/^Swap:/{print $3 "M used / " $2 "M total"}')"
 
 # first boot may still be configuring - wait for cloud-init to settle (10 min cap)
 timeout 600 cloud-init status --wait >/dev/null 2>&1 || true
