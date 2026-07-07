@@ -61,7 +61,7 @@ dev-loop convenience on tools no policy names, and never for anything that ships
 | build a Docker image | CI builds and pushes to GHCR — never local Docker |
 | SSH into a box | a workflow does it: private key in a repo secret (`gh secret set SSH_DEPLOY_KEY < keyfile`), runner connects and executes (see `.github/workflows/hardening-smoke.yml`) |
 | check DNS past the corporate resolver | DNS-over-HTTPS: `Invoke-RestMethod 'https://cloudflare-dns.com/dns-query?name=HOST&type=A' -Headers @{accept='application/dns-json'}` |
-| call provider APIs (VPS, DNS, storage) | plain HTTPS from PowerShell — `provisioning/vultr/create-box.ps1`, `provisioning/dns/set-a-record.ps1` are the reference implementations |
+| call provider APIs (VPS, DNS, storage) | plain HTTPS from PowerShell — `provisioning/vultr/create-box.ps1`, `provisioning/porkbun/set-a-record.ps1` are the reference implementations |
 | a secret available to automation | GitHub repo secret via `gh secret set`; laptop-side copies stay in gitignored `.env` / `inventory/secrets/` |
 | emergency raw SSH (break-glass) | phone hotspot — off the corporate network entirely; keep a dedicated key authorized for it |
 

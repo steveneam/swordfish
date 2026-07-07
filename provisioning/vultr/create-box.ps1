@@ -124,4 +124,4 @@ if ($inst.status -ne 'active' -or $inst.main_ip -eq '0.0.0.0') {
 Write-Host ''
 Write-Host "ACTIVE: $($inst.main_ip)  (id $($inst.id))"
 Write-Host 'Cloud-init will keep hardening for a few minutes after boot.'
-Write-Host 'Next: provisioning/dns/set-a-record.ps1 -Ip ' -NoNewline; Write-Host $inst.main_ip
+Write-Host 'Next: provisioning/porkbun/set-a-record.ps1 -Ip ' -NoNewline; Write-Host $inst.main_ip

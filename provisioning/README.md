@@ -10,8 +10,14 @@ Rules: **idempotent** (re-running on a healthy box is a no-op — this is also t
 
 ## Layout (Bucket 1 →)
 
+Provider-specific surface lives in one directory per provider (the adapter seam,
+Checkpoint-2 amendment 6): `vultr/` = boxes + firewall · `porkbun/` = DNS · `b2/` =
+backup storage. Swapping a provider = writing its directory; nothing else moves.
+
 - `cloud-init/` — per-box first-boot user-data (hardening lands before the box is reachable).
 - `vultr/` — provider API scripts (`create-box.ps1` — dry-run by default; `-Approve` = the spend gate).
-- `dns/` — registrar records (`set-a-record.ps1` — idempotent Porkbun upsert).
-- `host/` — idempotent host-layer converge scripts, applied over SSH by the `host-apply` / `edge-apply` workflows (Bucket 2 →). **Host-layer** scripts (`phase2-host.sh`) must also be mirrored into `cloud-init/` so rebuilds land converged at first boot; the **edge/control-plane** layer (`phase3-edge.sh` + `compose/edge/`) is deliberately not in cloud-init — its rebuild path is re-running `edge-apply`, which is the same converge (rebuild = cloud-init → `host-apply` → `edge-apply` → smoke).
+- `porkbun/` — registrar records (`set-a-record.ps1` — idempotent Porkbun upsert).
+- `b2/` — backup storage (`create-backup-bucket.ps1` — idempotent per-box bucket + bucket-scoped key).
+- `backup/` — the tracked backup layer (resticprofile `profiles.yaml` + hooks), shipped to the box by `backups-apply` (Bucket 3).
+- `host/` — idempotent host-layer converge scripts, applied over SSH by the `host-apply` / `edge-apply` workflows (Bucket 2 →). **Host-layer** scripts (`phase2-host.sh`) must also be mirrored into `cloud-init/` so rebuilds land converged at first boot; the **edge/control-plane** layer (`phase3-edge.sh` + `compose/edge/`) is deliberately not in cloud-init — its rebuild path is re-running `edge-apply`, which is the same converge; likewise the **backup** layer (`phase7-backups.sh`) rebuilds via `backups-apply` (its secrets can never ride in tracked cloud-init user-data). Rebuild = cloud-init → `host-apply` → `edge-apply` → `backups-apply` → smoke.
 - `checks/` — assertions CI runs against live boxes (`assert-hardening.sh`, driven by the `hardening-smoke` workflow and re-run after every converge).
