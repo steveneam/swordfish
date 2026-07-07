@@ -239,9 +239,20 @@ Stage-1 definition-of-done accepted (62/62 posture, run 28859416115; operating d
    credit keeps) as the fallback provider. ⛔ The BinaryLane purchase is the Bucket-5 Approval
    Gate; the bounded two-box overlap (≈US$38/mo gross, Vultr side credit-funded so cash stays
    ≈US$26) is pre-acknowledged here and re-confirmed at that gate.
+   *Gate evidence (2026-07-08 00:30):* founder created the BinaryLane account and walked the
+   purchase flow to the plan screen — target plan **Standard 4 vCPU / 8 GB / 100 GB NVMe /
+   4 TB @ AUD $39.20/mo (≈US$26)** confirmed AVAILABLE on the account; CPU-Optimised ≥4-thread
+   and the 16 GB HDD plans showed out-of-stock (recorded as a Bucket-7 availability datapoint).
+   Box creation goes through the scripted API path (`provisioning/binarylane/` adapter,
+   cloud-init user-data at create — the portability drill), NOT the UI form; image must be
+   **Ubuntu 24.04 LTS** (cloud-init pins the Docker apt suite to `noble`; fail2ban config
+   assumes 24.04 cloud images) — not BinaryLane's 26.04 default.
 3. **Hermes pilot: GO** (founder, this checkpoint) — per Checkpoint-1 amendment 6 ladder:
    E0 eyes → E1 propose → E2 constrained hands on dogfood workloads only; lands post-migration
-   via Dokploy; its LLM API budget remains a separate Approval Gate.
+   via Dokploy; its LLM API budget remains a separate Approval Gate. **Pi coding agent
+   approved alongside** (founder: "yes to Pi code") — pi.dev, MIT, minimal multi-provider
+   agent harness (CLI / RPC / SDK); role scoped at Bucket 5 as the candidate harness for
+   agent-side ops next to the Hermes pilot.
 4. **Project 3 pull-forward (re-scope):** Project 3's offload workload becomes an early tenant
    of the Stage-2 shared box once the migration verifies (sequencing pulled forward from
    Bucket 7; the dedicated high-egress box decision defers until the offload's real bandwidth
