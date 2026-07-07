@@ -1,6 +1,25 @@
 # CURRENT — session handoff (one file, overwritten each wrap)
 
-_Stamped: 2026-07-07 15:10 +10:00 (Bucket 2 main build session)_
+_Stamped: 2026-07-07 15:55 +10:00 (Bucket 2 main build + founder gate session)_
+
+## Gate progress (live update, same session)
+
+Founder gate is **9/10 closed**: admin registered (race won — signup, not login),
+green lock confirmed on phone (mobile data; corp FortiGuard MITM-blocks the new
+domain from the office — recategorization request = founder to-do), Server Domain
+set, API key generated → `.env` `DOKPLOY_API_KEY`, **Dokploy MCP registered**
+(local scope, `~/.claude.json` — user-private) and its process connects.
+**Remaining:** one MCP tool call verified end-to-end — impossible from the corp
+network (node rejects the Fortinet-resigned cert), needs hotspot or the
+FortiGuard recategorization to land. Then flip Web Server HTTPS toggle via API.
+
+Incident closed into ratchets: founder saved Server Domain with HTTPS toggle off
+→ Dokploy deleted its own websecure router → UI 404 with no recovery path (3000
+unpublished by design). Fixed live via converge (now **self-heals that route** —
+invariant: control plane stays reachable over TLS) + new assertion `dokploy route
+live (no 404)` → **40/40**. DO NOT re-save Settings → Web Server from the UI until
+the HTTPS toggle is fixed via API. Lesson saved to agent memory: **agent
+credential first, founder UI changes second.**
 
 ## State
 
