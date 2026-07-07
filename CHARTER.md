@@ -314,13 +314,19 @@ The founder delegated the Hermes pilot's provider + budget call ("go with your
 recommendation"). Decision on record, satisfying the separate LLM-budget Approval Gate
 (Checkpoint-1 amendment 6):
 
-- **Provider:** Anthropic API direct, on a dedicated key held outside the repo.
-  Model ladder: **Claude Haiku 4.5** (`claude-haiku-4-5`) for the E0/E1 workload
-  (cron briefings, alert triage — light summarization; fast + cheapest tier), stepping
-  up to Sonnet on-demand only for a weekly synthesis if E1 earns it.
-- **Budget: US$10/month hard cap**, enforced provider-side (workspace spend limit),
-  reviewed on the monthly pass. Expected actual at E0 cadence: <$3/mo. Breach = stop
-  and re-gate, same as any ceiling.
+- **Provider (founder call, later 2026-07-08 — supersedes the Anthropic-direct pick):**
+  the founder's existing **Vercel AI Gateway** account with cheap open-weights models
+  (Groq-hosted **Llama 3.3-class** or price-equivalent) for the E0/E1 workload (cron
+  briefings, alert triage — light summarization). This is doubly aligned: Hermes speaks
+  OpenAI-compatible endpoints (the gateway exposes one — base URL + key, nothing else),
+  and the gateway is already the chartered AI posture (Checkpoint-2 amendment 1), so the
+  eventual self-hosted Bifrost swap is the same one-line base-URL change. An Anthropic
+  API key stays the **documented escalation path** if a task outgrows open models
+  (note: Claude subscriptions do not transfer to third-party harnesses — escalation
+  means an API key, pay-per-token).
+- **Budget: US$10/month hard cap** attributable to Hermes at the gateway, reviewed on
+  the monthly pass. Expected actual at E0 cadence on Groq/Llama pricing: well under
+  $1/mo. Breach = stop and re-gate, same as any ceiling.
 - **Install point unchanged:** post-migration (full posture green on syd2 + DNS cutover
   + soak), deployed via Dokploy as a dogfood service; graduated-autonomy ladder and the
   no-spend-capable-keys rule per amendment 6 stand. Pi coding agent scoping rides the
