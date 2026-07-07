@@ -1,0 +1,81 @@
+name: verify-deadman
+
+# Dead-man freshness check (CHARTER pinned decision 5; Bucket-4 checkpoint
+# ratchet): asserts the nightly backup ran to success AND both dead-man pings
+# were receiver-acknowledged inside the window - hc-ping.sh only logs
+# "OK: dead-man ping sent (...)" when the receiver returned 2xx (curl -fsS),
+# so the box journal IS receiver-side confirmation for both legs
+# (healthchecks.io off-infra witness + Uptime Kuma push -> ntfy phone).
+# This turns the "confirm both legs fresh each morning" documentary check into
+# a dispatchable CI check. CI-as-hands posture matches hardening-smoke:
+# dispatch-only, holds the box key, read-only GITHUB_TOKEN, no actions used.
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: Box FQDN or IP
+        required: false
+        default: syd1.swordfish.cfd
+      since:
+        description: window the backup + pings must fall inside (journalctl --since syntax)
+        required: false
+        default: "26 hours ago"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: backup ran + both dead-man legs acknowledged
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ inputs.host || 'syd1.swordfish.cfd' }}
+      SINCE: ${{ inputs.since || '26 hours ago' }}
+    steps:
+      - name: Install CI deploy key
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+        run: |
+          [ -n "$SSH_DEPLOY_KEY" ] || { echo "SSH_DEPLOY_KEY secret is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          # strip CRs defensively (same Windows-pasted-secret failure mode as hardening-smoke)
+          printf '%s\n' "$SSH_DEPLOY_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null || { echo "secret does not parse as a private key"; exit 1; }
+
+      - name: Collect box evidence (journal + service state + timers)
+        run: |
+          remote="sudo journalctl -u resticprofile-backup@profile-syd1.service --since '$SINCE' --no-pager"
+          remote="$remote; echo '--- service ---'"
+          remote="$remote; sudo systemctl show resticprofile-backup@profile-syd1.service -p ExecMainStatus -p ExecMainExitTimestamp"
+          remote="$remote; echo '--- timers ---'"
+          remote="$remote; sudo systemctl list-timers 'resticprofile-*' --no-pager || true"
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o BatchMode=yes \
+              "deploy@$HOST" "$remote" > evidence.txt
+          cat evidence.txt
+
+      - name: Assert - success run + both legs receiver-acknowledged, no fail-mode pings
+        run: |
+          fail=0
+          if grep -q 'OK: dead-man ping sent (healthchecks success)' evidence.txt; then
+            echo "PASS: healthchecks.io leg acknowledged (off-infra witness)"
+          else
+            echo "FAIL: no healthchecks success ping inside '$SINCE'"; fail=1
+          fi
+          if grep -q 'OK: dead-man ping sent (kuma success)' evidence.txt; then
+            echo "PASS: Kuma push leg acknowledged (on-infra half)"
+          else
+            echo "FAIL: no Kuma success ping inside '$SINCE'"; fail=1
+          fi
+          if grep -Eq 'ping sent \((healthchecks|kuma) fail\)|ping failed to send' evidence.txt; then
+            echo "FAIL: fail-mode or unsent ping present inside '$SINCE'"; fail=1
+          else
+            echo "PASS: no fail-mode or unsent pings in the window"
+          fi
+          if grep -q 'ExecMainStatus=0' evidence.txt; then
+            echo "PASS: backup service last exit status 0"
+          else
+            echo "FAIL: backup service last exit status is not 0"; fail=1
+          fi
+          exit $fail

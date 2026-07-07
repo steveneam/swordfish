@@ -219,6 +219,46 @@ Full findings: `research/2026-07-07-platform-parity-plan.md` (PaaS→VPS parity 
 6. **Bucket-3 opportunistic add:** surface the `provisioning/<provider>/` adapter seam
    (file moves only — provider-specific surface is create-box / firewall / DNS).
 
+## Bucket-4 checkpoint record (founder-reviewed 2026-07-08 00:05 +10:00)
+
+Stage-1 definition-of-done accepted (62/62 posture, run 28859416115; operating detail in
+`runbooks/dogfood.md`) — **Stage 1 complete, syd1 graduates** per the Bucket-4 line. The calls:
+
+1. **Dokploy-MCP verdict: KEEP.** Every Bucket-4 operation (project/compose/app create, inline
+   compose, env, domains + middleware, deploys, logs/containers, Traefik file reads) ran through
+   the MCP from Claude Code — zero SSH, zero UI. Quirks documented in `runbooks/dogfood.md`;
+   Coolify / raw-compose swap paths stay documented, not pending.
+2. **Bucket-5 box-path fork resolved: graduate-by-migrating** (BinaryLane SYD 4 vCPU / 8 GB /
+   100 GB ≈ US$26/mo, inside the $30 ceiling) — drivers: RAM ~71% idle on the 2 GB tier, and the
+   founder wants Project 3's offload workload to start on the shared box with real headroom
+   (more vCPU / RAM / disk). Doubles as the portability drill (Checkpoint-2 amendment 2 intent).
+   **Parallel-run protocol (founder-set):** the Vultr box stays live until the BinaryLane box
+   passes the full verification set (posture assertions green on the new box · backups + tested
+   restore · monitors + both dead-man legs · DNS cutover + soak); only then is the Vultr
+   *instance* destroyed. The Vultr *account* stays open (no instance = no charge; remaining
+   credit keeps) as the fallback provider. ⛔ The BinaryLane purchase is the Bucket-5 Approval
+   Gate; the bounded two-box overlap (≈US$38/mo gross, Vultr side credit-funded so cash stays
+   ≈US$26) is pre-acknowledged here and re-confirmed at that gate.
+3. **Hermes pilot: GO** (founder, this checkpoint) — per Checkpoint-1 amendment 6 ladder:
+   E0 eyes → E1 propose → E2 constrained hands on dogfood workloads only; lands post-migration
+   via Dokploy; its LLM API budget remains a separate Approval Gate.
+4. **Project 3 pull-forward (re-scope):** Project 3's offload workload becomes an early tenant
+   of the Stage-2 shared box once the migration verifies (sequencing pulled forward from
+   Bucket 7; the dedicated high-egress box decision defers until the offload's real bandwidth
+   profile is measured on the shared box). Keep-managed boundary unchanged — only offload
+   compute / data-disk / bandwidth moves; the managed control plane stays put. Per AGENTS.md
+   separation of duties, Project 3's offload is dogfood-class: Swordfish MAY do its hands-on
+   wiring (unlike Projects 1/2, which connect themselves).
+5. **Project-integration surface ruling:** projects wire in via the control plane's existing
+   surfaces — Dokploy REST API + official MCP + CLI at `deploy.swordfish.cfd` — with
+   per-project scoped credentials and service connection strings issued at handoff. No custom
+   Swordfish API layer gets built (it would duplicate the control plane); the
+   `swordfish provision <box>` CLI stays the Bucket-8 north star for box ops.
+6. **Dead-man freshness is now executable:** `.github/workflows/verify-deadman.yml`
+   (CI-as-hands, dispatch-only) asserts the nightly backup succeeded and BOTH witness pings
+   were receiver-acknowledged inside a window — the standing "confirm both legs each morning"
+   documentary check graduated to a dispatchable CI check.
+
 ## Change control
 
 Buckets are re-scoped only at checkpoints (opinion ratchets — freely revised there).
