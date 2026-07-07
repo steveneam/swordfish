@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>swordfish &middot; hello</title>
+<style>
+  body { background: #0d1117; color: #c9d1d9; font-family: ui-monospace, Consolas, monospace;
+         display: flex; min-height: 100vh; margin: 0; align-items: center; justify-content: center; }
+  main { text-align: left; }
+  h1 { color: #58a6ff; font-size: 1.4rem; margin-bottom: 1.5rem; }
+  dt { color: #8b949e; float: left; clear: left; width: 8rem; }
+  dd { margin: 0 0 .4rem 8rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>swordfish &middot; hello &#127907;</h1>
+  <dl>
+    <dt>build</dt><dd>{{.Version}}</dd>
+    <dt>started</dt><dd>{{.Started}}</dd>
+    <dt>container</dt><dd>{{.Hostname}}</dd>
+  </dl>
+</main>
+</body>
+</html>
