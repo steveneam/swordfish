@@ -29,12 +29,13 @@ note() { echo "$1"; }
 if [ "$(date +%Z)" = "UTC" ]; then
     note "OK: box clock is UTC"
 else
+    prev_tz=$(timedatectl show -p Timezone --value 2>/dev/null || echo unknown)
     sudo timedatectl set-timezone Etc/UTC
     for t in $(systemctl list-unit-files --type=timer 'resticprofile-*' --no-legend 2>/dev/null | awk '{print $1}'); do
         sudo systemctl try-restart "$t" || true
         note "CHANGED: $t restarted (next-elapse recalculated for UTC)"
     done
-    note "CHANGED: timezone set to Etc/UTC (was $(timedatectl show -p Timezone --value 2>/dev/null || echo unknown))"
+    note "CHANGED: timezone set to Etc/UTC (was $prev_tz)"
     changed=1
 fi
 

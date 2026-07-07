@@ -1,69 +1,76 @@
 # CURRENT — session handoff (one file, overwritten each wrap)
 
-_Stamped: 2026-07-08 03:03 +10:00 (syd2 edge + control plane LIVE at deploy2; founder registers Dokploy, then backups + replay)_
+_Stamped: 2026-07-08 03:25 +10:00 (syd2 backups DONE + restore-tested, 55/63; next leg = dogfood replay → 63/63 → cutover)_
 
 ## State
 
-**syd2 posture: 42/62.** Everything except backups (13) + dogfood (7) is green.
+**syd2 posture: 55/63.** Backups-before-workloads is satisfied on syd2 —
+remaining FAILs are only the dogfood layer (7) + kuma-url (1).
 
-- Edge + control plane converged on syd2 via `edge-apply` run 28883853825:
-  swordfish-traefik + socket-proxy own 80/443, **Dokploy v0.29.10 pinned,
-  reachable at `https://deploy2.swordfish.cfd` with a real LE cert**
-  (laptop CA-validated probe: HTTP 307 → fresh instance awaiting /register).
-  Idempotency proven in CI (second phase3 run = no changes).
-- **Parallel-run parameterization landed:** `phase3-edge.sh` takes
-  `DEPLOY_FQDN` (default `deploy.swordfish.cfd`) and its bootstrap-route
-  converge rewrites when the routed FQDN differs — **the DNS-cutover re-point
-  is just re-running edge-apply with the real FQDN**. `assert-hardening.sh`
-  probes `$DEPLOY_FQDN` and derives the backup profile from `hostname -s`
-  (syd1 unchanged; syd2 will assert `profile-syd2`). All three workflows
-  (edge-apply / host-apply / hardening-smoke) gained a `deploy_fqdn` input.
-- Assertion fix from live observation: fresh Dokploy 307s to /register →
-  307 joined the accepted 30x class in the route-liveness checks.
-- Earlier this session: syd2 purchased + hardened at first boot (29/62 →
-  Phase 0–2 all green), BinaryLane adapter proven (create-box no-op converge,
-  provider firewall 22/80/443+drop-all + SSH-still-green), A-record `syd2`,
-  swap datapoint (BinaryLane ships no swapfile → guard created 2G), and the
-  **Thalon unmask** (token C removed; CHARTER addendum 2 = tenant note).
+- **Backups live + drilled:** restic→B2 `swordfish-syd2-backups` (own bucket +
+  scoped key, per-box pattern), first backup end-to-end green
+  (run 28885238961), **restore drill green — RTO 3 s / RPO 0 h,
+  content-verified** (run 28885492767). Timers: nightly 15:00 / prune Sat /
+  check Sun — all UTC.
+- **Portability-drill catches this leg** (each fixed at every layer + ratcheted):
+  1. **BinaryLane image ships Australia/Sydney TZ** (Vultr shipped UTC) — every
+     schedule resolved local (backup = mid-afternoon). Fixed: `timezone: Etc/UTC`
+     in both cloud-init yamls, phase2 converge sets UTC + re-elapses timers,
+     new `clock: UTC` assertion (posture total now 63).
+  2. **Dogfood dump hook** failed hard on a pre-workload box — now self-arming
+     (loud SKIP until a workload's first dump exists, hard FAIL after).
+  3. Fresh Dokploy 307s to /register — 307 accepted in route-liveness checks.
+- **Per-box backup parameterization:** profiles.yaml has per-box profiles
+  (syd2 inherits syd1 policy, own repo); phase7 picks profile by `hostname -s`;
+  backups-apply gained `install_ping_urls` (false for parallel-run successor —
+  the repo-secret URLs belong to the incumbent) + box-derived `--name`.
+- **CI secrets convention:** RESTIC_B2_KEY_ID/KEY now hold syd2's scoped key
+  (repo secrets track the CURRENT target box; RESTIC_PASSWORD shared across
+  boxes on purpose). Gotcha hit live: setting gh secrets from PS 5.1 hashtable
+  index expressions mangles them — assign to plain vars first.
+- **Hermes gate satisfied** (founder delegated): Anthropic API direct,
+  claude-haiku-4-5 for E0/E1, US$10/mo hard cap provider-side — recorded in
+  CHARTER "Bucket-5 in-flight record". Install stays post-cutover.
+- Earlier this session: Thalon unmask · syd2 purchased + hardened (Phase 0–2
+  green at first boot) · BinaryLane adapter + provider firewall · edge +
+  Dokploy v0.29.10 live at `deploy2.swordfish.cfd` (real LE cert) · founder
+  registered admin; `DOKPLOY_SYD2_API_KEY` in laptop `.env` (validated).
 
-## Next
+## Next — dogfood replay leg (→ 63/63)
 
-1. **[founder, 2 min]** Open `https://deploy2.swordfish.cfd` → register the
-   admin account. **Immediately after** (API-channel-before-UI-changes rule):
-   Settings → API/CLI → generate an API key → `.env` as
-   `DOKPLOY_SYD2_API_KEY=`. No other UI changes (Server Domain stays unset —
-   the bootstrap route owns deploy2 until cutover).
-2. Agent — backups leg (no founder dependency): `b2/create-backup-bucket.ps1`
-   for `swordfish-syd2-backups` (US West, scoped key) → `backups-apply` vs
-   syd2 → **tested restore** → expect posture 55/62.
-3. Agent — dogfood replay via Dokploy REST/API-key on syd2 (the portability
-   drill; MCP config still points at syd1): kuma + beszel + hello, domains
-   created before first deploy, ratelimit on public routers. Dead-man legs:
-   note syd2's resticprofile will ping healthchecks.io + the kuma-url — decide
-   whether the parallel-run window pings a NEW healthchecks check + syd2's own
-   Kuma (recommended) or shares syd1's (ambiguous acks). Then verify-deadman
-   vs syd2 → 62/62.
-4. Cutover (founder gate): re-point `deploy./status./metrics./hello.` A-records
-   to 103.249.236.41 + re-run edge-apply with `deploy_fqdn=deploy.swordfish.cfd`
-   + founder sets Server Domain; soak; **only then destroy the Vultr instance**
-   (account + credit stay). Drop temp `deploy2` record after soak.
+1. **[founder, 2 min]** healthchecks.io: add a NEW check named `syd2-backups`
+   (same cadence as syd1's: expect a ping daily, grace ~2h) → copy its ping
+   URL. It must NOT reuse syd1's check (ambiguous acks).
+2. Agent: replay dogfood via syd2's Dokploy REST API (key in `.env`; MCP still
+   points at syd1 — use raw REST or add a second MCP entry): kuma (status.),
+   beszel (metrics.), hello (hello.) — domains created BEFORE first deploy,
+   `swordfish-ratelimit` on public routers, compose files in `compose/`.
+   Kuma bootstrap via `provisioning/kuma/bootstrap.py` → get syd2's OWN push
+   URL. Local route asserts pass pre-cutover (probes are --resolve based).
+3. Agent: `gh secret set HEALTHCHECKS_PING_URL` (founder's new check) +
+   `KUMA_PUSH_URL` (syd2's own) → re-run backups-apply vs syd2 WITH
+   `install_ping_urls=true` → verify-deadman vs syd2 → **63/63**.
+4. Cutover (founder gate): re-point `deploy./status./metrics./hello.`
+   A-records → 103.249.236.41; re-run edge-apply with
+   `deploy_fqdn=deploy.swordfish.cfd`; founder updates Server Domain in
+   Dokploy; UptimeRobot targets unchanged (names move with DNS); soak;
+   **only then destroy the Vultr instance**; drop temp `deploy2` record.
 5. Post-verification: **Thalon handoff pack** (CHARTER addendum 2 item 4) +
-   PGlite export hook; **Hermes E0 pilot + Pi scoping** (Bucket-4 ruling 3 —
-   LLM budget is its own Approval Gate, ask the founder for provider + cap).
+   PGlite export hook; **Hermes E0 + Pi** per the in-flight record.
 
 ## Standing
 
-- Traefik 3.7.6 Renovate PR when it opens: edge pin bump = edge-apply protocol
-  (now also re-run on syd2 with `deploy_fqdn=deploy2.swordfish.cfd` pre-cutover).
-- verify-deadman still points at syd1 until the backup layer moves.
-- Editing AGENTS.md breaks the CLAUDE.md hardlink — recreate + verify after.
-- Dokploy UI quirk ledger: `runbooks/dogfood.md`.
+- Traefik 3.7.6 Renovate PR: edge-apply protocol (syd2 pre-cutover runs use
+  `deploy_fqdn=deploy2.swordfish.cfd`).
+- verify-deadman + syd1's receivers still point at syd1 until cutover.
+- AGENTS.md edits break the CLAUDE.md hardlink — recreate + verify after.
 
 ## Constraints in force
 
 No local Docker (CI + VPS only) · 443 is the reliable channel · zero guarded
-tokens (A/B only — Thalon unmasked) in tracked files · **backups before
-workloads: no tenant on syd2 until restic + tested restore exist there** ·
-every spend is an Approval Gate · founder is the sole author.
+tokens (A/B only — Thalon unmasked) in tracked files · backups-before-workloads
+**now satisfied on syd2** (tenants may land after full verification + cutover
+per the parallel-run protocol) · every spend is an Approval Gate · founder is
+the sole author.
 
 _All work is committed and pushed — it is safe to clear this session._

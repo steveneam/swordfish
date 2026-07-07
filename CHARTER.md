@@ -308,6 +308,24 @@ Source: the founder-relayed tenant note from the Thalon lead session
    stays the deferred Bucket-7 pattern); web-ingest spawns a bounded short-lived Crawl4AI
    Python subprocess.
 
+## Bucket-5 in-flight record — Hermes LLM budget (founder-delegated 2026-07-08)
+
+The founder delegated the Hermes pilot's provider + budget call ("go with your
+recommendation"). Decision on record, satisfying the separate LLM-budget Approval Gate
+(Checkpoint-1 amendment 6):
+
+- **Provider:** Anthropic API direct, on a dedicated key held outside the repo.
+  Model ladder: **Claude Haiku 4.5** (`claude-haiku-4-5`) for the E0/E1 workload
+  (cron briefings, alert triage — light summarization; fast + cheapest tier), stepping
+  up to Sonnet on-demand only for a weekly synthesis if E1 earns it.
+- **Budget: US$10/month hard cap**, enforced provider-side (workspace spend limit),
+  reviewed on the monthly pass. Expected actual at E0 cadence: <$3/mo. Breach = stop
+  and re-gate, same as any ceiling.
+- **Install point unchanged:** post-migration (full posture green on syd2 + DNS cutover
+  + soak), deployed via Dokploy as a dogfood service; graduated-autonomy ladder and the
+  no-spend-capable-keys rule per amendment 6 stand. Pi coding agent scoping rides the
+  same slot.
+
 ## Change control
 
 Buckets are re-scoped only at checkpoints (opinion ratchets — freely revised there).
