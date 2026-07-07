@@ -1,0 +1,73 @@
+# compose/edge - Bucket 2 (Stage 1b): the edge stack. Traefik v3 owns 80/443;
+# tecnativa/docker-socket-proxy is the only thing that sees the Docker socket
+# (read-only, CONTAINERS=1) so an edge compromise cannot become a box compromise.
+# Runbook: runbooks/edge.md; applied by .github/workflows/edge-apply.yml which
+# rsyncs this tree to /opt/swordfish/edge and runs provisioning/host/phase3-edge.sh.
+#
+# Design notes (why, not what):
+# - The container is swordfish-traefik, NOT dokploy-traefik: Dokploy force-removes
+#   any container with its managed name when it (re)initializes its edge - our
+#   name keeps it out of that lifecycle (see phase3-edge.sh header).
+# - Static config is synced by phase3-edge.sh to /etc/dokploy/traefik/traefik.yml
+#   (Dokploy's canonical path) so Dokploy's UI file-browser and LE-email writer
+#   keep working; the repo copy in ./traefik/ is the source of truth.
+# - The dynamic dir stays Dokploy-owned and read-write: Dokploy writes per-app
+#   routers there and Traefik writes acme.json inside it (upstream layout).
+# - Ports: 80/443 TCP only - no HTTP/3 (both the provider firewall and ufw are
+#   TCP-only by design), and no app ports ever (CI asserts this).
+# - Images digest-pinned; Renovate maintains the pins (Bucket 1.5).
+
+name: swordfish-edge
+
+services:
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
+    container_name: swordfish-socket-proxy
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # allow-list, not a firewall: only the container-read API surface Traefik's
+      # docker provider needs. Everything else (exec, build, swarm, volumes) 403s.
+      CONTAINERS: 1
+      EVENTS: 1
+      PING: 1
+      VERSION: 1
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket
+    # no ports: reachable only from the internal socket network
+
+  traefik:
+    image: traefik:v3.6.7@sha256:a9890c898f379c1905ee5b28342f6b408dc863f08db2dab20e46c267d1ff463a
+    container_name: swordfish-traefik
+    restart: always
+    depends_on:
+      - socket-proxy
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+    volumes:
+      - /etc/dokploy/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /etc/dokploy/traefik/dynamic:/etc/dokploy/traefik/dynamic
+    networks:
+      - socket
+      - dokploy-network
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  # socket-proxy lives here alone with Traefik; internal = no egress, no ingress
+  socket:
+    internal: true
+  # Dokploy's attachable overlay - every workload it deploys joins this, which is
+  # how Traefik reaches the services named in Dokploy's dynamic config files
+  dokploy-network:
+    external: true

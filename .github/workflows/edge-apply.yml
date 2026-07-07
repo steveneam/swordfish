@@ -1,0 +1,100 @@
+name: edge-apply
+
+# CI-as-hands apply channel for the Bucket-2 edge + control plane: ships
+# compose/edge to the box, converges with provisioning/host/phase3-edge.sh
+# (Traefik + socket-proxy + pinned Dokploy), proves idempotency by running the
+# converge twice, waits for the control plane, then re-asserts the full
+# hardening posture. Dispatch-only - a human decides when a live box changes.
+# Requires repo secret SSH_DEPLOY_KEY (swordfish-ci key).
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: Box FQDN or IP
+        required: false
+        default: syd1.swordfish.cfd
+
+# this job holds the box SSH key - keep its GITHUB_TOKEN read-only so a
+# compromised step can't also write to the repo (Bucket 1.5 posture)
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    name: converge edge + control plane via SSH
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ inputs.host || 'syd1.swordfish.cfd' }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install CI deploy key
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+        run: |
+          [ -n "$SSH_DEPLOY_KEY" ] || { echo "SSH_DEPLOY_KEY secret is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          # strip CRs defensively: a secret pasted/piped from Windows once arrived
+          # CR-tainted and openssh fails it with "error in libcrypto" (2026-07-07)
+          printf '%s\n' "$SSH_DEPLOY_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null || { echo "secret does not parse as a private key"; exit 1; }
+
+      - name: Wait for SSH
+        run: |
+          for i in $(seq 1 10); do
+            if ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o BatchMode=yes "deploy@$HOST" true; then
+              echo "SSH reachable"; exit 0
+            fi
+            echo "attempt $i/10 - not reachable yet, retrying in 30s"; sleep 30
+          done
+          echo "SSH unreachable after 5 minutes"; exit 1
+
+      - name: Ship compose/edge to /opt/swordfish/edge
+        run: |
+          # tar pipe instead of rsync/scp: rsync is not on the box image and this
+          # stays one idempotent overwrite with no partial-sync states
+          tar -C compose -czf - edge | \
+            ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                "deploy@$HOST" 'sudo install -d -o deploy -g deploy /opt/swordfish && tar -C /opt/swordfish -xzf -'
+
+      - name: Converge host layer first (phase2-host.sh)
+        run: |
+          # the final re-assert covers host + edge in one posture - converging
+          # both layers here keeps a single dispatch green end-to-end
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" 'bash -s' < provisioning/host/phase2-host.sh
+
+      - name: Converge edge + control plane (phase3-edge.sh)
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" 'bash -s' < provisioning/host/phase3-edge.sh
+
+      - name: Idempotency proof - second run must be a no-op
+        run: |
+          out=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                    "deploy@$HOST" 'bash -s' < provisioning/host/phase3-edge.sh)
+          echo "$out"
+          echo "$out" | grep -q '== converged: no changes' \
+            || { echo "FAIL: second run still reported changes - script is not idempotent"; exit 1; }
+
+      - name: Wait for control plane (first boot pulls images)
+        run: |
+          for i in $(seq 1 20); do
+            state=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                        "deploy@$HOST" "docker service ls --format '{{.Name}} {{.Replicas}}' | grep -E '^(dokploy|dokploy-postgres|dokploy-redis) ' | sort")
+            echo "$state"
+            if [ "$(echo "$state" | grep -c '1/1')" -eq 3 ]; then
+              echo "control plane converged"; exit 0
+            fi
+            echo "attempt $i/20 - still converging, retrying in 30s"; sleep 30
+          done
+          echo "FAIL: dokploy services did not reach 1/1 within 10 minutes"; exit 1
+
+      - name: Re-assert full hardening posture
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" 'bash -s' < provisioning/checks/assert-hardening.sh

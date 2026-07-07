@@ -12,6 +12,10 @@ on:
         description: Box FQDN or IP
         required: false
         default: syd1.swordfish.cfd
+      tls_fqdn:
+        description: TLS hostname to green-lock probe (empty = skip, e.g. pre-DNS rebuild)
+        required: false
+        default: deploy.swordfish.cfd
 
 # Bucket 1.5: this job holds the box SSH key - keep its GITHUB_TOKEN read-only
 # so a compromised step can't also write to the repo (dispatch-only trigger
@@ -79,3 +83,32 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
               "deploy@$HOST" 'bash -s' < provisioning/checks/assert-hardening.sh
+
+      # Bucket 2: sshd crypto posture. Gates on [fail] findings only; [warn]s are
+      # printed as the recorded grade (tightening them = a future hardening pass,
+      # not a smoke failure - ssh-audit exits non-zero even on warns, hence || true)
+      - name: ssh-audit grade
+        run: |
+          pipx install ssh-audit
+          out=$(ssh-audit "$HOST" || true)
+          echo "$out"
+          if echo "$out" | grep -q '\[fail\]'; then
+            echo "FAIL: ssh-audit reports hard failures"; exit 1
+          fi
+          echo "PASS: no [fail]-level findings"
+
+      # Bucket 2 gate evidence: real certificate chain, verified by the runner's
+      # CA store - the CI twin of the founder's green-lock browser check
+      - name: TLS green-lock probe
+        env:
+          TLS_FQDN: ${{ inputs.tls_fqdn }}
+        run: |
+          if [ -z "$TLS_FQDN" ]; then echo "skipped (no tls_fqdn)"; exit 0; fi
+          for i in $(seq 1 10); do
+            if curl -sS --max-time 15 "https://$TLS_FQDN" -o /dev/null; then
+              echo "PASS: https://$TLS_FQDN presents a CA-valid certificate"; exit 0
+            fi
+            echo "attempt $i/10 - not valid yet (issuance can take a minute), retrying in 30s"
+            sleep 30
+          done
+          echo "FAIL: no valid certificate after 5 minutes"; exit 1

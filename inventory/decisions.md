@@ -23,6 +23,21 @@
 - GitHub Actions: SHA-pinned only; zizmor lints workflows; Renovate maintains pins.
 - Dokploy: version-pinned; never upgrade before its config is in the backup set.
 
+## Edge pins (Bucket 2, applied 2026-07-07 — lockstep: `phase3-edge.sh` · `compose/edge/` · `assert-hardening.sh`)
+
+- **Dokploy `v0.29.10`** (latest stable at build; v0.29.9 was superseded within hours —
+  treat same-day double-releases as a smell when re-pinning). Install vendored into
+  `phase3-edge.sh`, NOT piped: upstream `install.sh` is destructive on re-run
+  (`swarm leave --force`) and aborts if 80/443 are bound. Port 3000 never published.
+- **Traefik `v3.6.7`** (digest-pinned; the version Dokploy pairs with) as
+  `swordfish-traefik` — never named `dokploy-traefik` (Dokploy force-removes that name).
+  TLS-ALPN challenge; JSON logs; no dashboard; no HTTP/3 (firewalls are TCP-only).
+- **tecnativa/docker-socket-proxy `0.3.0`** (digest-pinned), `CONTAINERS=1` read-only;
+  wollomatic/socket-proxy = documented stricter swap path.
+- `postgres:16` / `redis:7` tag-pinned (vendored from upstream install; digest-pinning
+  these via a Renovate regex manager = deferred nice-to-have).
+- LE email lives in `compose/edge/traefik/traefik.yml` (repo is private; not CT-exposed).
+
 ## Backup parameters (Bucket 3 implements)
 
 - restic → B2, nightly, encrypted; driven by **resticprofile** (tracked YAML).

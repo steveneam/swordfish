@@ -1,0 +1,35 @@
+# Traefik dynamic config - Bucket 2 hardening (tracked; synced by phase3-edge.sh
+# into /etc/dokploy/traefik/dynamic/ alongside the files Dokploy manages there).
+# Hot-reloaded by the file provider - no restart needed.
+#
+# - swordfish-security-headers is attached at the websecure ENTRYPOINT (see
+#   traefik.yml), so every TLS router gets it without Dokploy knowing about it.
+#   Kept conservative on purpose: HSTS + nosniff + SAMEORIGIN break nothing;
+#   CSP/frameDeny would break app embeds and belong per-app, not global.
+# - tls.options.default applies to every TLS connection: TLS 1.2 floor with the
+#   Mozilla-intermediate 1.2 suites (1.3 suites are always on and not
+#   configurable), sniStrict rejects SNI-less probes (e.g. by bare IP) instead
+#   of presenting the default certificate.
+
+http:
+  middlewares:
+    swordfish-security-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeNosniff: true
+        referrerPolicy: strict-origin-when-cross-origin
+        customFrameOptionsValue: SAMEORIGIN
+
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+      sniStrict: true
+      cipherSuites:
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305

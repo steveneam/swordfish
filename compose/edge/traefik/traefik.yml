@@ -1,0 +1,67 @@
+# Traefik v3 static config - Bucket 2 (Stage 1b). Source of truth is THIS repo
+# file; phase3-edge.sh syncs it to /etc/dokploy/traefik/traefik.yml on the box
+# (Dokploy's canonical path). Changes here need a traefik restart (the converge
+# script handles that); dynamic/ files hot-reload.
+#
+# Dokploy contract preserved (from dokploy packages/server/src/setup/traefik-setup.ts):
+# entrypoint names web/websecure, resolver name "letsencrypt", file provider on
+# /etc/dokploy/traefik/dynamic with acme.json inside it. Dokploy-written routers
+# reference exactly these names - renaming any of them breaks the control plane.
+#
+# Deltas from Dokploy's default config (all deliberate):
+# - docker provider talks to the socket-proxy, never the raw socket
+# - no swarm provider (socket-proxy is CONTAINERS=1 only; Dokploy routes its
+#   workloads via file provider, not swarm labels - flip SERVICES/TASKS/NETWORKS
+#   on the proxy if a swarm-label use-case ever earns it)
+# - TLS-ALPN challenge instead of httpChallenge (CHARTER decision 3)
+# - api/dashboard OFF (Dokploy's default ships api.insecure: true)
+# - entrypoint-level https redirect + security headers; JSON logs; no HTTP/3
+# - LE email baked here: change it in THIS file, not the Dokploy UI (the UI
+#   writer round-trips this file and the converge would revert it)
+
+global:
+  sendAnonymousUsage: false
+  checkNewVersion: false
+
+log:
+  level: INFO
+  format: json
+
+accessLog:
+  format: json
+
+ping: {}
+
+providers:
+  docker:
+    endpoint: tcp://socket-proxy:2375
+    exposedByDefault: false
+    watch: true
+    network: dokploy-network
+  file:
+    directory: /etc/dokploy/traefik/dynamic
+    watch: true
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - swordfish-security-headers@file
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: mactechdish@gmail.com
+      storage: /etc/dokploy/traefik/dynamic/acme.json
+      tlsChallenge: {}
