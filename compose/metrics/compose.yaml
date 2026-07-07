@@ -1,0 +1,78 @@
+# compose/metrics - Bucket 4 (Stage 1d): Beszel (hub + agent) at
+# metrics.swordfish.cfd. Apply channel: the Dokploy MCP (NOT edge-apply) -
+# this file is the tracked source of truth; changes here are pushed into the
+# Dokploy compose service via compose-update + compose-deploy. Dokploy
+# service: composeId koQq7S1xUJgfR7yQEZ4ij, appName swordfish-metrics-5t0pke
+# (suffix is Dokploy-generated), project swordfish.
+#
+# Hardening deltas from Beszel's stock compose (documented trade-offs):
+# - The agent does NOT get the raw docker socket: it talks to its own
+#   tecnativa/docker-socket-proxy (read-only API allow-list, POST=0) - the
+#   "only socket-proxy sees the socket" invariant from compose/edge holds
+#   box-wide. Container stats work over CONTAINERS=1.
+# - No network_mode: host (stock example uses it for host NIC stats): the
+#   agent sees host CPU/mem/disk fine from a container (/proc and statfs are
+#   not namespaced for those); only per-interface network totals are reduced
+#   to the container's veth - accepted, Kuma owns uptime alerting anyway.
+# - agent + socket nets are internal (no egress); the hub egresses via
+#   dokploy-network (it is also Traefik's path in).
+#
+# BESZEL_AGENT_KEY comes from the Dokploy service env (compose-saveEnvironment):
+# the hub mints its SSH keypair on first boot; the agent authorizes the hub's
+# public key. First deploy leaves the agent restart-looping until the key is
+# saved + redeployed - expected, not an incident.
+
+services:
+  beszel:
+    image: henrygd/beszel:0.18.7@sha256:a849ad80814b6a1a3be665304dcace5d4854b3bed7bde4dd1227e8ce1b82d477
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - beszel-data:/beszel_data
+    networks:
+      - dokploy-network
+      - agent
+
+  agent:
+    image: henrygd/beszel-agent:0.18.7@sha256:8874e2c53f9de5e063a6a80d6b617e20fa593ac5dc4eb4c6ce1f912f510f38f8
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      LISTEN: "45876"
+      KEY: ${BESZEL_AGENT_KEY:-}
+      DOCKER_HOST: tcp://socket-proxy:2375
+    networks:
+      - agent
+      - socket
+
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:v0.4.2@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # same allow-list shape as compose/edge: read-only container surface
+      CONTAINERS: 1
+      PING: 1
+      VERSION: 1
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket
+
+volumes:
+  beszel-data:
+
+networks:
+  # Dokploy's attachable overlay: Traefik path in + the hub's egress
+  dokploy-network:
+    external: true
+  # hub <-> agent only
+  agent:
+    internal: true
+  # agent <-> socket-proxy only
+  socket:
+    internal: true
