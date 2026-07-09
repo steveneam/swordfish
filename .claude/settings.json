@@ -1,6 +1,9 @@
 {
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  }
+    "attribution":  {
+                        "commit":  "",
+                        "pr":  ""
+                    },
+    "permissions":  {
+                        "defaultMode":  "bypassPermissions"
+                    }
 }
