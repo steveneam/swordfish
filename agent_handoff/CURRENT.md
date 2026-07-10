@@ -118,12 +118,20 @@ stealth mode on record (thalon.org unwired until launch call).
 - **syd4 cannot originate ANY port-22 connection** — github.com, gitlab.com, syd2
   and syd3 all time out on 22 while 443 egress works everywhere; ufw is clean
   (allow outgoing) and the BinaryLane advanced-firewall rules are inbound-only →
-  upstream egress-22 policy (BinaryLane network side). Box-to-box break-glass SSH
-  from syd4 is therefore OFF until either a BL support ticket unblocks egress 22
-  or syd3 gets the chartered SSH-on-443 fallback (AGENTS.md operating rule 2
-  anticipated exactly this) — **both founder-gated, decision pending.**
-  CI-as-hands is unaffected (runners connect inbound to every box) and remains
-  the primary channel; git/gh over HTTPS unaffected.
+  upstream egress-22 policy (BinaryLane network side). CI-as-hands is unaffected
+  (runners connect inbound to every box) and remains the primary channel; git/gh
+  over HTTPS unaffected. **Founder approved the chartered SSH-on-443 fallback
+  (AGENTS.md rule 2) and it is APPLIED on syd3** via the new `ssh443-apply`
+  workflow (run 29109656340, converge + idempotency-proof green): sshd listens
+  22+443, ufw admits 443 from syd4/32 only, syd3 cloud-init pinned, `ssh syd3`
+  alias staged in syd4's ~/.ssh/config. **One link missing: the Vultr
+  provider-firewall twin rule** — the Vultr API key rejects syd4's IP
+  (laptop-era IP access-control list). Founder one-time fix, either: add
+  66.226.147.123 to the API key's Access Control (my.vultr.com → Account → API)
+  — preferred, the agent then manages Vultr from the cockpit — or add the rule
+  by hand (Firewall group `swordfish-syd3`: TCP 443, source 66.226.147.123/32).
+  When it lands: agent verifies `ssh syd3`, pushes the tmux/motd fixes there,
+  and clears the checklist follow-up.
 - **B2 daily download cap hit 2026-07-11** (founder email): caused by two full
   restore drills in one day (3.1 GB snapshot each) — **nothing is lost or
   overwritten**; the cap only throttles further *downloads* until midnight UTC or
