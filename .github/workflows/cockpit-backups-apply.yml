@@ -61,13 +61,29 @@ jobs:
           echo "SSH unreachable after 5 minutes"; exit 1
 
       - name: Install backup secrets on box (0600 root)
+        # static per-box secret references on purpose: a dynamic
+        # secrets[format(...)] index makes Actions provision the ENTIRE secrets
+        # context to the runner (zizmor: excessively provisioned secrets) -
+        # exactly the cross-box sharing this workflow exists to avoid. Adding a
+        # box = add its four lines here + its prefix to the case guard below;
+        # the bash indirect expansion picks the right set at runtime.
         env:
           PREFIX: ${{ inputs.secret_prefix || 'SYD3' }}
-          RESTIC_PASSWORD: ${{ secrets[format('{0}_RESTIC_PASSWORD', inputs.secret_prefix || 'SYD3')] }}
-          RESTIC_B2_KEY_ID: ${{ secrets[format('{0}_RESTIC_B2_KEY_ID', inputs.secret_prefix || 'SYD3')] }}
-          RESTIC_B2_KEY: ${{ secrets[format('{0}_RESTIC_B2_KEY', inputs.secret_prefix || 'SYD3')] }}
-          HC_URL: ${{ secrets[format('{0}_HEALTHCHECKS_PING_URL', inputs.secret_prefix || 'SYD3')] }}
+          SYD3_RESTIC_PASSWORD: ${{ secrets.SYD3_RESTIC_PASSWORD }}
+          SYD3_RESTIC_B2_KEY_ID: ${{ secrets.SYD3_RESTIC_B2_KEY_ID }}
+          SYD3_RESTIC_B2_KEY: ${{ secrets.SYD3_RESTIC_B2_KEY }}
+          SYD3_HEALTHCHECKS_PING_URL: ${{ secrets.SYD3_HEALTHCHECKS_PING_URL }}
+          SYD4_RESTIC_PASSWORD: ${{ secrets.SYD4_RESTIC_PASSWORD }}
+          SYD4_RESTIC_B2_KEY_ID: ${{ secrets.SYD4_RESTIC_B2_KEY_ID }}
+          SYD4_RESTIC_B2_KEY: ${{ secrets.SYD4_RESTIC_B2_KEY }}
+          SYD4_HEALTHCHECKS_PING_URL: ${{ secrets.SYD4_HEALTHCHECKS_PING_URL }}
         run: |
+          case "$PREFIX" in SYD3|SYD4) ;; *) echo "unknown secret_prefix '$PREFIX' - add its secrets to this step's env first"; exit 1;; esac
+          pick() { local v="${PREFIX}_$1"; printf '%s' "${!v}"; }
+          RESTIC_PASSWORD="$(pick RESTIC_PASSWORD)"
+          RESTIC_B2_KEY_ID="$(pick RESTIC_B2_KEY_ID)"
+          RESTIC_B2_KEY="$(pick RESTIC_B2_KEY)"
+          HC_URL="$(pick HEALTHCHECKS_PING_URL)"
           [ -n "$RESTIC_PASSWORD" ] || { echo "${PREFIX}_RESTIC_PASSWORD secret is not set"; exit 1; }
           { [ -n "$RESTIC_B2_KEY_ID" ] && [ -n "$RESTIC_B2_KEY" ]; } || { echo "${PREFIX}_RESTIC_B2_KEY_ID / ${PREFIX}_RESTIC_B2_KEY secrets are not set"; exit 1; }
           s() { ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes "deploy@$HOST" "$@"; }

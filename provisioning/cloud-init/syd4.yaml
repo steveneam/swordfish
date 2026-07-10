@@ -161,7 +161,12 @@ write_files:
   - path: /etc/tmux.conf
     permissions: "0644"
     content: |
-      set -g mouse on
+      # mouse OFF by default: tmux mouse mode captures the terminal's mouse,
+      # which kills native macOS Terminal selection/copy (rehearsal lesson
+      # 2026-07-11 - an OAuth URL could not be copied). prefix+m toggles it
+      # for wheel scrolling; native selection is the primary copy path.
+      set -g mouse off
+      bind m set -g mouse \; display 'tmux mouse: #{?mouse,ON (wheel scroll; selection captured),off (native selection works)}'
       set -g history-limit 50000
       set -g status-interval 5
       set -g status-right "#H | %H:%M UTC"
@@ -176,6 +181,7 @@ write_files:
       echo " == $h.swordfish.cfd ================================================="
       echo "  work          open/resume the main workspace (survives WiFi drops)"
       echo "  claude        start the agent (run it inside 'work')"
+      echo "  copy text     just select it (tmux mouse off; prefix+m = wheel scroll)"
       echo "  qr '<url>'    render any URL as a QR code for the phone camera"
       echo "  snapshots     list backups   |   backup-now   run a backup now"
       if [ -f /etc/systemd/system/code-server.service ]; then

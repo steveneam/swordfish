@@ -1,8 +1,8 @@
 # CURRENT — session handoff (one file, overwritten each wrap)
 
-_Stamped: 2026-07-11 02:21 +10:00 (FIRST BOOT ON syd4 — the machine migration LANDED;
-this file is now written from the box itself. Ops queue still parked pending the
-founder's rehearsal-pass confirmation.)_
+_Stamped: 2026-07-11 03:05 +10:00 (FIRST BOOT ON syd4 — the machine migration LANDED
+and the rehearsal's pain points are already ratcheted. Ops queue still parked pending
+the founder's rehearsal-pass confirmation.)_
 
 ## State
 
@@ -30,6 +30,41 @@ drives it from the 2011 MacBook over SSH). First-boot verification, all green:
 - USB seed was refreshed 23:50 on the laptop's final day — the drive is current;
   memories written since live here and are restic-backed nightly (RTO 3 s proven).
 
+**Rehearsal debrief (founder feedback 2026-07-11, fixes applied same session):**
+
+- **The claude login was an ordeal:** restored `.credentials.json` did NOT carry the
+  login; the long OAuth URL couldn't be copied because tmux mouse mode was capturing
+  the terminal's mouse (native Mac selection dead). Founder had to disable mouse mode
+  by hand, select/paste into Chromium, relay the code back. **Ratcheted:** tmux
+  `mouse off` is now the default on syd4 (live) + BOTH cloud-inits, with `prefix+m`
+  as an on-demand toggle and a `copy text` crib line in the login banner. The
+  checklist's login section is rewritten: ranked paths (code-server terminal in
+  Chromium — founder-verified "worked well" — then native terminal selection, then
+  phone QR as fallback; QR is fine for gh's short code, impractical for claude's
+  long URL). Logins are per-user-per-box: **the other project agents on syd4 reuse
+  this login — the ordeal does not repeat per project.** syd3 will need one login
+  round when its slice restores.
+- **Checklist Part 3 had a stale vault folder name** — the drive folder was renamed
+  to `walter` before the checklist was written. Fixed in the on-box copy
+  (`~/migration/MACBOOK-CHECKLIST.md`, now the canonical edition — drive re-copy
+  queued for next time the drive is plugged in). The old folder name carried a
+  guarded token; `walter` is safe to name.
+- **Thalon's gitignored secrets were NOT copied** (location unknown to the founder).
+  Recorded in the checklist: thalon's agent inventories its own secret paths on
+  first boot, then scp from the drive (check `thalon/` and `thalon-migration/`).
+- **syd3 still runs the old mouse-on tmux config** — its firewall blocks box-to-box
+  ssh, so the fix couldn't be pushed from here. The Mac-relay one-liners are in the
+  checklist's LATER section; cloud-init already pinned for rebuilds.
+
+**Same session — zizmor fixed + drill checks grown:** both cockpit backup workflows
+used dynamic `secrets[format(...)]` indexing, which makes Actions provision the
+ENTIRE secrets context to the runner (the exact cross-box sharing the per-box
+prefixes exist to prevent) and failed zizmor. Reworked to static per-prefix
+references + bash indirect expansion (adding a box = add its env lines + case
+guard). cockpit-restore-drill content verification is now per-box: SYD4 asserts the
+seed state (`~/.claude`, vault, repos + secrets); SYD3 stays at fresh-box baseline
+until its slice restore.
+
 **syd3 = ops cockpit, LIVE + VERIFIED + BACKED UP** (unchanged): Vultr syd
 `vhf-1c-2gb` $12/mo credit-funded, 139.180.170.11, `syd3.swordfish.cfd`, tcp/22
 only, NO Docker. cockpit-smoke 29/29-era green + ssh-audit clean; restic→B2 nightly
@@ -48,10 +83,13 @@ stealth mode on record (thalon.org unwired until launch call).
 1. **Founder: confirm the rehearsal passed.** This first-boot session is the
    evidence (MacBook → syd4, real op green end-to-end). That confirmation — and
    nothing else — un-parks the ops queue.
-2. **Box tail (agent, non-gated, next session or on ask):** grow
-   cockpit-restore-drill content checks now that `~/.claude` + repos live here
-   (marked in `cockpit-restore-drill.yml`). Kuma push dead-man leg comes
-   post-cutover.
+2. ~~Box tail: grow cockpit-restore-drill content checks~~ **DONE this session**
+   (per-box checks; fresh backup pushed so the SYD4 drill sees the seed state;
+   verification drill dispatched — see run link in the session log). Remaining
+   tails: Kuma push dead-man leg post-cutover · founder relays the mouse-off
+   tmux config to syd3 from the Mac (checklist LATER section has the exact
+   commands) · founder re-copies the updated MACBOOK-CHECKLIST.md to the USB
+   drive next time it's plugged in.
 3. **Optional:** syd3 swordfish-slice restore (MANIFEST minimal-slice checklist) if
    end-state B (infra-key isolation) is chosen.
 4. **⛔ PARKED OPS QUEUE — resumes only after item 1, in this order:**

@@ -4,10 +4,10 @@ name: cockpit-restore-drill
 # cockpit / syd4 workspace): restore the latest snapshot from B2 onto a fresh
 # runner WITHOUT touching the box, proving the CI secrets + encrypted repo
 # alone recover the state after total box loss. Per-box secrets selected by
-# secret_prefix (keep in lockstep with repository). Content verification
-# starts from the fresh-box baseline (ssh authorized_keys + shell profile)
-# and MUST grow as boxes gain state (post-seed-restore: add ~/.claude
-# memory/transcript markers here).
+# secret_prefix (keep in lockstep with repository). Content verification is
+# per-box: syd4 asserts the 2026-07-10 seed state (~/.claude, vault, repos +
+# secrets); syd3 stays at the fresh-box baseline (ssh authorized_keys + shell
+# profile) until its swordfish-slice restore lands - grow its checks then.
 # Requires repo secrets <PREFIX>_RESTIC_PASSWORD, <PREFIX>_RESTIC_B2_KEY_ID,
 # <PREFIX>_RESTIC_B2_KEY. No SSH key needed - never contacts the box.
 
@@ -32,13 +32,36 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RESTIC_REPOSITORY: ${{ inputs.repository || 'b2:swordfish-syd3-backups:restic' }}
-      RESTIC_PASSWORD: ${{ secrets[format('{0}_RESTIC_PASSWORD', inputs.secret_prefix || 'SYD3')] }}
-      B2_ACCOUNT_ID: ${{ secrets[format('{0}_RESTIC_B2_KEY_ID', inputs.secret_prefix || 'SYD3')] }}
-      B2_ACCOUNT_KEY: ${{ secrets[format('{0}_RESTIC_B2_KEY', inputs.secret_prefix || 'SYD3')] }}
+      PREFIX: ${{ inputs.secret_prefix || 'SYD3' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+
+      - name: Select per-box credentials
+        # static per-box secret references on purpose: a dynamic
+        # secrets[format(...)] index makes Actions provision the ENTIRE secrets
+        # context to the runner (zizmor: excessively provisioned secrets).
+        # Adding a box = add its three lines here + its prefix to the case
+        # guard. Values written to GITHUB_ENV stay log-masked (they match
+        # registered secrets); the runner is ephemeral.
+        env:
+          SYD3_RESTIC_PASSWORD: ${{ secrets.SYD3_RESTIC_PASSWORD }}
+          SYD3_RESTIC_B2_KEY_ID: ${{ secrets.SYD3_RESTIC_B2_KEY_ID }}
+          SYD3_RESTIC_B2_KEY: ${{ secrets.SYD3_RESTIC_B2_KEY }}
+          SYD4_RESTIC_PASSWORD: ${{ secrets.SYD4_RESTIC_PASSWORD }}
+          SYD4_RESTIC_B2_KEY_ID: ${{ secrets.SYD4_RESTIC_B2_KEY_ID }}
+          SYD4_RESTIC_B2_KEY: ${{ secrets.SYD4_RESTIC_B2_KEY }}
+        run: |
+          case "$PREFIX" in SYD3|SYD4) ;; *) echo "unknown secret_prefix '$PREFIX' - add its secrets to this step's env first"; exit 1;; esac
+          pick() { local v="${PREFIX}_$1"; printf '%s' "${!v}"; }
+          RP="$(pick RESTIC_PASSWORD)"; KI="$(pick RESTIC_B2_KEY_ID)"; KK="$(pick RESTIC_B2_KEY)"
+          { [ -n "$RP" ] && [ -n "$KI" ] && [ -n "$KK" ]; } || { echo "${PREFIX}_RESTIC_* secrets are not set"; exit 1; }
+          {
+            echo "RESTIC_PASSWORD=$RP"
+            echo "B2_ACCOUNT_ID=$KI"
+            echo "B2_ACCOUNT_KEY=$KK"
+          } >> "$GITHUB_ENV"
 
       - name: Install restic at the box pin (read from phase7-backups.sh - one source of truth)
         run: |
@@ -80,9 +103,24 @@ jobs:
           # the restored key material must be the fleet pair, not something else
           grep -q 'swordfish-ops' drill-restore/home/deploy/.ssh/authorized_keys
           grep -q 'swordfish-ci'  drill-restore/home/deploy/.ssh/authorized_keys
-          # GROW THIS as the cockpit gains state (seed restore adds ~/.claude):
-          # f /home/deploy/.claude/projects  (enable after the rehearsal restore)
-          echo "PASS: restored content verified (fresh-box baseline)"
+          case "$PREFIX" in
+            SYD4)
+              # the workspace carries the portfolio since the 2026-07-10 seed
+              # restore - losing these = losing the agent's memory + the vault
+              f /home/deploy/.claude/projects
+              f /home/deploy/.claude/CLAUDE.md
+              f /home/deploy/vault/AGENTS.md
+              f /home/deploy/work/swordfish/AGENTS.md
+              f /home/deploy/work/swordfish/.env
+              f /home/deploy/work/swordfish/inventory/secrets
+              echo "PASS: restored content verified (workspace: baseline + seed state)"
+              ;;
+            *)
+              # syd3 stays at the fresh-box baseline until its swordfish-slice
+              # seed restore lands - add its ~/.claude markers then
+              echo "PASS: restored content verified (fresh-box baseline)"
+              ;;
+          esac
 
       - name: Cleanup restored data
         if: always()
