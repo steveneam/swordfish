@@ -17,12 +17,22 @@ next cockpit = a VPS driven from the 2011 MacBook's terminal, phone browser for 
   sits alongside for the other portfolio projects' agents (never commit it here).
   **Final-day rule:** re-run the refresh commands at the top of MANIFEST.md before
   abandoning the laptop. The research vault is founder-copied separately.
-- **syd3 = agent cockpit, LIVE + VERIFIED** (CHARTER machine-migration amendment):
-  Vultr syd `vhf-1c-2gb` $12/mo credit-funded, 139.180.170.11, `syd3.swordfish.cfd`,
-  provider firewall + ufw = tcp/22 only, NO Docker, toolchain baked in
-  (git · gh · tmux · Node 22 · Claude Code). cockpit-smoke run 29085148074 =
-  **29/29 + ssh-audit clean** (commit 11ac255). ⚠️ Not yet primary: needs founder
-  logins + seed restore + a `~/.claude` backup ratchet first.
+- **syd3 = ops cockpit, LIVE + VERIFIED + BACKED UP** (CHARTER machine-migration
+  amendment): Vultr syd `vhf-1c-2gb` $12/mo credit-funded, 139.180.170.11,
+  `syd3.swordfish.cfd`, tcp/22 only, NO Docker, toolchain baked in. cockpit-smoke
+  29/29 + ssh-audit clean; restic→B2 nightly + tested restore (RTO 3 s); off-infra
+  dead-man leg receiver-acked. Awaits founder logins + the swordfish seed slice.
+- **syd4 = portfolio workspace, LIVE + VERIFIED + BACKED UP** (amendment item 5):
+  BinaryLane syd `std-4vcpu` 4 vCPU / 8 GB / 100 GB, AUD 39.20/mo (≈US$26 cash),
+  66.226.147.123 (id 638898), `syd4.swordfish.cfd`, tcp/22 only, NO Docker.
+  Toolchain: git · gh · tmux · Node 22 · **Claude Code · Codex CLI · code-server
+  4.127.0 (VS Code in browser, tunnel-only 127.0.0.1:8080 — `ssh -L
+  8080:localhost:8080 deploy@syd4.swordfish.cfd`, then http://localhost:8080)**.
+  cockpit-smoke **33/33** + ssh-audit clean; restic→B2 nightly + tested restore
+  (RTO 3 s); off-infra dead-man leg receiver-acked. All project repos + the vault
+  + agent state restore HERE (MANIFEST full-restore section). Two first-boot
+  lessons ratcheted: BL API caps per_page at 200; NodeSource piped curl|bash
+  fails silently → cloud-init now downloads-then-executes with retries.
 
 **syd2 posture unchanged: 60/63 — pre-cutover ceiling** (3 FAILs = sniStrict route
 checks for `hello./status./metrics.`; certs can only issue once DNS points here).
@@ -36,10 +46,14 @@ neutral swordfish.cfd name + BasicAuth + noindex).
 1. **Founder, at the work laptop (before it is lost):** copy the vault to a portable
    drive; hand `AGENT-BROADCAST.md` to the other project agents; on the final day run
    the MANIFEST.md refresh commands.
-2. **Founder, from home (MacBook):** rehearsal — `ssh deploy@syd3.swordfish.cfd`,
-   `tmux`, `claude` login (phone browser completes the URL+code flow), `gh auth login`
-   (device flow), `scp -r` the staging folder from the drive to syd3, restore per
-   MANIFEST.md, then prove the loop by dispatching cockpit-smoke from syd3 itself.
+2. **Founder, from home (MacBook):** rehearsal — now targets **syd4 first** (the
+   workspace): `ssh deploy@syd4.swordfish.cfd`, `tmux`, `claude` login (phone
+   browser completes the URL+code flow), `gh auth login` (device flow), `scp -r`
+   the staging folder + vault from the drive, restore per MANIFEST.md full-restore
+   section, open the code-server tunnel (`ssh -L 8080:localhost:8080 …` →
+   http://localhost:8080 in Chrome), then prove the loop by dispatching
+   cockpit-smoke from syd4 itself. The syd3 swordfish-slice restore (ops cockpit)
+   can happen the same evening or later — it does not block the workspace.
 3. ~~Cockpit backup ratchet~~ **DONE 2026-07-10 (hotspot session):** syd3 restic→B2
    nightly (bucket `swordfish-syd3-backups`, source = `/home/deploy` whole-home,
    STANDALONE profile — resticprofile `inherit` merges lists positionally, lesson in

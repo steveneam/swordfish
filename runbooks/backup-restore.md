@@ -57,7 +57,8 @@ gains state; see the workflow's verify step).
 | date (UTC) | snapshot | RTO (restore) | RPO (snapshot age) | notes |
 |---|---|---|---|---|
 | 2026-07-07 | `f810278c` | 3 s (12 files, 192K) | 0 h (drill ran minutes after first backup; steady-state worst case ~24 h) | first drill — run 28854625726; `restic check` clean; pg_dump + repo cross-check green |
-| 2026-07-10 | `1f917946` | 3 s (5 files, 48K) | 0 h (minutes after first backup) | **syd3 cockpit** — cockpit-restore-drill run 29092092325; `restic check` clean; fresh-box baseline verified (fleet keypair in restored authorized_keys). Lesson on record in profiles.yaml: resticprofile `inherit` merges lists positionally — standalone profile for structurally-different boxes. syd3 dead-man receivers = open follow-up (hc-ping warns per run until then) |
+| 2026-07-10 | `1f917946` | 3 s (5 files, 48K) | 0 h (minutes after first backup) | **syd3 cockpit** — cockpit-restore-drill run 29092092325; `restic check` clean; fresh-box baseline verified (fleet keypair in restored authorized_keys). Lesson on record in profiles.yaml: resticprofile `inherit` merges lists positionally — standalone profile for structurally-different boxes. syd3 off-infra dead-man leg went live later the same day (receiver-acked, apply run 29092668496) |
+| 2026-07-10 | `52992f70` | 3 s (8 files, 80K) | 0 h (minutes after first backup) | **syd4 workspace** — cockpit-restore-drill run 29094932952 (`secret_prefix=SYD4` — first use of the generalized per-box workflows); `restic check` clean; fresh-box baseline verified; dead-man off-infra leg receiver-acked on apply run 29094751183. Grow content checks after the portfolio restore lands |
 
 ## Dead-man's switch
 

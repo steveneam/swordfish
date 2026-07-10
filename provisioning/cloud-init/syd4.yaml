@@ -49,6 +49,9 @@ packages:
   - jq
   - unzip
   - build-essential
+  # qrencode: OAuth flows print a URL the founder's museum-grade browser can't
+  # open - `qrencode -t ANSIUTF8 '<url>'` puts it on screen for the phone camera
+  - qrencode
 
 write_files:
   # key-only, no-root sshd (authoritative over image drop-ins; see syd1.yaml)
