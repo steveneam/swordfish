@@ -1,13 +1,15 @@
 name: cockpit-restore-drill
 
-# Monthly-pass twin of backup-restore-drill for the cockpit (syd3): restore the
-# latest snapshot from B2 onto a fresh runner WITHOUT touching the box, proving
-# the CI secrets + encrypted repo alone recover the cockpit state after total
-# box loss. Content verification starts from the fresh-box baseline (ssh
-# authorized_keys + shell profile) and MUST grow as the cockpit gains state
-# (post-seed-restore: add ~/.claude memory/transcript markers here).
-# Requires repo secrets SYD3_RESTIC_PASSWORD, SYD3_RESTIC_B2_KEY_ID,
-# SYD3_RESTIC_B2_KEY. No SSH key needed - never contacts the box.
+# Monthly-pass twin of backup-restore-drill for cockpit-class boxes (syd3
+# cockpit / syd4 workspace): restore the latest snapshot from B2 onto a fresh
+# runner WITHOUT touching the box, proving the CI secrets + encrypted repo
+# alone recover the state after total box loss. Per-box secrets selected by
+# secret_prefix (keep in lockstep with repository). Content verification
+# starts from the fresh-box baseline (ssh authorized_keys + shell profile)
+# and MUST grow as boxes gain state (post-seed-restore: add ~/.claude
+# memory/transcript markers here).
+# Requires repo secrets <PREFIX>_RESTIC_PASSWORD, <PREFIX>_RESTIC_B2_KEY_ID,
+# <PREFIX>_RESTIC_B2_KEY. No SSH key needed - never contacts the box.
 
 on:
   workflow_dispatch:
@@ -16,6 +18,10 @@ on:
         description: restic repository
         required: false
         default: "b2:swordfish-syd3-backups:restic"
+      secret_prefix:
+        description: Per-box secret prefix (SYD3, SYD4, ...) - keep in lockstep with repository
+        required: false
+        default: SYD3
 
 permissions:
   contents: read
@@ -26,9 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RESTIC_REPOSITORY: ${{ inputs.repository || 'b2:swordfish-syd3-backups:restic' }}
-      RESTIC_PASSWORD: ${{ secrets.SYD3_RESTIC_PASSWORD }}
-      B2_ACCOUNT_ID: ${{ secrets.SYD3_RESTIC_B2_KEY_ID }}
-      B2_ACCOUNT_KEY: ${{ secrets.SYD3_RESTIC_B2_KEY }}
+      RESTIC_PASSWORD: ${{ secrets[format('{0}_RESTIC_PASSWORD', inputs.secret_prefix || 'SYD3')] }}
+      B2_ACCOUNT_ID: ${{ secrets[format('{0}_RESTIC_B2_KEY_ID', inputs.secret_prefix || 'SYD3')] }}
+      B2_ACCOUNT_KEY: ${{ secrets[format('{0}_RESTIC_B2_KEY', inputs.secret_prefix || 'SYD3')] }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

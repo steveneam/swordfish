@@ -124,3 +124,51 @@ syd3:
     schedule: "Sat *-*-* 17:00:00"
     schedule-permission: system
     schedule-lock-wait: 15m
+
+# syd4 (machine-migration amendment 2026-07-10): the portfolio workspace box -
+# STANDALONE like syd3 (same positional-inherit lesson; see the syd3 comment).
+# Whole-home source: this box holds ALL project repos (gitignored secrets
+# included), the research vault, and every agent's ~/.claude state. Policy
+# values hand-copied from syd1/syd3 - keep in lockstep when any changes.
+syd4:
+  repository: "b2:swordfish-syd4-backups:restic"
+  password-file: /etc/resticprofile/password.txt
+  env-file: /etc/resticprofile/b2.env
+  initialize: true
+
+  backup:
+    source:
+      - /home/deploy
+    exclude:
+      - /home/deploy/.cache
+      - /home/deploy/.npm
+      - /home/deploy/.claude/cache
+      - /home/deploy/.claude/paste-cache
+      - /home/deploy/.claude/shell-snapshots
+      - "**/node_modules"
+    exclude-caches: true
+    run-after: "/etc/resticprofile/hc-ping.sh success"
+    run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
+    schedule: "*-*-* 15:00:00"
+    schedule-permission: system
+    schedule-lock-wait: 15m
+
+  retention:
+    after-backup: true
+    keep-daily: 7
+    keep-weekly: 4
+    keep-monthly: 6
+    prune: false
+
+  check:
+    read-data-subset: "10%"
+    run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
+    schedule: "Sun *-*-* 17:00:00"
+    schedule-permission: system
+    schedule-lock-wait: 15m
+
+  prune:
+    run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
+    schedule: "Sat *-*-* 17:00:00"
+    schedule-permission: system
+    schedule-lock-wait: 15m

@@ -69,6 +69,16 @@ check "toolchain: claude code"         "command -v claude"
 check "toolchain: ripgrep"             "rg --version"
 check "toolchain: jq"                  "jq --version"
 
+# workspace-class extras (syd4 profile: VS Code in the browser, tunnel-only -
+# the localhost-bind assertions are the ratchet that keeps it off the wire)
+BOX="$(hostname -s)"
+if [ "$BOX" = "syd4" ]; then
+    check "toolchain: codex cli"          "command -v codex"
+    check "code-server: service active"   "systemctl is-active --quiet code-server"
+    check "code-server: bound localhost"  "sudo ss -tln | grep -q '127.0.0.1:8080'"
+    check "code-server: no public bind"   "! sudo ss -tln | grep ':8080' | grep -qv '127.0.0.1:8080'"
+fi
+
 echo "== $((total - fails))/$total assertions passed"
 [ "$fails" -eq 0 ] || exit 1
 exit 0

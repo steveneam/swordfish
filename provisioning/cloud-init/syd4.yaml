@@ -1,0 +1,157 @@
+#cloud-config
+# provisioning/cloud-init/syd4.yaml - portfolio workspace box (BinaryLane,
+# Ubuntu 24.04 LTS). Purchased at the 2026-07-10 founder gate (std-4vcpu,
+# AUD 39.20/mo): the dev workspace replacing the IT-locked Windows laptop -
+# all project repos + the research vault + agent sessions live here; the
+# founder drives it from a terminal/browser over SSH.
+# Runbook: provisioning/binarylane/create-box.ps1 -Name syd4.swordfish.cfd
+#          -Size std-4vcpu -CloudInit this.
+#
+# Design notes (why, not what) - inherits the cockpit class from syd3.yaml:
+# - NO Docker (workloads run on fleet boxes; images build in CI), ufw 22 ONLY.
+# - code-server (VS Code in the browser) binds 127.0.0.1:8080 with --auth none:
+#   the SSH tunnel IS the authentication (ssh -L 8080:localhost:8080). Never
+#   open 8080/443 for it; assert-cockpit.sh checks the bind stays localhost.
+#   npm-installed (registry integrity), same trust path as claude-code.
+# - Codex CLI installed alongside Claude Code (founder uses both harnesses).
+# - BinaryLane image quirks (learned on syd2): ships NO swapfile (converge
+#   guard below creates 2G) and a local timezone (pinned Etc/UTC here).
+# - Same two authorized keys as the fleet: swordfish-ops + swordfish-ci.
+
+hostname: syd4
+fqdn: syd4.swordfish.cfd
+manage_etc_hosts: true
+
+timezone: Etc/UTC
+
+ssh_pwauth: false
+
+users:
+  - name: deploy
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAnQtAgKb8Do+rQwDyUxj9PbBsveE3ztqCM134y7EG0y swordfish-ops
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOOQNhU2jU6VuFQIoHpfTVnLSRY4+5KX3/QY/CUvTOCs swordfish-ci
+
+package_update: true
+package_upgrade: true
+packages:
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+  - ca-certificates
+  - curl
+  - git
+  - tmux
+  - ripgrep
+  - jq
+  - unzip
+  - build-essential
+
+write_files:
+  # key-only, no-root sshd (authoritative over image drop-ins; see syd1.yaml)
+  - path: /etc/ssh/sshd_config.d/00-swordfish-hardening.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      AllowUsers deploy
+      MaxAuthTries 3
+      X11Forwarding no
+
+  # sshd crypto floor (fleet baseline; ssh-audit [fail]-clean)
+  - path: /etc/ssh/sshd_config.d/01-swordfish-crypto.conf
+    permissions: "0644"
+    content: |
+      KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
+      HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256
+      Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr
+      MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com
+
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+  # pre-dawn Sydney reboot window (18:30 UTC), fleet-consistent
+  - path: /etc/apt/apt.conf.d/52-swordfish-reboot
+    permissions: "0644"
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "18:30";
+
+  - path: /etc/sysctl.d/99-swordfish-swap.conf
+    permissions: "0644"
+    content: |
+      vm.swappiness=10
+
+  # sshd jail; systemd journal backend (no rsyslog on 24.04 cloud images)
+  - path: /etc/fail2ban/jail.local
+    permissions: "0644"
+    content: |
+      [DEFAULT]
+      backend = systemd
+      bantime = 1h
+      findtime = 10m
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+
+  # code-server: tunnel-only by construction (localhost bind + no auth layer -
+  # the SSH tunnel is the auth; ufw/provider firewall never expose 8080)
+  - path: /etc/systemd/system/code-server.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=code-server (VS Code in the browser) - SSH-tunnel-only
+      After=network.target
+
+      [Service]
+      User=deploy
+      ExecStart=/usr/bin/code-server --bind-addr 127.0.0.1:8080 --auth none
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # --- firewall: default-deny, allow 22 BEFORE enable (lockout guard). 22 only ---
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+  - ufw --force enable
+
+  # --- neutralize any image drop-in that re-enables password auth ---
+  - for f in /etc/ssh/sshd_config.d/*.conf; do [ "$f" = "/etc/ssh/sshd_config.d/00-swordfish-hardening.conf" ] || sed -i 's/^\s*PasswordAuthentication\s\+yes/PasswordAuthentication no/' "$f"; done
+  - systemctl restart ssh
+
+  # --- jail + patching services on ---
+  - systemctl enable --now fail2ban
+  - systemctl enable --now unattended-upgrades
+
+  # --- swapfile: BinaryLane images ship NONE (syd2 datapoint) - converge guard ---
+  - swapon --show=NAME --noheadings | grep -qx /swapfile || { fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none; chmod 600 /swapfile; mkswap /swapfile; swapon /swapfile; }
+  - grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  - sysctl -q vm.swappiness=10
+
+  # --- dev toolchain: gh (official apt repo), Node 22 (NodeSource), then the
+  #     agent harnesses + code-server via npm (registry integrity) ---
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
+  - chmod a+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+  - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y gh nodejs
+  - npm install -g @anthropic-ai/claude-code @openai/codex code-server
+
+  # --- code-server on (unit shipped via write_files above) ---
+  - systemctl daemon-reload
+  - systemctl enable --now code-server
