@@ -83,13 +83,14 @@ stealth mode on record (thalon.org unwired until launch call).
 1. **Founder: confirm the rehearsal passed.** This first-boot session is the
    evidence (MacBook → syd4, real op green end-to-end). That confirmation — and
    nothing else — un-parks the ops queue.
-2. ~~Box tail: grow cockpit-restore-drill content checks~~ **DONE this session**
-   (per-box checks; fresh backup pushed so the SYD4 drill sees the seed state;
-   verification drill dispatched — see run link in the session log). Remaining
-   tails: Kuma push dead-man leg post-cutover · founder relays the mouse-off
-   tmux config to syd3 from the Mac (checklist LATER section has the exact
-   commands) · founder re-copies the updated MACBOOK-CHECKLIST.md to the USB
-   drive next time it's plugged in.
+2. ~~Box tail: grow cockpit-restore-drill content checks~~ **DONE + PROVEN**
+   (run 29109061050: snapshot `bb5b6018`, 3.1 GB / 19,336 files restored to the
+   runner in 23 s, RPO 0 h, per-box content checks PASS incl. the seed state —
+   the whole workstation is recoverable from B2 alone). Remaining tails: Kuma
+   push dead-man leg post-cutover · founder relays the mouse-off tmux config to
+   syd3 from the Mac (checklist LATER section has the exact commands) · founder
+   re-copies the updated MACBOOK-CHECKLIST.md to the USB drive next time it's
+   plugged in.
 3. **Optional:** syd3 swordfish-slice restore (MANIFEST minimal-slice checklist) if
    end-state B (infra-key isolation) is chosen.
 4. **⛔ PARKED OPS QUEUE — resumes only after item 1, in this order:**
@@ -111,6 +112,32 @@ stealth mode on record (thalon.org unwired until launch call).
       US$10/mo cap; founder provides the gateway key at install).
 5. **Key rotation** (MANIFEST checklist) only after the whole new environment is
    proven — last step of the migration, not before.
+
+**Late-session findings (2026-07-11 ~03:15):**
+
+- **syd4 cannot originate ANY port-22 connection** — github.com, gitlab.com, syd2
+  and syd3 all time out on 22 while 443 egress works everywhere; ufw is clean
+  (allow outgoing) and the BinaryLane advanced-firewall rules are inbound-only →
+  upstream egress-22 policy (BinaryLane network side). Box-to-box break-glass SSH
+  from syd4 is therefore OFF until either a BL support ticket unblocks egress 22
+  or syd3 gets the chartered SSH-on-443 fallback (AGENTS.md operating rule 2
+  anticipated exactly this) — **both founder-gated, decision pending.**
+  CI-as-hands is unaffected (runners connect inbound to every box) and remains
+  the primary channel; git/gh over HTTPS unaffected.
+- **B2 daily download cap hit 2026-07-11** (founder email): caused by two full
+  restore drills in one day (3.1 GB snapshot each) — **nothing is lost or
+  overwritten**; the cap only throttles further *downloads* until midnight UTC or
+  a cap raise; nightly *uploads* (backups) are unaffected. Founder option: raise
+  the daily download cap in B2 'Caps & Alerts' so a monthly drill never trips it.
+  Agent option (proposed): exclude `~/migration/browsers/` (~large, static,
+  still on the USB drive) from the syd4 backup source to shrink drill downloads.
+- **tmux cosmetics per founder request:** black background + dark status bar,
+  live on syd4 + pinned in both cloud-inits (with the mouse-off layer).
+- **Rotation list grew:** sourcing the PS-era `.env` (`KEY= value` spacing)
+  echoed several secret values into this session's box-local transcript
+  (encrypted-backup exposure only). Include in the already-chartered
+  post-proving rotation: VULTR, PORKBUN ×2, B2 ×2, DOKPLOY ×2, UPTIMEROBOT,
+  GHCR_PULL_TOKEN, healthchecks URLs. Also normalize `.env` to `KEY=value`.
 
 ## Standing
 
