@@ -1,6 +1,6 @@
 # CURRENT — session handoff (one file, overwritten each wrap)
 
-_Stamped: 2026-07-10 20:20 +10:00 (machine migration in motion: env seed staged, syd3 cockpit live + 29/29 verified; ops queue PARKED by design until the cockpit rehearsal passes)_
+_Stamped: 2026-07-10 23:45 +10:00 (machine migration built end-to-end in one day: seed staged · syd3 ops cockpit 29/29 · syd4 workspace 33/33, both backed up + restore-drilled + dead-man-acked · rehearsal checklist and browser installers on the drive; ops queue PARKED until the rehearsal passes)_
 
 ## State
 
@@ -46,14 +46,19 @@ neutral swordfish.cfd name + BasicAuth + noindex).
 1. **Founder, at the work laptop (before it is lost):** copy the vault to a portable
    drive; hand `AGENT-BROADCAST.md` to the other project agents; on the final day run
    the MANIFEST.md refresh commands.
-2. **Founder, from home (MacBook):** rehearsal — now targets **syd4 first** (the
-   workspace): `ssh deploy@syd4.swordfish.cfd`, `tmux`, `claude` login (phone
-   browser completes the URL+code flow), `gh auth login` (device flow), `scp -r`
-   the staging folder + vault from the drive, restore per MANIFEST.md full-restore
-   section, open the code-server tunnel (`ssh -L 8080:localhost:8080 …` →
-   http://localhost:8080 in Chrome), then prove the loop by dispatching
-   cockpit-smoke from syd4 itself. The syd3 swordfish-slice restore (ops cockpit)
-   can happen the same evening or later — it does not block the workspace.
+2. **Founder, from home (MacBook):** rehearsal — follow
+   **`migration-staging/MACBOOK-CHECKLIST.md` on the drive** (exact-typing format,
+   Parts 1–6 + 8; Part 7 VS Code layer is optional). Targets **syd4 first**; the
+   syd3 swordfish-slice restore can happen later. Browser installers are already
+   in `migration-staging/browsers/`. Wrap extras on both boxes (2026-07-10 late):
+   QoL layer (login-banner crib sheet · `work` one-word tmux with mouse · `qr`
+   phone-OAuth helper · `snapshots`/`backup-now`) and **pwsh 7.6.3** (the repo's
+   .ps1 operational scripts run on-box now; asserted by cockpit-smoke, pinned in
+   both cloud-inits). Git identity must be set on the box (in the checklist —
+   it was repo-local on the laptop). Auth model: tools are pre-installed; gh =
+   one device-flow login per box (then permanent + restic-backed); claude =
+   restored .credentials.json usually carries the login, QR fallback. Pi harness
+   deliberately deferred to its chartered Hermes-E0 slot.
 3. ~~Cockpit backup ratchet~~ **DONE 2026-07-10 (hotspot session):** syd3 restic→B2
    nightly (bucket `swordfish-syd3-backups`, source = `/home/deploy` whole-home,
    STANDALONE profile — resticprofile `inherit` merges lists positionally, lesson in

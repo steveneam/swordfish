@@ -68,6 +68,7 @@ check "toolchain: node >= 20"          "node -e 'process.exit(parseInt(process.v
 check "toolchain: claude code"         "command -v claude"
 check "toolchain: ripgrep"             "rg --version"
 check "toolchain: jq"                  "jq --version"
+check "toolchain: pwsh (repo scripts)" "command -v pwsh"
 
 # workspace-class extras (syd4 profile: VS Code in the browser, tunnel-only -
 # the localhost-bind assertions are the ratchet that keeps it off the wire)

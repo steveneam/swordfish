@@ -181,3 +181,11 @@ runcmd:
   - apt-get update
   - DEBIAN_FRONTEND=noninteractive apt-get install -y gh nodejs
   - npm install -g @anthropic-ai/claude-code
+
+  # --- PowerShell 7: the repo's operational scripts (grep guard, DNS, box
+  #     create/firewall) are .ps1 by design ("runs on pwsh 7+") - a cockpit
+  #     that can't run them can't operate the fleet ---
+  - curl -fsSL --retry 3 -o /tmp/pmc.deb https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb
+  - dpkg -i /tmp/pmc.deb
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y powershell
