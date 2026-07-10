@@ -1,0 +1,116 @@
+name: cockpit-backups-apply
+
+# CI-as-hands apply channel for the cockpit backup layer (syd3, machine-migration
+# amendment 2026-07-10): same converge as backups-apply (secrets as 0600 root
+# files, ship provisioning/backup, phase7-backups.sh, idempotency proof, first
+# real backup, posture re-assert) but with SYD3_-prefixed secrets so the fleet
+# secrets (which hold syd2's bucket key) are never shared across boxes, and the
+# cockpit assertion profile instead of the fleet one (no Docker/edge on syd3).
+# Dead-man receivers are a follow-up: SYD3_HEALTHCHECKS_PING_URL is optional -
+# hc-ping warns per run until it exists. Dispatch-only.
+# Requires repo secrets SSH_DEPLOY_KEY, SYD3_RESTIC_PASSWORD,
+# SYD3_RESTIC_B2_KEY_ID, SYD3_RESTIC_B2_KEY.
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: Cockpit FQDN (short hostname selects the resticprofile profile)
+        required: false
+        default: syd3.swordfish.cfd
+
+# this job holds the box SSH key - keep its GITHUB_TOKEN read-only (Bucket 1.5)
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    name: converge cockpit backup layer via SSH
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ inputs.host || 'syd3.swordfish.cfd' }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install CI deploy key
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+        run: |
+          [ -n "$SSH_DEPLOY_KEY" ] || { echo "SSH_DEPLOY_KEY secret is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          # strip CRs defensively (see hardening-smoke.yml, 2026-07-07)
+          printf '%s\n' "$SSH_DEPLOY_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null || { echo "secret does not parse as a private key"; exit 1; }
+
+      - name: Wait for SSH
+        run: |
+          for i in $(seq 1 10); do
+            if ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o BatchMode=yes "deploy@$HOST" true; then
+              echo "SSH reachable"; exit 0
+            fi
+            echo "attempt $i/10 - not reachable yet, retrying in 30s"; sleep 30
+          done
+          echo "SSH unreachable after 5 minutes"; exit 1
+
+      - name: Install backup secrets on box (0600 root)
+        env:
+          RESTIC_PASSWORD: ${{ secrets.SYD3_RESTIC_PASSWORD }}
+          RESTIC_B2_KEY_ID: ${{ secrets.SYD3_RESTIC_B2_KEY_ID }}
+          RESTIC_B2_KEY: ${{ secrets.SYD3_RESTIC_B2_KEY }}
+          HC_URL: ${{ secrets.SYD3_HEALTHCHECKS_PING_URL }}
+        run: |
+          [ -n "$RESTIC_PASSWORD" ] || { echo "SYD3_RESTIC_PASSWORD secret is not set"; exit 1; }
+          { [ -n "$RESTIC_B2_KEY_ID" ] && [ -n "$RESTIC_B2_KEY" ]; } || { echo "SYD3_RESTIC_B2_KEY_ID / SYD3_RESTIC_B2_KEY secrets are not set"; exit 1; }
+          s() { ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes "deploy@$HOST" "$@"; }
+          s 'sudo install -d -m 700 /etc/resticprofile'
+          printf '%s\n' "$RESTIC_PASSWORD" | tr -d '\r' | \
+            s 'sudo tee /etc/resticprofile/password.txt >/dev/null && sudo chmod 600 /etc/resticprofile/password.txt'
+          printf 'B2_ACCOUNT_ID=%s\nB2_ACCOUNT_KEY=%s\n' "$RESTIC_B2_KEY_ID" "$RESTIC_B2_KEY" | tr -d '\r' | \
+            s 'sudo tee /etc/resticprofile/b2.env >/dev/null && sudo chmod 600 /etc/resticprofile/b2.env'
+          if [ -n "$HC_URL" ]; then
+            printf '%s\n' "$HC_URL" | tr -d '\r' | \
+              s 'sudo tee /etc/resticprofile/hc-url >/dev/null && sudo chmod 600 /etc/resticprofile/hc-url'
+            echo "dead-man URL installed (healthchecks)"
+          else
+            echo "WARN: SYD3_HEALTHCHECKS_PING_URL not set - dead-man ping stays dormant (hc-ping warns per run; receiver is the flagged follow-up)"
+          fi
+          echo "secrets installed"
+
+      - name: Ship provisioning/backup to /opt/swordfish/backup
+        run: |
+          tar -C provisioning -czf - backup | \
+            ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                "deploy@$HOST" 'sudo install -d -o deploy -g deploy /opt/swordfish && tar -C /opt/swordfish -xzf -'
+
+      - name: Converge backup layer (phase7-backups.sh)
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" 'bash -s' < provisioning/host/phase7-backups.sh
+
+      - name: Idempotency proof - second run must be a no-op
+        run: |
+          out=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                    "deploy@$HOST" 'bash -s' < provisioning/host/phase7-backups.sh)
+          echo "$out"
+          echo "$out" | grep -q '== converged: no changes' \
+            || { echo "FAIL: second run still reported changes - script is not idempotent"; exit 1; }
+
+      - name: First real backup (end-to-end)
+        run: |
+          BOX="${HOST%%.*}"
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" "sudo resticprofile -c /etc/resticprofile/profiles.yaml --name $BOX backup"
+
+      - name: Evidence - snapshots + timers
+        run: |
+          BOX="${HOST%%.*}"
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" "sudo resticprofile -c /etc/resticprofile/profiles.yaml --name $BOX snapshots && systemctl list-timers 'resticprofile-*' --no-pager"
+
+      - name: Re-assert cockpit posture
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" "bash -s" < provisioning/checks/assert-cockpit.sh

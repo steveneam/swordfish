@@ -70,3 +70,25 @@ syd1:
 syd2:
   inherit: syd1
   repository: "b2:swordfish-syd2-backups:restic"
+
+# syd3 (machine-migration amendment 2026-07-10): the agent cockpit. Cockpit
+# state = the deploy home dir (agent memory/transcripts, repos' gitignored
+# secrets, the vault when it lands) - one source, future-proof for the staged
+# portfolio restore. run-before is overridden to a no-op: the cockpit has no
+# services to dump, and the fleet dokploy hook hard-fails without docker BY
+# DESIGN (refuses to snapshot without a fresh dump) - correct on fleet boxes,
+# fatal on a docker-less cockpit.
+syd3:
+  inherit: syd1
+  repository: "b2:swordfish-syd3-backups:restic"
+  backup:
+    source:
+      - /home/deploy
+    exclude:
+      - /home/deploy/.cache
+      - /home/deploy/.npm
+      - /home/deploy/.claude/cache
+      - /home/deploy/.claude/paste-cache
+      - /home/deploy/.claude/shell-snapshots
+      - "**/node_modules"
+    run-before: "true"

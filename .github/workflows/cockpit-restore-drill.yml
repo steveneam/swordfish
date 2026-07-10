@@ -1,0 +1,83 @@
+name: cockpit-restore-drill
+
+# Monthly-pass twin of backup-restore-drill for the cockpit (syd3): restore the
+# latest snapshot from B2 onto a fresh runner WITHOUT touching the box, proving
+# the CI secrets + encrypted repo alone recover the cockpit state after total
+# box loss. Content verification starts from the fresh-box baseline (ssh
+# authorized_keys + shell profile) and MUST grow as the cockpit gains state
+# (post-seed-restore: add ~/.claude memory/transcript markers here).
+# Requires repo secrets SYD3_RESTIC_PASSWORD, SYD3_RESTIC_B2_KEY_ID,
+# SYD3_RESTIC_B2_KEY. No SSH key needed - never contacts the box.
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: restic repository
+        required: false
+        default: "b2:swordfish-syd3-backups:restic"
+
+permissions:
+  contents: read
+
+jobs:
+  drill:
+    name: restore latest cockpit snapshot on the runner
+    runs-on: ubuntu-latest
+    env:
+      RESTIC_REPOSITORY: ${{ inputs.repository || 'b2:swordfish-syd3-backups:restic' }}
+      RESTIC_PASSWORD: ${{ secrets.SYD3_RESTIC_PASSWORD }}
+      B2_ACCOUNT_ID: ${{ secrets.SYD3_RESTIC_B2_KEY_ID }}
+      B2_ACCOUNT_KEY: ${{ secrets.SYD3_RESTIC_B2_KEY }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install restic at the box pin (read from phase7-backups.sh - one source of truth)
+        run: |
+          ver=$(grep -m1 '^RESTIC_VERSION=' provisioning/host/phase7-backups.sh | cut -d= -f2)
+          sum=$(grep -m1 '^RESTIC_SHA256=' provisioning/host/phase7-backups.sh | cut -d= -f2)
+          curl -fsSL -o restic.bz2 "https://github.com/restic/restic/releases/download/v${ver}/restic_${ver}_linux_amd64.bz2"
+          echo "$sum  restic.bz2" | sha256sum -c -
+          bunzip2 restic.bz2
+          chmod +x restic && sudo mv restic /usr/local/bin/restic
+          restic version
+
+      - name: Repository integrity check (metadata)
+        run: restic check
+
+      - name: Timed restore (RTO) + snapshot age (RPO)
+        run: |
+          t0=$(date +%s)
+          restic restore latest --target ./drill-restore
+          rto=$(( $(date +%s) - t0 ))
+          snap_json=$(restic snapshots latest --json)
+          snap_id=$(echo "$snap_json"   | jq -r '.[0].short_id')
+          snap_time=$(echo "$snap_json" | jq -r '.[0].time')
+          rpo_h=$(( ( $(date +%s) - $(date -d "$snap_time" +%s) ) / 3600 ))
+          files=$(find drill-restore -type f | wc -l)
+          size=$(du -sh drill-restore | cut -f1)
+          {
+            echo "## Cockpit restore drill"
+            echo "- snapshot: \`$snap_id\` taken $snap_time"
+            echo "- RTO (B2 -> runner, full latest snapshot): ${rto}s"
+            echo "- RPO (snapshot age at drill): ${rpo_h}h (nightly cadence: worst case ~24h)"
+            echo "- restored: $files files, $size"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify restored content (files, not exit codes)
+        run: |
+          f() { [ -e "drill-restore$1" ] || { echo "FAIL: missing $1"; exit 1; }; }
+          f /home/deploy/.ssh/authorized_keys
+          f /home/deploy/.bashrc
+          # the restored key material must be the fleet pair, not something else
+          grep -q 'swordfish-ops' drill-restore/home/deploy/.ssh/authorized_keys
+          grep -q 'swordfish-ci'  drill-restore/home/deploy/.ssh/authorized_keys
+          # GROW THIS as the cockpit gains state (seed restore adds ~/.claude):
+          # f /home/deploy/.claude/projects  (enable after the rehearsal restore)
+          echo "PASS: restored content verified (fresh-box baseline)"
+
+      - name: Cleanup restored data
+        if: always()
+        run: rm -rf drill-restore
