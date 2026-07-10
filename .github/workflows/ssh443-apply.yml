@@ -1,0 +1,61 @@
+name: ssh443-apply
+
+# CI-as-hands apply channel for the SSH-on-443 fallback (AGENTS.md operating
+# rule 2; founder-approved 2026-07-11). Runs provisioning/host/enable-ssh-443.sh
+# on the target over inbound 22 (which runners can always reach). The 443
+# listener is ufw-restricted to the approved break-glass source, so the runner
+# can NOT verify 443 from outside - the script's own ss(8) checks are the
+# verification. The provider-firewall twin rule is applied via the Vultr API
+# from the cockpit, not here. Dispatch-only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: Target FQDN
+        required: false
+        default: syd3.swordfish.cfd
+      source_allow:
+        description: Only IP allowed to reach the 443 listener (break-glass source)
+        required: false
+        default: 66.226.147.123
+
+# this job holds the box SSH key - keep its GITHUB_TOKEN read-only (Bucket 1.5)
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    name: enable ssh-on-443 via SSH
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ inputs.host || 'syd3.swordfish.cfd' }}
+      SRC_ALLOW: ${{ inputs.source_allow || '66.226.147.123' }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install CI deploy key
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+        run: |
+          [ -n "$SSH_DEPLOY_KEY" ] || { echo "SSH_DEPLOY_KEY secret is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          # strip CRs defensively (see hardening-smoke.yml, 2026-07-07)
+          printf '%s\n' "$SSH_DEPLOY_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null || { echo "secret does not parse as a private key"; exit 1; }
+
+      - name: Converge ssh-on-443 (idempotent)
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" "bash -s -- $SRC_ALLOW" < provisioning/host/enable-ssh-443.sh
+
+      - name: Idempotency proof - second run must be a no-op
+        run: |
+          out=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                    "deploy@$HOST" "bash -s -- $SRC_ALLOW" < provisioning/host/enable-ssh-443.sh)
+          echo "$out"
+          echo "$out" | grep -q '== converged: no changes' \
+            || { echo "FAIL: second run still reported changes - script is not idempotent"; exit 1; }

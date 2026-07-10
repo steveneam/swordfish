@@ -84,6 +84,17 @@ write_files:
       ClientAliveInterval 60
       ClientAliveCountMax 10
 
+  # SSH-on-443 fallback (AGENTS.md rule 2; founder-approved 2026-07-11):
+  # BinaryLane blocks all outbound 22 from syd4, so the syd4->syd3 break-glass
+  # channel rides 443. BOTH ports listed - any Port directive overrides
+  # sshd's implicit default of 22. ufw twin rule is in runcmd; the Vultr
+  # provider-firewall twin is API-applied (not reproducible from cloud-init).
+  - path: /etc/ssh/sshd_config.d/10-swordfish-ssh443.conf
+    permissions: "0644"
+    content: |
+      Port 22
+      Port 443
+
   # unattended-upgrades: actually turn the timer behaviour on.
   - path: /etc/apt/apt.conf.d/20auto-upgrades
     permissions: "0644"
@@ -173,6 +184,8 @@ runcmd:
   - ufw default deny incoming
   - ufw default allow outgoing
   - ufw allow 22/tcp
+  # ssh-on-443 break-glass, only from syd4 (see 10-swordfish-ssh443.conf)
+  - ufw allow from 66.226.147.123 to any port 443 proto tcp
   - ufw --force enable
 
   # --- neutralize any provider/image drop-in that re-enables password auth,
