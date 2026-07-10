@@ -332,6 +332,30 @@ recommendation"). Decision on record, satisfying the separate LLM-budget Approva
   no-spend-capable-keys rule per amendment 6 stand. Pi coding agent scoping rides the
   same slot.
 
+## Machine-migration amendment (founder-approved 2026-07-10)
+
+The founder's Windows work laptop is being lost to IT lockdown; the working cockpit moves to
+a VPS driven from a terminal (2011 MacBook over SSH; the phone browser completes OAuth device
+flows). The calls:
+
+1. **syd3 = agent cockpit box** (Vultr syd `vhf-1c-2gb`, $12/mo credit-funded — purchase
+   executed this date at the gate). Cockpit-class profile: zero workloads, no Docker,
+   ufw + provider firewall allow 22 only; dev toolchain (git · gh · tmux · Node 22 ·
+   Claude Code) baked in at first boot. Verification = `cockpit-smoke.yml` +
+   `assert-cockpit.sh` (the fleet `hardening-smoke` asserts Docker/edge and 80/443 —
+   inapplicable to cockpits by design).
+2. **Ledger:** overlap gross = syd2 US$26 cash + syd1 $12 credit + syd3 $12 credit
+   ≈ US$50 gross / US$26 cash; post-soak steady state ≈ US$38 gross / US$26 cash. This
+   amendment reads the $30 Stage-1/2 ceiling as a **cash** ceiling (gross breach
+   acknowledged here; credit-funded boxes ride the ~$250 Vultr credit, ~20 months runway).
+   syd1's post-soak fate (destroy vs keep as warm fallback) re-confirms at the cutover gate.
+3. **Environment seed staged to the portable drive** (2026-07-10, copy-only; manifest +
+   key-rotation checklist ride with it). Secrets never transit GitHub — the drive is the
+   channel; rotation executes only after the new cockpit is proven.
+4. **Sequencing invariant for the move:** cockpit build + MacBook rehearsal complete BEFORE
+   the parked cutover queue resumes; the DNS cutover and the cockpit migration must not run
+   simultaneously.
+
 ## Change control
 
 Buckets are re-scoped only at checkpoints (opinion ratchets — freely revised there).

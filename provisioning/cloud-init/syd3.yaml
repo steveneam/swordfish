@@ -1,0 +1,141 @@
+#cloud-config
+# provisioning/cloud-init/syd3.yaml - agent cockpit box (Vultr, Ubuntu 24.04 LTS).
+# Purchased at the 2026-07-10 founder gate: the dev workstation that replaces the
+# IT-locked Windows laptop (founder drives it from a terminal over SSH; Claude Code
+# CLI runs here). Runbook: provisioning/vultr/create-box.ps1 -Label syd3 -CloudInit this.
+#
+# Design notes (why, not what) - deltas from syd1.yaml, whose hardening this inherits:
+# - NO Docker. The cockpit runs zero workloads: images build in CI, containers run
+#   on the fleet boxes. Installing an engine here would only widen the attack
+#   surface of the box that holds dev credentials.
+# - ufw allows 22 ONLY. No web edge, no Traefik, no published services. If a
+#   code-server layer is ever added it arrives behind TLS+auth and opens 443 then.
+# - Dev toolchain baked in at first boot (git, gh, tmux, Node 22, Claude Code,
+#   ripgrep, jq, build-essential) so the box is cockpit-ready before first login.
+# - Same two authorized keys as the fleet: swordfish-ops (founder) + swordfish-ci
+#   (CI-as-hands - the verification channel; outbound 22 is blocked on the
+#   founder's corporate network, so CI asserts hardening, not the laptop).
+# - Reboot window kept fleet-consistent (18:30 UTC): tmux sessions die pre-dawn
+#   Sydney once a reboot-requiring patch lands - accepted for a cockpit.
+
+hostname: syd3
+fqdn: syd3.swordfish.cfd
+manage_etc_hosts: true
+
+# every schedule in this stack is authored in UTC; provider images differ - pin it
+timezone: Etc/UTC
+
+ssh_pwauth: false
+
+users:
+  - name: deploy
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAnQtAgKb8Do+rQwDyUxj9PbBsveE3ztqCM134y7EG0y swordfish-ops
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOOQNhU2jU6VuFQIoHpfTVnLSRY4+5KX3/QY/CUvTOCs swordfish-ci
+
+package_update: true
+package_upgrade: true
+packages:
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+  - ca-certificates
+  - curl
+  - git
+  - tmux
+  - ripgrep
+  - jq
+  - unzip
+  - build-essential
+
+write_files:
+  # key-only, no-root sshd. First-value-wins + lexical include order = this file
+  # is authoritative over 50-cloud-init.conf and the image's main sshd_config.
+  - path: /etc/ssh/sshd_config.d/00-swordfish-hardening.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      AllowUsers deploy
+      MaxAuthTries 3
+      X11Forwarding no
+
+  # sshd crypto floor (mirror of the fleet baseline; ssh-audit [fail]-clean).
+  - path: /etc/ssh/sshd_config.d/01-swordfish-crypto.conf
+    permissions: "0644"
+    content: |
+      KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
+      HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256
+      Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr
+      MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com
+
+  # unattended-upgrades: actually turn the timer behaviour on.
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+  # pre-dawn Sydney reboot window (18:30 UTC), fleet-consistent.
+  - path: /etc/apt/apt.conf.d/52-swordfish-reboot
+    permissions: "0644"
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "18:30";
+
+  # swap is a safety net, not a working set.
+  - path: /etc/sysctl.d/99-swordfish-swap.conf
+    permissions: "0644"
+    content: |
+      vm.swappiness=10
+
+  # sshd jail; systemd journal backend (no rsyslog on 24.04 cloud images).
+  - path: /etc/fail2ban/jail.local
+    permissions: "0644"
+    content: |
+      [DEFAULT]
+      backend = systemd
+      bantime = 1h
+      findtime = 10m
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+
+runcmd:
+  # --- firewall: default-deny, allow 22 BEFORE enable (lockout guard). 22 only -
+  #     the cockpit publishes nothing ---
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+  - ufw --force enable
+
+  # --- neutralize any provider/image drop-in that re-enables password auth,
+  #     then apply the hardened sshd config ---
+  - for f in /etc/ssh/sshd_config.d/*.conf; do [ "$f" = "/etc/ssh/sshd_config.d/00-swordfish-hardening.conf" ] || sed -i 's/^\s*PasswordAuthentication\s\+yes/PasswordAuthentication no/' "$f"; done
+  - systemctl restart ssh
+
+  # --- jail + patching services on ---
+  - systemctl enable --now fail2ban
+  - systemctl enable --now unattended-upgrades
+
+  # --- swapfile (converge, don't duplicate: Vultr's 24.04 image shipped an
+  #     active 6.2G /swapfile on syd1) ---
+  - swapon --show=NAME --noheadings | grep -qx /swapfile || { fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none; chmod 600 /swapfile; mkswap /swapfile; swapon /swapfile; }
+  - grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  - sysctl -q vm.swappiness=10
+
+  # --- dev toolchain: gh (official apt repo), Node 22 (NodeSource), Claude Code ---
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
+  - chmod a+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+  - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y gh nodejs
+  - npm install -g @anthropic-ai/claude-code
