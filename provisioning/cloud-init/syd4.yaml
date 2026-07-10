@@ -124,6 +124,45 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
+  # quality-of-life (applied live to syd3+syd4 2026-07-10 - keep in lockstep):
+  # one-word workspace, QR helper for phone-OAuth, backup one-liners
+  - path: /etc/profile.d/swordfish-qol.sh
+    permissions: "0644"
+    content: |
+      # swordfish cockpit quality-of-life (lockstep with provisioning/cloud-init/*.yaml)
+      alias work='tmux new -A -s main'
+      qr() { qrencode -t ANSIUTF8 "$1"; }
+      alias snapshots='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" snapshots'
+      alias backup-now='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" backup'
+
+  - path: /etc/tmux.conf
+    permissions: "0644"
+    content: |
+      set -g mouse on
+      set -g history-limit 50000
+      set -g status-interval 5
+      set -g status-right "#H | %H:%M UTC"
+
+  # login banner = the crib sheet (VS Code lines appear only where code-server exists)
+  - path: /etc/update-motd.d/99-swordfish
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      h=$(hostname -s)
+      echo ""
+      echo " == $h.swordfish.cfd ================================================="
+      echo "  work          open/resume the main workspace (survives WiFi drops)"
+      echo "  claude        start the agent (run it inside 'work')"
+      echo "  qr '<url>'    render any URL as a QR code for the phone camera"
+      echo "  snapshots     list backups   |   backup-now   run a backup now"
+      if [ -f /etc/systemd/system/code-server.service ]; then
+      echo "  VS Code (on the Mac):  ssh -L 8080:localhost:8080 deploy@$h.swordfish.cfd"
+      echo "                         then browse http://localhost:8080"
+      fi
+      echo "  heads-up: box may auto-reboot ~04:30 Sydney after security patches"
+      echo " ====================================================================="
+      echo ""
+
 runcmd:
   # --- firewall: default-deny, allow 22 BEFORE enable (lockout guard). 22 only ---
   - ufw default deny incoming
