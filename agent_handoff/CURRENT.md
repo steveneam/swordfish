@@ -46,11 +46,11 @@ neutral swordfish.cfd name + BasicAuth + noindex).
    `provisioning/backup/profiles.yaml`), first backup + runner-side restore drill
    green (runs 29091998789 / 29092092325, RTO 3 s / RPO 0 h). New workflows:
    `cockpit-backups-apply` + `cockpit-restore-drill` (SYD3_-scoped secrets — fleet
-   secrets never shared across boxes). Remaining follow-ups: **syd3 dead-man
-   receivers** (create a healthchecks check → secret `SYD3_HEALTHCHECKS_PING_URL` →
-   re-run cockpit-backups-apply; Kuma push monitor after cutover) and **founder
+   secrets never shared across boxes). Dead-man off-infra leg LIVE
+   2026-07-10 (founder-created healthchecks check; receiver-acked on apply run
+   29092668496). Remaining follow-ups: **Kuma push leg after cutover** · **founder
    records `inventory/secrets/restic-syd3.password` in the password manager (the
-   DR key — losing it = losing the cockpit backups)**; drill content checks grow
+   DR key — losing it = losing the cockpit backups)** · drill content checks grow
    after the seed restore (marked in cockpit-restore-drill.yml).
 4. **⛔ PARKED OPS QUEUE — resumes only after the rehearsal passes, from the proven cockpit:**
    1. **⛔ CUTOVER (founder gate — present the step-card first).** Re-point A-records
