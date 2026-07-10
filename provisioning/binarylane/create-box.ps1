@@ -85,7 +85,10 @@ $sizeInfo = (Invoke-BinaryLane GET '/sizes?per_page=200' $null).sizes | Where-Ob
 if (-not $sizeInfo) { throw "Size '$Size' not found in the BinaryLane catalog" }
 if ($sizeInfo.regions -and ($sizeInfo.regions -notcontains $Region)) { throw "Size '$Size' not available in region '$Region' right now" }
 
-$imageInfo = (Invoke-BinaryLane GET '/images?type=distribution&per_page=500' $null).images | Where-Object { $_.slug -eq $Image }
+# per_page is capped at 200 by the BinaryLane API (400 above it - hit live
+# 2026-07-10 on the first real create-path run; the syd2-era no-op converge
+# exits before this call, so the bug hid until syd4)
+$imageInfo = (Invoke-BinaryLane GET '/images?type=distribution&per_page=200' $null).images | Where-Object { $_.slug -eq $Image }
 if (-not $imageInfo) { throw "Image '$Image' not found in the BinaryLane catalog" }
 
 $sshKey = (Invoke-BinaryLane GET '/account/keys?per_page=200' $null).ssh_keys | Where-Object { $_.name -eq $SshKeyName }
