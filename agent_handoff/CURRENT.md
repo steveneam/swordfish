@@ -40,9 +40,18 @@ neutral swordfish.cfd name + BasicAuth + noindex).
    `tmux`, `claude` login (phone browser completes the URL+code flow), `gh auth login`
    (device flow), `scp -r` the staging folder from the drive to syd3, restore per
    MANIFEST.md, then prove the loop by dispatching cockpit-smoke from syd3 itself.
-3. **Agent (any machine):** cockpit backup ratchet — syd3 `~/.claude` state into an
-   off-box restic set BEFORE syd3 becomes primary (backups-before-workloads applies
-   to the cockpit's brain too; flagged in `inventory/boxes.md`).
+3. ~~Cockpit backup ratchet~~ **DONE 2026-07-10 (hotspot session):** syd3 restic→B2
+   nightly (bucket `swordfish-syd3-backups`, source = `/home/deploy` whole-home,
+   STANDALONE profile — resticprofile `inherit` merges lists positionally, lesson in
+   `provisioning/backup/profiles.yaml`), first backup + runner-side restore drill
+   green (runs 29091998789 / 29092092325, RTO 3 s / RPO 0 h). New workflows:
+   `cockpit-backups-apply` + `cockpit-restore-drill` (SYD3_-scoped secrets — fleet
+   secrets never shared across boxes). Remaining follow-ups: **syd3 dead-man
+   receivers** (create a healthchecks check → secret `SYD3_HEALTHCHECKS_PING_URL` →
+   re-run cockpit-backups-apply; Kuma push monitor after cutover) and **founder
+   records `inventory/secrets/restic-syd3.password` in the password manager (the
+   DR key — losing it = losing the cockpit backups)**; drill content checks grow
+   after the seed restore (marked in cockpit-restore-drill.yml).
 4. **⛔ PARKED OPS QUEUE — resumes only after the rehearsal passes, from the proven cockpit:**
    1. **⛔ CUTOVER (founder gate — present the step-card first).** Re-point A-records
       `deploy. status. metrics. hello.` → 103.249.236.41 (set-a-record.ps1 ×4) →

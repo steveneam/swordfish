@@ -50,9 +50,14 @@ edge config matches the repo), RTO/RPO measured in the job summary. Record each
 run below. A `cmp` failure = backup staleness or unconverged box drift — chase it,
 don't re-run until green.
 
+Cockpit twin (syd3, no Docker/edge): `gh workflow run cockpit-restore-drill.yml` —
+SYD3_-scoped secrets, fresh-box baseline content checks (grow them as the cockpit
+gains state; see the workflow's verify step).
+
 | date (UTC) | snapshot | RTO (restore) | RPO (snapshot age) | notes |
 |---|---|---|---|---|
 | 2026-07-07 | `f810278c` | 3 s (12 files, 192K) | 0 h (drill ran minutes after first backup; steady-state worst case ~24 h) | first drill — run 28854625726; `restic check` clean; pg_dump + repo cross-check green |
+| 2026-07-10 | `1f917946` | 3 s (5 files, 48K) | 0 h (minutes after first backup) | **syd3 cockpit** — cockpit-restore-drill run 29092092325; `restic check` clean; fresh-box baseline verified (fleet keypair in restored authorized_keys). Lesson on record in profiles.yaml: resticprofile `inherit` merges lists positionally — standalone profile for structurally-different boxes. syd3 dead-man receivers = open follow-up (hc-ping warns per run until then) |
 
 ## Dead-man's switch
 
