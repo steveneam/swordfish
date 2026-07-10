@@ -74,6 +74,29 @@ write_files:
       Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr
       MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com
 
+  # old-laptop friendliness: server-side keepalives - home-router NAT can no
+  # longer reap idle sessions (the founder drives this box from a 2011 MacBook)
+  - path: /etc/ssh/sshd_config.d/02-swordfish-keepalive.conf
+    permissions: "0644"
+    content: |
+      ClientAliveInterval 60
+      ClientAliveCountMax 10
+
+  # code-server perf preset: what makes VS Code render well on a 2011 CPU
+  - path: /home/deploy/.local/share/code-server/User/settings.json
+    owner: deploy:deploy
+    defer: true
+    permissions: "0644"
+    content: |
+      {
+        "telemetry.telemetryLevel": "off",
+        "editor.minimap.enabled": false,
+        "editor.smoothScrolling": false,
+        "editor.cursorSmoothCaretAnimation": "off",
+        "workbench.list.smoothScrolling": false,
+        "files.autoSave": "afterDelay"
+      }
+
   - path: /etc/apt/apt.conf.d/20auto-upgrades
     permissions: "0644"
     content: |
@@ -177,6 +200,9 @@ runcmd:
   # --- jail + patching services on ---
   - systemctl enable --now fail2ban
   - systemctl enable --now unattended-upgrades
+
+  # --- locales the founder's Mac sends over SSH (kills setlocale warning noise) ---
+  - locale-gen en_AU.UTF-8 en_US.UTF-8
 
   # --- swapfile: BinaryLane images ship NONE (syd2 datapoint) - converge guard ---
   - swapon --show=NAME --noheadings | grep -qx /swapfile || { fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none; chmod 600 /swapfile; mkswap /swapfile; swapon /swapfile; }

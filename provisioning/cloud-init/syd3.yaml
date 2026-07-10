@@ -76,6 +76,14 @@ write_files:
       Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr
       MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com
 
+  # old-laptop friendliness: server-side keepalives - home-router NAT can no
+  # longer reap idle sessions (the founder drives the fleet from a 2011 MacBook)
+  - path: /etc/ssh/sshd_config.d/02-swordfish-keepalive.conf
+    permissions: "0644"
+    content: |
+      ClientAliveInterval 60
+      ClientAliveCountMax 10
+
   # unattended-upgrades: actually turn the timer behaviour on.
   - path: /etc/apt/apt.conf.d/20auto-upgrades
     permissions: "0644"
@@ -165,6 +173,9 @@ runcmd:
   # --- jail + patching services on ---
   - systemctl enable --now fail2ban
   - systemctl enable --now unattended-upgrades
+
+  # --- locales the founder's Mac sends over SSH (kills setlocale warning noise) ---
+  - locale-gen en_AU.UTF-8 en_US.UTF-8
 
   # --- swapfile (converge, don't duplicate: Vultr's 24.04 image shipped an
   #     active 6.2G /swapfile on syd1) ---
