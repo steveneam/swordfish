@@ -141,6 +141,15 @@ stealth mode on record (thalon.org unwired until launch call).
   still on the USB drive) from the syd4 backup source to shrink drill downloads.
 - **tmux cosmetics per founder request:** black background + dark status bar,
   live on syd4 + pinned in both cloud-inits (with the mouse-off layer).
+- **Portfolio workstation wiring COMPLETE (founder-directed, ~03:50):** Project 1's
+  and Project 2's repos cloned to `~/work/<their-dir-names>` (fresh clones are
+  content-identical — their own records show zero unpushed commits) and the vault
+  agent attached at `~/vault`. All five project agents' memories are re-attached to
+  their new paths (`~/.claude/projects` slug renames; verified each memory index
+  present). No additional logins needed — claude + gh auth are per-box. Each
+  project agent inventories its own gitignored secrets on first boot; their staging
+  folders remain on the portable drives (founder scp's while a drive is in the
+  Mac). Swordfish did NOT touch their code — workstation provisioning only.
 - **Rotation list grew:** sourcing the PS-era `.env` (`KEY= value` spacing)
   echoed several secret values into this session's box-local transcript
   (encrypted-backup exposure only). Include in the already-chartered
