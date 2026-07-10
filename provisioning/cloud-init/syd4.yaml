@@ -141,17 +141,26 @@ runcmd:
   - grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
   - sysctl -q vm.swappiness=10
 
-  # --- dev toolchain: gh (official apt repo), Node 22 (NodeSource), then the
-  #     agent harnesses + code-server via npm (registry integrity) ---
+  # --- dev toolchain: gh (official apt repo), Node 22 (NodeSource), agent
+  #     harnesses via npm. NodeSource fetch is download-then-execute WITH
+  #     retries: on syd4's first boot the piped `curl -fsS | bash` failed
+  #     SILENTLY (empty pipe = bash success) and apt fell back to Ubuntu's
+  #     node 18 with no npm - the smoke caught it (run 29093898747) ---
   - install -m 0755 -d /etc/apt/keyrings
   - curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
   - chmod a+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
   - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
-  - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+  - curl -fsSL --retry 5 --retry-all-errors -o /tmp/nodesource.sh https://deb.nodesource.com/setup_22.x
+  - bash /tmp/nodesource.sh
   - apt-get update
   - DEBIAN_FRONTEND=noninteractive apt-get install -y gh nodejs
-  - npm install -g @anthropic-ai/claude-code @openai/codex code-server
+  - npm install -g @anthropic-ai/claude-code @openai/codex
 
-  # --- code-server on (unit shipped via write_files above) ---
+  # --- code-server via the official pinned .deb (sha256-verified, phase7
+  #     pattern): the npm build needs --unsafe-perm and a postinstall compile -
+  #     the release binary is the supported path. Bump = move the pin here. ---
+  - curl -fsSL --retry 3 -o /tmp/code-server.deb https://github.com/coder/code-server/releases/download/v4.127.0/code-server_4.127.0_amd64.deb
+  - echo "a1cb96f64d5c68736764726cd3b0c9b6e500bdc30cfefebc05f59259149380e2  /tmp/code-server.deb" | sha256sum -c -
+  - dpkg -i /tmp/code-server.deb
   - systemctl daemon-reload
   - systemctl enable --now code-server
