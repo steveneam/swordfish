@@ -123,15 +123,13 @@ stealth mode on record (thalon.org unwired until launch call).
   over HTTPS unaffected. **Founder approved the chartered SSH-on-443 fallback
   (AGENTS.md rule 2) and it is APPLIED on syd3** via the new `ssh443-apply`
   workflow (run 29109656340, converge + idempotency-proof green): sshd listens
-  22+443, ufw admits 443 from syd4/32 only, syd3 cloud-init pinned, `ssh syd3`
-  alias staged in syd4's ~/.ssh/config. **One link missing: the Vultr
-  provider-firewall twin rule** — the Vultr API key rejects syd4's IP
-  (laptop-era IP access-control list). Founder one-time fix, either: add
-  66.226.147.123 to the API key's Access Control (my.vultr.com → Account → API)
-  — preferred, the agent then manages Vultr from the cockpit — or add the rule
-  by hand (Firewall group `swordfish-syd3`: TCP 443, source 66.226.147.123/32).
-  When it lands: agent verifies `ssh syd3`, pushes the tmux/motd fixes there,
-  and clears the checklist follow-up.
+  22+443, ufw admits 443 from syd4/32 only, syd3 cloud-init pinned. **CHANNEL
+  LIVE 2026-07-11 ~05:00:** founder added 66.226.147.123 to the Vultr API key's
+  Access Control → **Vultr is agent-managed from the cockpit now** — the agent
+  added the provider rule itself via API (group `swordfish-syd3`, rule id 3,
+  tcp/443 from syd4/32), `ssh syd3` verified (~60 s propagation), and syd3's
+  tmux/banner QoL was synced over the channel same session (no Mac relay
+  needed; checklist follow-up cleared).
 - **B2 daily download cap hit 2026-07-11** (founder email): caused by two full
   restore drills in one day (3.1 GB snapshot each) — **nothing is lost or
   overwritten**; the cap only throttles further *downloads* until midnight UTC or
