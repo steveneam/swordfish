@@ -185,13 +185,14 @@ write_files:
       echo " == $h.swordfish.cfd ================================================="
       echo "  work          open/resume the main workspace (survives WiFi drops)"
       echo "  claude        start the agent (run it inside 'work')"
-      echo "  copy text     just select it (tmux mouse off; prefix+m = wheel scroll)"
+      if [ -f /etc/systemd/system/code-server.service ]; then
+      echo "  READ + COPY in VS Code (Chromium) - terminal copy dies on redraws:"
+      echo "     Mac: ssh -L 8080:localhost:8080 deploy@$h.swordfish.cfd -> http://localhost:8080"
+      echo "     command sheet: ~/migration/MAC-COMMANDS.txt (open it there)"
+      fi
+      echo "  copy text     select + Cmd+C works ONLY while the screen is still"
       echo "  qr '<url>'    render any URL as a QR code for the phone camera"
       echo "  snapshots     list backups   |   backup-now   run a backup now"
-      if [ -f /etc/systemd/system/code-server.service ]; then
-      echo "  VS Code (on the Mac):  ssh -L 8080:localhost:8080 deploy@$h.swordfish.cfd"
-      echo "                         then browse http://localhost:8080"
-      fi
       echo "  heads-up: box may auto-reboot ~04:30 Sydney after security patches"
       echo " ====================================================================="
       echo ""

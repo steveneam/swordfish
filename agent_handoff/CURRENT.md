@@ -141,6 +141,16 @@ stealth mode on record (thalon.org unwired until launch call).
   still on the USB drive) from the syd4 backup source to shrink drill downloads.
 - **tmux cosmetics per founder request:** black background + dark status bar,
   live on syd4 + pinned in both cloud-inits (with the mouse-off layer).
+- **Second ergonomics incident (~04:15): terminal-chat copy is structurally broken
+  on the MacBook** — Terminal.app drops the selection on every TUI redraw, so
+  Cmd+C from the chat silently copies nothing (founder pasted stale clipboard).
+  **Ratcheted: code-server in Chromium is now the official reading/copying front
+  door** — "TYPE in the terminal, READ/COPY in VS Code": banner rewritten (live +
+  both cloud-inits), checklist Part 7 promoted from optional to recommended-early,
+  and a founder command sheet created at `~/migration/MAC-COMMANDS.txt` (one-time
+  ssh-config block, Vultr + B2 clicks, staging-folder scp lines). Standing rule
+  for agents: anything the founder must copy/click/read goes into a file he opens
+  in code-server, never into chat text.
 - **Portfolio workstation wiring COMPLETE (founder-directed, ~03:50):** Project 1's
   and Project 2's repos cloned to `~/work/<their-dir-names>` (fresh clones are
   content-identical — their own records show zero unpushed commits) and the vault
