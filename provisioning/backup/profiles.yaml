@@ -71,16 +71,23 @@ syd2:
   inherit: syd1
   repository: "b2:swordfish-syd2-backups:restic"
 
-# syd3 (machine-migration amendment 2026-07-10): the agent cockpit. Cockpit
-# state = the deploy home dir (agent memory/transcripts, repos' gitignored
-# secrets, the vault when it lands) - one source, future-proof for the staged
-# portfolio restore. run-before is overridden to a no-op: the cockpit has no
-# services to dump, and the fleet dokploy hook hard-fails without docker BY
-# DESIGN (refuses to snapshot without a fresh dump) - correct on fleet boxes,
-# fatal on a docker-less cockpit.
+# syd3 (machine-migration amendment 2026-07-10): the agent cockpit - STANDALONE
+# profile, deliberately NOT `inherit: syd1`. resticprofile inheritance merges
+# lists POSITIONALLY (observed live, run 29091746138: a 1-element source
+# override replaced only element[0] of syd1's list, leaving the docker-volume
+# path in -> restic exit 3 on the docker-less cockpit). inherit is only safe
+# for scalar overrides (syd2's repository swap); any structural list change =
+# write the profile out in full. Policy values (retention/schedule/check/prune)
+# are hand-copied from syd1 - keep them in lockstep when either changes.
+# Cockpit state = the deploy home dir (agent memory/transcripts, repos'
+# gitignored secrets, the vault when it lands). No pre-backup hooks: nothing
+# to dump, and the fleet dokploy hook hard-fails without docker by design.
 syd3:
-  inherit: syd1
   repository: "b2:swordfish-syd3-backups:restic"
+  password-file: /etc/resticprofile/password.txt
+  env-file: /etc/resticprofile/b2.env
+  initialize: true
+
   backup:
     source:
       - /home/deploy
@@ -91,4 +98,29 @@ syd3:
       - /home/deploy/.claude/paste-cache
       - /home/deploy/.claude/shell-snapshots
       - "**/node_modules"
-    run-before: "true"
+    exclude-caches: true
+    run-after: "/etc/resticprofile/hc-ping.sh success"
+    run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
+    schedule: "*-*-* 15:00:00"
+    schedule-permission: system
+    schedule-lock-wait: 15m
+
+  retention:
+    after-backup: true
+    keep-daily: 7
+    keep-weekly: 4
+    keep-monthly: 6
+    prune: false
+
+  check:
+    read-data-subset: "10%"
+    run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
+    schedule: "Sun *-*-* 17:00:00"
+    schedule-permission: system
+    schedule-lock-wait: 15m
+
+  prune:
+    run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
+    schedule: "Sat *-*-* 17:00:00"
+    schedule-permission: system
+    schedule-lock-wait: 15m
