@@ -11,3 +11,4 @@ inventory/secrets/
 # local-only harness state
 .claude/settings.local.json
 .claude/worktrees/
+.claude/*.bak
