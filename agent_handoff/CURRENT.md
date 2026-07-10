@@ -1,77 +1,85 @@
 # CURRENT — session handoff (one file, overwritten each wrap)
 
-_Stamped: 2026-07-08 04:05 +10:00 (syd2 at 60/63 pre-cutover ceiling; Thalon brief delivered w/ stealth mode; next = CUTOVER gate, deadman natural fire rides the soak)_
+_Stamped: 2026-07-10 20:20 +10:00 (machine migration in motion: env seed staged, syd3 cockpit live + 29/29 verified; ops queue PARKED by design until the cockpit rehearsal passes)_
 
 ## State
 
-**syd2 posture: 60/63 — pre-cutover ceiling** (3 FAILs = sniStrict route checks
-for `hello./status./metrics.`; certs can only issue once DNS points here).
-Dogfood is fully replayed: kuma (`status2.`, real cert) · beszel hub+agent
-(`metrics2.`) · hello (`swordfish-hello-ksv6id`) · ratelimit on public routers ·
-both dead-man legs receiver-acked from syd2 (healthchecks `swordfish-syd2-backups`
-+ syd2's own Kuma push) · dump hooks armed. IDs in `runbooks/dogfood.md` +
-`inventory/boxes.md`.
+**Machine migration (the founder is losing the Windows work laptop to IT lockdown;
+next cockpit = a VPS driven from the 2011 MacBook's terminal, phone browser for OAuth):**
 
-**Since the 03:47 wrap:**
+- **Environment seed staged 2026-07-10** to the portable drive at `migration-staging\`
+  (copy-only; the laptop still works unchanged): full `~/.claude` incl. every agent's
+  memory + transcripts, global skills, Claude OAuth credentials, `~/.claude.json`
+  (MCP configs + keys), SSH keypairs, gh profile, `.gitconfig`. `MANIFEST.md` in that
+  folder = restore map + new-host bring-up order + key-rotation checklist (rotation
+  runs only AFTER the new cockpit is proven). GitHub tokens were Windows-Credential-
+  Manager-bound → re-auth by device flow, not file copy. An `AGENT-BROADCAST.md`
+  sits alongside for the other portfolio projects' agents (never commit it here).
+  **Final-day rule:** re-run the refresh commands at the top of MANIFEST.md before
+  abandoning the laptop. The research vault is founder-copied separately.
+- **syd3 = agent cockpit, LIVE + VERIFIED** (CHARTER machine-migration amendment):
+  Vultr syd `vhf-1c-2gb` $12/mo credit-funded, 139.180.170.11, `syd3.swordfish.cfd`,
+  provider firewall + ufw = tcp/22 only, NO Docker, toolchain baked in
+  (git · gh · tmux · Node 22 · Claude Code). cockpit-smoke run 29085148074 =
+  **29/29 + ssh-audit clean** (commit 11ac255). ⚠️ Not yet primary: needs founder
+  logins + seed restore + a `~/.claude` backup ratchet first.
 
-- **Thalon wiring brief delivered** (founder hands over
-  `agent_handoff/thalon-wiring-brief-2026-07-08.md`): box status, handoff-pack
-  contents, six ask-backs (port · image digest · THALON_DATA_DIR · PGlite
-  export-hook spec · DNS owner · env list).
-- **Stealth mode (founder call):** `thalon.org` stays UNWIRED until Thalon's
-  launch call — no DNS, no cert, no CT-log entry. At wiring, thalon-web gets a
-  **neutral staging hostname on swordfish.cfd** with edge **BasicAuth +
-  X-Robots-Tag noindex**; launch = add thalon.org domains + DNS flip + drop
-  BasicAuth (no redeploy). Design detail open for the wiring leg: where the
-  basicauth users hash lives (NOT in a tracked file — ship like backup secrets
-  or via Dokploy surface).
-- **Ratchet audit closed:** appName-base lesson + syd2 service IDs + REST-as-
-  apply-channel now in `runbooks/dogfood.md`; laptop-side gotchas (PS 5.1
-  gh-secret mangling, CLAUDE.md hardlink break) saved to agent memory.
-- **Hermes record (final):** Vercel AI Gateway + Groq/Llama 3.3-class for
-  E0/E1, US$10/mo cap, Anthropic API key = escalation path (CHARTER
-  "Bucket-5 in-flight record").
+**syd2 posture unchanged: 60/63 — pre-cutover ceiling** (3 FAILs = sniStrict route
+checks for `hello./status./metrics.`; certs can only issue once DNS points here).
+syd1 (Vultr) still live as fallback. Thalon brief delivered
+(`agent_handoff/thalon-wiring-brief-2026-07-08.md`), six ask-backs outstanding;
+stealth mode on record (thalon.org unwired until launch call; staging behind a
+neutral swordfish.cfd name + BasicAuth + noindex).
 
-## Next
+## Next (strict order — sequencing invariant: cockpit rehearsal BEFORE cutover; never both at once)
 
-1. **⛔ CUTOVER (founder gate — present a step-card first).** Cutover may
-   precede the deadman natural fire (cutover ≠ destroy; the fire rides the
-   soak): re-point A-records `deploy. status. metrics. hello.` →
-   103.249.236.41 (set-a-record.ps1 ×4) → edge-apply vs syd2 with
-   `deploy_fqdn=deploy.swordfish.cfd` (bootstrap-route re-point = that
-   converge) → founder (or agent via API) sets Server Domain in syd2 Dokploy →
-   smoke vs syd2 with default deploy_fqdn → **63/63** (certs issue on first
-   SNI hit; syd1 untouched, still live as fallback).
-2. **verify-deadman natural fire on syd2** — the timer fires **15:00 UTC
-   Jul 8 (= 01:00 AEST Jul 9)**; dispatch verify-deadman
-   (host=syd2.swordfish.cfd, default 26h window) any time after that. Note:
-   before the timer fires, the unit journal is empty (the earlier backup was
-   manual) — do not expect it to pass early.
-3. **Soak** (founder-set duration; Kuma + UptimeRobot watch the moved names)
-   → destroy the Vultr *instance* (account + credit stay) → drop temp
-   `deploy2/status2/metrics2` records → flip KUMA_PUSH_URL secret to the
-   `status.` host + re-run backups-apply (installs updated kuma-url) →
-   retire the syd1 inventory row.
-4. **Thalon wiring** (after Thalon returns the six ask-backs): Dokploy project
-   `thalon` + project-scoped API credential + staging hostname (BasicAuth +
-   noindex) + `THALON_DATA_DIR` volume into restic set + PGlite export hook
-   into `pre-backup.d` + Kuma monitor on staging.
-5. **Hermes E0 + Pi scoping** per the in-flight record (founder provides a
-   Vercel AI Gateway key at install).
+1. **Founder, at the work laptop (before it is lost):** copy the vault to a portable
+   drive; hand `AGENT-BROADCAST.md` to the other project agents; on the final day run
+   the MANIFEST.md refresh commands.
+2. **Founder, from home (MacBook):** rehearsal — `ssh deploy@syd3.swordfish.cfd`,
+   `tmux`, `claude` login (phone browser completes the URL+code flow), `gh auth login`
+   (device flow), `scp -r` the staging folder from the drive to syd3, restore per
+   MANIFEST.md, then prove the loop by dispatching cockpit-smoke from syd3 itself.
+3. **Agent (any machine):** cockpit backup ratchet — syd3 `~/.claude` state into an
+   off-box restic set BEFORE syd3 becomes primary (backups-before-workloads applies
+   to the cockpit's brain too; flagged in `inventory/boxes.md`).
+4. **⛔ PARKED OPS QUEUE — resumes only after the rehearsal passes, from the proven cockpit:**
+   1. **⛔ CUTOVER (founder gate — present the step-card first).** Re-point A-records
+      `deploy. status. metrics. hello.` → 103.249.236.41 (set-a-record.ps1 ×4) →
+      edge-apply vs syd2 with `deploy_fqdn=deploy.swordfish.cfd` → Server Domain
+      update in syd2 Dokploy (founder or agent via API) → smoke vs syd2 with default
+      deploy_fqdn → **63/63** (certs issue on first SNI hit; syd1 untouched fallback).
+   2. **verify-deadman on syd2** — the natural-fire timer passed 15:00 UTC Jul 8;
+      dispatch verify-deadman (host=syd2.swordfish.cfd) — window state unknown since,
+      check receiver freshness when resuming.
+   3. **Soak** (founder-set duration; Kuma + UptimeRobot watch the moved names) →
+      destroy the Vultr syd1 *instance* — **re-confirm destroy-vs-keep at that gate:
+      the machine-migration amendment notes syd1 may stay as warm fallback** →
+      drop temp `deploy2/status2/metrics2` records → flip KUMA_PUSH_URL secret to
+      the `status.` host + re-run backups-apply → retire/annotate the syd1 inventory row.
+   4. **Thalon wiring** (after the six ask-backs return): Dokploy project `thalon` +
+      project-scoped API credential + staging hostname (BasicAuth + noindex) +
+      `THALON_DATA_DIR` volume into restic set + PGlite export hook into
+      `pre-backup.d` + Kuma monitor on staging.
+   5. **Hermes E0 + Pi scoping** per the CHARTER in-flight record (Vercel AI Gateway
+      + Groq/Llama, US$10/mo cap; founder provides the gateway key at install).
 
 ## Standing
 
-- Traefik 3.7.6 Renovate PR: edge-apply protocol (post-cutover, default
-  deploy_fqdn; pre-cutover syd2 runs need `deploy_fqdn=deploy2.swordfish.cfd`).
-- Do NOT re-dispatch backups-apply / restore-drill vs syd1 — repo secrets hold
-  syd2's bucket key + receivers now.
+- Traefik 3.7.6 Renovate PR: edge-apply protocol (post-cutover, default deploy_fqdn;
+  pre-cutover syd2 runs need `deploy_fqdn=deploy2.swordfish.cfd`).
+- Do NOT re-dispatch backups-apply / restore-drill vs syd1 — repo secrets hold syd2's
+  bucket key + receivers now.
 - AGENTS.md edits break the CLAUDE.md hardlink — recreate + hash-verify after.
+- Fleet `hardening-smoke` does NOT apply to cockpit-class boxes — use `cockpit-smoke`.
 
 ## Constraints in force
 
-No local Docker (CI + VPS only) · 443 is the reliable channel · zero guarded
-tokens (A/B only — Thalon unmasked) in tracked files · backups-before-workloads
-satisfied on syd2 · cutover + instance-destroy are founder gates · thalon.org
-stays unwired until the launch call · founder is the sole author.
+No local Docker (CI + VPS only) · 443 is the reliable channel · zero guarded tokens
+(A/B only — Thalon unmasked) in tracked files · backups-before-workloads satisfied on
+syd2, OPEN on syd3 (cockpit state) · cutover + instance-destroy are founder gates ·
+thalon.org stays unwired until the launch call · cockpit rehearsal precedes cutover ·
+founder is the sole author.
 
-_All work is committed and pushed — it is safe to clear this session._
+_All work is committed and pushed — safe to clear; this file + agent memory + the
+staged seed carry the full state to any machine._
