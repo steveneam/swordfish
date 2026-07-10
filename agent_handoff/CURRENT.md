@@ -71,6 +71,15 @@ neutral swordfish.cfd name + BasicAuth + noindex).
    records `inventory/secrets/restic-syd3.password` in the password manager (the
    DR key — losing it = losing the cockpit backups)** · drill content checks grow
    after the seed restore (marked in cockpit-restore-drill.yml).
+   **First-boot agent tasks on syd4 besides verification:** re-add the Dokploy MCP
+   (`claude mcp add` — endpoint + API key are inside `~/migration/claude-global.json`);
+   the vault MCP is NOT re-added (the vault is plain files at `~/vault`, read
+   directly, still read-only by rule); reinstall plugins from
+   `~/migration/claude-home/plugins/installed_plugins.json` as needed; optionally
+   install `~/migration/ssh/id_ed25519` to `~/.ssh` (chmod 600) for direct
+   box-to-box break-glass — CI-as-hands stays the primary channel. The Chrome
+   browser MCP does NOT transfer (no browser on a box) — the one lost capability,
+   not needed for ops.
 4. **⛔ PARKED OPS QUEUE — resumes only after the rehearsal passes, from the proven cockpit:**
    1. **⛔ CUTOVER (founder gate — present the step-card first).** Re-point A-records
       `deploy. status. metrics. hello.` → 103.249.236.41 (set-a-record.ps1 ×4) →
