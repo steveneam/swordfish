@@ -2,10 +2,14 @@
 set -euo pipefail
 
 # install-hermes-syd3.sh - Hermes pilot, E0 posture (see README.md alongside).
-# Idempotent skeleton: deterministic parts are scripted; VERIFY items in the
-# README get confirmed on first install and corrected here same-session.
-# Safe ordering: nothing is enabled until the founder inputs replace the
-# REPLACE_ME placeholders in /home/hermes/.hermes/.env.
+# Idempotent; first live run 2026-07-11 (hermes-agent 0.18.2) - actuals folded
+# back in: the upstream installer creates ~/.hermes/config.yaml and .env from
+# ITS templates, so posture/identity are applied AFTER install as marker-
+# guarded APPENDS (top-level posture keys are absent from their template;
+# python-dotenv and ruamel take the later value). Service unit runs
+# `hermes gateway run` (foreground) - `gateway start` targets hermes's OWN
+# installed service, which we deliberately do not use (root-managed system
+# unit instead; the non-sudo hermes user cannot control its own supervision).
 
 changed=0
 
@@ -22,16 +26,28 @@ if ! sudo -u hermes test -x /home/hermes/.local/bin/hermes; then
   curl -fL --retry 5 --retry-delay 3 -o /tmp/hermes-install.sh \
     https://hermes-agent.nousresearch.com/install.sh
   [ -s /tmp/hermes-install.sh ] || { echo "FAIL: empty installer download"; exit 1; }
+  # non-interactive: installer skips sudo-needing extras (ffmpeg - fine, E0
+  # needs none of them) and creates config.yaml/.env/SOUL.md from templates
   sudo -u hermes bash /tmp/hermes-install.sh
   rm -f /tmp/hermes-install.sh
   changed=1
 fi
 
-# --- config: E0 posture, written only if absent (never clobber on-box edits) --
-if ! sudo -u hermes test -f /home/hermes/.hermes/config.yaml; then
-  sudo -u hermes mkdir -p /home/hermes/.hermes
-  sudo -u hermes tee /home/hermes/.hermes/config.yaml >/dev/null <<'CFG'
-# E0 posture - provisioning/hermes/README.md is the authority on these knobs
+# --- E0 toolset: disable everything execution-capable (idempotent) -----------
+# survivors = web, todo, memory, session_search, clarify, cronjob
+if sudo -u hermes bash -lc 'hermes tools list' | grep -E '✓ enabled +(terminal|code_execution|computer_use|browser|file|skills|delegation|image_gen|tts|vision) ' >/dev/null; then
+  sudo -u hermes bash -lc 'hermes tools disable terminal code_execution computer_use browser file skills delegation image_gen tts vision'
+  changed=1
+fi
+
+# --- posture: marker-guarded append (never clobber the upstream template) ----
+if ! sudo grep -q 'swordfish E0 posture' /home/hermes/.hermes/config.yaml; then
+  sudo -u hermes tee -a /home/hermes/.hermes/config.yaml >/dev/null <<'CFG'
+
+# ============================================================================
+# swordfish E0 posture (provisioning/hermes/README.md is the authority;
+# these top-level keys are absent from the upstream template)
+# ============================================================================
 unauthorized_dm_behavior: ignore
 approvals:
   mode: manual
@@ -46,22 +62,30 @@ CFG
   changed=1
 fi
 
-if ! sudo -u hermes test -f /home/hermes/.hermes/.env; then
-  sudo -u hermes tee /home/hermes/.hermes/.env >/dev/null <<'ENV'
-# founder inputs - service will not enable while REPLACE_ME remains.
+# --- identity: staged with placeholders; real values are applied by the
+#     operator (agent pipes them from inventory/secrets/, never tracked) ------
+if ! sudo grep -q 'swordfish E0 identity' /home/hermes/.hermes/.env; then
+  sudo tee -a /home/hermes/.hermes/.env >/dev/null <<'ENV'
+
+# swordfish E0 identity - fill via operator, service gates on REPLACE_ME.
 # HERMES bot = a DIFFERENT BotFather bot from the fleet alerts bot.
 TELEGRAM_BOT_TOKEN=REPLACE_ME
 TELEGRAM_ALLOWED_USERS=REPLACE_ME_FOUNDER_TELEGRAM_ID
-# Vercel AI Gateway (OpenAI-compatible; chartered US$10/mo cap) - VERIFY keys
-OPENAI_API_KEY=REPLACE_ME_GATEWAY_KEY
-OPENAI_BASE_URL=https://ai-gateway.vercel.sh/v1
+TELEGRAM_HOME_CHANNEL=REPLACE_ME_FOUNDER_TELEGRAM_ID
+TELEGRAM_HOME_CHANNEL_NAME=Steven
+# LLM: Vercel AI Gateway (OpenAI-compatible; chartered US$10/mo cap).
+# Wire as model.provider "custom" + model.base_url in config.yaml, key below
+# (exact key name verified at enable time - see README VERIFY).
+OPENROUTER_API_KEY=REPLACE_ME_GATEWAY_KEY
 ENV
-  sudo chmod 600 /home/hermes/.hermes/.env
   changed=1
 fi
+sudo chown hermes:hermes /home/hermes/.hermes/.env
+sudo chmod 600 /home/hermes/.hermes/.env
 
-# --- systemd unit (system-level, runs as hermes) ------------------------------
-if [ ! -f /etc/systemd/system/hermes-gateway.service ]; then
+# --- systemd unit (system-level, root-managed, runs as hermes) ---------------
+if [ ! -f /etc/systemd/system/hermes-gateway.service ] || \
+   ! grep -q 'hermes gateway run' /etc/systemd/system/hermes-gateway.service; then
   sudo tee /etc/systemd/system/hermes-gateway.service >/dev/null <<'UNIT'
 [Unit]
 Description=Hermes agent gateway (E0 posture - provisioning/hermes/README.md)
@@ -71,7 +95,7 @@ Wants=network-online.target
 [Service]
 User=hermes
 WorkingDirectory=/home/hermes
-ExecStart=/home/hermes/.local/bin/hermes gateway start
+ExecStart=/home/hermes/.local/bin/hermes gateway run
 Restart=always
 RestartSec=10
 NoNewPrivileges=true

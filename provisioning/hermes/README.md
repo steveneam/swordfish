@@ -41,17 +41,29 @@ Vercel AI Gateway key. Then:
     sudo systemctl enable --now hermes-gateway.service
     journalctl -u hermes-gateway -f   # watch first contact
 
-## VERIFY on first install (upstream surface may drift from this skeleton)
+## VERIFY — first install actuals (2026-07-11, hermes-agent 0.18.2 on syd3)
 
-- [ ] installer path + `hermes` binary location (`~/.local/bin/hermes` assumed)
-- [ ] exact gateway start command (`hermes gateway start` assumed)
-- [ ] exact .env keys for OpenAI-compatible endpoint (base URL + key)
-- [ ] `hermes tools` command to disable the terminal tool at E0
-- [ ] RAM headroom on the 2 GB box (`free -m` before/after; E0 gateway only)
+- [x] launcher lands at `~/.local/bin/hermes` (assumed path was right)
+- [x] service command is **`hermes gateway run`** (foreground) — `gateway
+      start` targets hermes's OWN `gateway install` service, which we skip;
+      our root-managed system unit supervises `run` instead
+- [x] upstream installer CREATES `config.yaml`/`.env`/`SOUL.md` from its
+      templates → posture/identity are marker-guarded APPENDS after install
+- [x] Telegram gateway is long-polling by default (outbound 443 only; webhook
+      only if TELEGRAM_WEBHOOK_URL set) — fits the inbound-22-only box
+- [x] `TELEGRAM_HOME_CHANNEL` (founder chat id) = cron/briefing delivery target
+- [x] E0 toolset applied via `hermes tools disable terminal code_execution
+      computer_use browser file skills delegation image_gen tts vision` —
+      survivors: web, todo, memory, session_search, clarify, cronjob
+- [x] RAM: 1.5 GB available at idle post-install (2 GB box carries E0)
+- [x] installer extras: ffmpeg skipped (needs sudo; E0 needs none), Playwright
+      Chromium ~300 MB downloaded into `~hermes/.cache/ms-playwright` —
+      unused with browser tool disabled; delete if disk ever matters
+- [ ] LLM wiring at enable time: set `model.provider: "custom"` +
+      `model.base_url: <Vercel AI Gateway OpenAI-compatible endpoint>` in
+      config.yaml and the key in .env (`OPENROUTER_API_KEY` is the generic
+      OpenAI-compatible slot; confirm against `hermes doctor` on enable)
 - [ ] cron morning-briefing job created and delivered once
-
-Record actuals back into this README + the install script same session
-(operating rule 9: capture what worked, in the same session).
 
 ## Rebuild path
 
