@@ -15,7 +15,10 @@ unexpected happens. Supersedes nothing; pulls the chartered Hermes pilot forward
    record: Vercel AI Gateway + Groq Llama 3.3-class, US$10/mo hard cap).
 2. **Channel = Telegram** (working choice; free Bot API, sender allowlist, long-polling
    = outbound 443 only — fits the reliable-channel rule and inbound-22-only boxes).
-3. **Approval UX = one tap per task, never per step** (see model below).
+3. **Approval UX = near-zero taps, never per step** (see model below). Founder
+   clarification (mid-session): the phone channel is CONVERSATIONAL — he directs
+   Claude Code on his projects from the phone the way he does at a keyboard, with
+   Hermes as the relay. Not one-shot dispatch.
 4. **Swordfish agent = senior operations manager of the machine migration for all
    portfolio projects** (founder appointment, 2026-07-11): responsible for the
    workstation (syd4) being fit for every project agent + the founder, and for the
@@ -25,20 +28,24 @@ unexpected happens. Supersedes nothing; pulls the chartered Hermes pilot forward
 
 Two layers, one tap total:
 
-- **Hermes layer** (`approvals.mode: manual` in `~/.hermes/config.yaml`): applies to
-  commands Hermes wants to run — and Hermes runs exactly ONE command per task: the
-  dispatch script. So the flow is: founder texts a task → Hermes drafts the dispatch
-  → **one Approve tap** → done. Status/progress messages are notifications, not
-  commands — approvals never apply to them. (If even one tap grates, the dispatch
-  script can be allowlisted → zero taps; keep the tap: it is the consent + audit
-  point for a spoofable channel.)
-- **Claude Code layer** (on syd4): headless runs cannot prompt (nobody is there), so
-  permissions are pre-granted via a **scoped profile**, not `--dangerously-skip-
-  permissions`: `claude -p --output-format stream-json` under the `deploy` user (never
-  root), per-project cwd, `--allowedTools` + project settings allowlist (edits, git,
-  build/test commands inside the project), deny-rules for destructive patterns, work
-  on an isolated branch/worktree. Result: zero mid-run prompts, bounded blast radius,
-  everything reviewable as a diff/PR before merge.
+- **Hermes layer:** Hermes runs exactly ONE kind of command — the relay script that
+  feeds the founder's message into a per-project Claude Code session. That command
+  pattern is ALLOWLISTED in Hermes (auto-approved) → **zero taps per message**; the
+  sender allowlist (founder's Telegram ID only) is the gate on the channel, and the
+  relay script is constrained (text into a scoped session, nothing else).
+  `approvals.mode: manual` still guards any OTHER command Hermes might ever want.
+  Status/progress messages are notifications — approvals never apply to them.
+- **Claude Code layer** (on syd4): conversational sessions via headless resume — each
+  phone message continues the project's persistent session (`claude -p --resume
+  <session-id> --output-format stream-json`), replies stream back to Telegram. Runs
+  under the `deploy` user (never root) with a **scoped permission profile**, not
+  `--dangerously-skip-permissions`: per-project cwd, allowlisted tools (edits, git,
+  build/test inside the project), deny-rules for destructive patterns, isolated
+  branch/worktree. Routine work needs NO approval. For actions OUTSIDE the fence,
+  use `--permission-prompt-tool` to route the permission request to Telegram as a
+  tap — the keyboard experience, on the phone: mostly autonomous, asks only when
+  it matters. Session registry (project → session-id) lives with the relay script;
+  `/new <project>` starts fresh, `/kill` scoped-kills the session's processes.
 
 What was rejected from the blueprint: `User=root`, chat-triggered
 `--dangerously-skip-permissions`, ANSI-scrubbing of TUI output (replaced by
