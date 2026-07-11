@@ -59,10 +59,16 @@ Vercel AI Gateway key. Then:
 - [x] installer extras: ffmpeg skipped (needs sudo; E0 needs none), Playwright
       Chromium ~300 MB downloaded into `~hermes/.cache/ms-playwright` —
       unused with browser tool disabled; delete if disk ever matters
-- [ ] LLM wiring at enable time: set `model.provider: "custom"` +
-      `model.base_url: <Vercel AI Gateway OpenAI-compatible endpoint>` in
-      config.yaml and the key in .env (`OPENROUTER_API_KEY` is the generic
-      OpenAI-compatible slot; confirm against `hermes doctor` on enable)
+- [x] telegram adapter needs the **`[messaging]`** extra (runtime hint names a
+      nonexistent `[telegram]` extra — stale upstream); install with uv, not
+      pip (uv venvs ship no pip): `uv pip install --python ./venv/bin/python
+      ".[messaging]"` from `~/.hermes/hermes-agent`
+- [x] LLM wiring: `model.provider: "custom"` + `model.base_url:
+      https://ai-gateway.vercel.sh/v1` + `model.default: "meta/llama-3.3-70b"`
+      in config.yaml; key in .env as `OPENROUTER_API_KEY` (the generic
+      OpenAI-compatible slot); key validated against the gateway's /v1/models
+      (309 models visible; slug confirmed)
+- [ ] first founder message answered end-to-end (Telegram → gateway → Llama)
 - [ ] cron morning-briefing job created and delivered once
 
 ## Rebuild path

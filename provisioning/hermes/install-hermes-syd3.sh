@@ -33,6 +33,15 @@ if ! sudo -u hermes test -x /home/hermes/.local/bin/hermes; then
   changed=1
 fi
 
+# --- telegram adapter deps: the curated install does NOT ship them, and the
+#     runtime error hint names a nonexistent extra ('hermes-agent[telegram]');
+#     the real extra is [messaging] (python-telegram-bot et al). uv, not pip -
+#     uv-created venvs carry no pip. (lesson 2026-07-11) ---------------------
+if ! sudo -u hermes /home/hermes/.hermes/hermes-agent/venv/bin/python -c 'import telegram' 2>/dev/null; then
+  sudo -u hermes bash -lc 'cd ~/.hermes/hermes-agent && ~/.hermes/bin/uv pip install --python ./venv/bin/python ".[messaging]"'
+  changed=1
+fi
+
 # --- E0 toolset: disable everything execution-capable (idempotent) -----------
 # survivors = web, todo, memory, session_search, clarify, cronjob
 if sudo -u hermes bash -lc 'hermes tools list' | grep -E '✓ enabled +(terminal|code_execution|computer_use|browser|file|skills|delegation|image_gen|tts|vision) ' >/dev/null; then
