@@ -70,6 +70,11 @@ rehearsal-pass confirmation.)_
 
 ## Standing
 
+- **Cross-machine sync ratchet (executable): `scripts/sync-with-box.sh`** — additive
+  two-way memory sync + push-if-absent secrets, any project, any machine; run at
+  wrap when the network permits; briefs relayed to all four other agents' repos
+  2026-07-11 (their `agent_handoff/`, Walter at root). DIVERGED/DIFFERS lines are
+  human decisions.
 - Laptop network rule (above) · AGENTS.md edits break the CLAUDE.md hardlink —
   recreate + hash-verify after · cockpit-class boxes use `cockpit-smoke` (34) ·
   do NOT re-dispatch backups-apply/restore-drill vs syd1 · alerts bot is SEND-ONLY
