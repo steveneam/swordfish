@@ -251,3 +251,9 @@ runcmd:
   - dpkg -i /tmp/pmc.deb
   - apt-get update
   - DEBIAN_FRONTEND=noninteractive apt-get install -y powershell
+
+  # --- POST-BOOT (not cloud-init-reproducible): SSH-login alerts to the
+  #     founder's Telegram land via the alerts-apply workflow - its secrets
+  #     env file (/etc/swordfish/alerts.env) can never be pinned here. On any
+  #     rebuild, dispatch alerts-apply against this host after first boot.
+  #     Layer: provisioning/host/setup-login-alerts.sh (2026-07-11). ---

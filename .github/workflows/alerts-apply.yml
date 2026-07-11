@@ -1,0 +1,77 @@
+name: alerts-apply
+
+# CI-as-hands apply channel for fleet SSH-login alerting
+# (founder-interface-plan-2026-07-11, Leg 2). Installs the secrets env file
+# (root, 600) then converges provisioning/host/setup-login-alerts.sh over
+# inbound 22. The final step live-fires a test message from the BOX so the
+# proof covers the box->Telegram 443 path, not the runner's. Expect the run's
+# own ssh logins to produce alerts once the pam hook is in - that noise IS
+# the end-to-end verification. Dispatch-only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: Target FQDN
+        required: false
+        default: syd4.swordfish.cfd
+
+# this job holds the box SSH key - keep its GITHUB_TOKEN read-only (Bucket 1.5)
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    name: converge login alerts via SSH
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ inputs.host || 'syd4.swordfish.cfd' }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install CI deploy key
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+        run: |
+          [ -n "$SSH_DEPLOY_KEY" ] || { echo "SSH_DEPLOY_KEY secret is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          # strip CRs defensively (see hardening-smoke.yml, 2026-07-07)
+          printf '%s\n' "$SSH_DEPLOY_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null || { echo "secret does not parse as a private key"; exit 1; }
+
+      # static secret refs only (zizmor lesson 2026-07-11: dynamic
+      # secrets[format()] provisions the ENTIRE secrets context to the runner)
+      - name: Install alerts env file (root, 600)
+        env:
+          BOT: ${{ secrets.ALERTS_TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.ALERTS_TELEGRAM_CHAT_ID }}
+        run: |
+          [ -n "$BOT" ] && [ -n "$CHAT" ] || { echo "ALERTS_TELEGRAM_BOT_TOKEN / ALERTS_TELEGRAM_CHAT_ID secrets not set"; exit 1; }
+          printf 'ALERTS_BOT_TOKEN=%s\nALERTS_CHAT_ID=%s\n' "$BOT" "$CHAT" | \
+            ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                "deploy@$HOST" \
+                "sudo install -d -m 700 -o root -g root /etc/swordfish && sudo tee /etc/swordfish/alerts.env >/dev/null && sudo chmod 600 /etc/swordfish/alerts.env"
+
+      - name: Converge login alerts (idempotent)
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" "bash -s" < provisioning/host/setup-login-alerts.sh
+
+      - name: Idempotency proof - second run must be a no-op
+        run: |
+          out=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                    "deploy@$HOST" "bash -s" < provisioning/host/setup-login-alerts.sh)
+          echo "$out"
+          echo "$out" | grep -q '== converged: no changes' \
+            || { echo "FAIL: second run still reported changes - script is not idempotent"; exit 1; }
+
+      - name: Live-fire test message from the box
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" \
+              'sudo bash -c ". /etc/swordfish/alerts.env && curl -fsS -m 10 \"https://api.telegram.org/bot\${ALERTS_BOT_TOKEN}/sendMessage\" -d chat_id=\"\${ALERTS_CHAT_ID}\" --data-urlencode text=\"[$(hostname -s)] alerts-apply verified - this box now reports ssh logins\" >/dev/null"' \
+            && echo "test message accepted by Telegram API" \
+            || { echo "FAIL: box could not deliver to Telegram"; exit 1; }

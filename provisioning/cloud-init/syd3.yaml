@@ -224,3 +224,9 @@ runcmd:
   - dpkg -i /tmp/pmc.deb
   - apt-get update
   - DEBIAN_FRONTEND=noninteractive apt-get install -y powershell
+
+  # --- POST-BOOT (not cloud-init-reproducible): (1) SSH-login alerts via the
+  #     alerts-apply workflow (secrets env file can't be pinned here);
+  #     (2) Hermes pilot via provisioning/hermes/install-hermes-syd3.sh
+  #     (external installer + founder-held secrets). Dispatch/run both after
+  #     any rebuild. (founder-interface-plan-2026-07-11) ---
