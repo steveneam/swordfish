@@ -81,8 +81,19 @@ Vercel AI Gateway key. Then:
       automatic provider failover (observed: bedrock primary, groq fallback).
 - [x] on-box one-shot test exists: `hermes -z "<prompt>"` — proves the whole
       agent path without a phone round-trip
-- [ ] first founder message answered end-to-end (Telegram → gateway → model)
-- [ ] cron morning-briefing job created and delivered once
+- [x] first founder message answered end-to-end 2026-07-11 (Telegram → gateway
+      → gpt-oss-120b → reply; founder-confirmed)
+- [x] cron `morning-briefing` created (job 0581352d8f6d, `0 21 * * *` UTC =
+      07:00 Sydney, delivers to the founder's Telegram; test run fired at
+      creation). Content v0 = public endpoints only (hello./status.) — grows
+      real metrics (Kuma/Beszel/healthchecks read APIs) post-cutover.
+
+## E0 is LIVE (2026-07-11). Next rung: E1
+
+E1 = the conversational relay to Claude Code on syd4 (one allowlisted command,
+manual approvals for everything else) — design in
+`agent_handoff/founder-interface-plan-2026-07-11.md`. Verdict gate per charter:
+2–4 weeks at E0/E1 → keep or drop.
 
 ## Rebuild path
 
