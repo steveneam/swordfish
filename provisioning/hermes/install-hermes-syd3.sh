@@ -92,6 +92,27 @@ fi
 sudo chown hermes:hermes /home/hermes/.hermes/.env
 sudo chmod 600 /home/hermes/.hermes/.env
 
+# --- model wiring via `hermes config set` ONLY (lesson 2026-07-11: the CLI
+#     normalizes/rewrites config.yaml on every tools/config command, so sed
+#     against template text silently matches nothing). Actuals from first
+#     enable: llama-3.3-70b FAILS Hermes's tool schema (Groq failed_generation)
+#     -> gpt-oss-120b (price-equivalent, strong function calling); max_tokens
+#     must sit under the provider's output cap; api_key MUST be set in config
+#     (the gateway runtime does not honor the env fallback for custom). -------
+if ! sudo grep -q 'base_url: https://ai-gateway.vercel.sh/v1' /home/hermes/.hermes/config.yaml; then
+  sudo -u hermes bash -lc '
+    hermes config set model.provider custom
+    hermes config set model.base_url https://ai-gateway.vercel.sh/v1
+    hermes config set model.default openai/gpt-oss-120b
+    hermes config set model.max_tokens 2048'
+  changed=1
+fi
+if ! sudo grep -q REPLACE_ME /home/hermes/.hermes/.env && ! sudo grep -q 'api_key:' /home/hermes/.hermes/config.yaml; then
+  sudo -u hermes bash -lc 'hermes config set model.api_key "$(grep ^OPENROUTER_API_KEY= ~/.hermes/.env | cut -d= -f2-)"' >/dev/null
+  sudo chmod 600 /home/hermes/.hermes/config.yaml
+  changed=1
+fi
+
 # --- systemd unit (system-level, root-managed, runs as hermes) ---------------
 if [ ! -f /etc/systemd/system/hermes-gateway.service ] || \
    ! grep -q 'hermes gateway run' /etc/systemd/system/hermes-gateway.service; then

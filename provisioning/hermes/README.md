@@ -63,12 +63,25 @@ Vercel AI Gateway key. Then:
       nonexistent `[telegram]` extra — stale upstream); install with uv, not
       pip (uv venvs ship no pip): `uv pip install --python ./venv/bin/python
       ".[messaging]"` from `~/.hermes/hermes-agent`
-- [x] LLM wiring: `model.provider: "custom"` + `model.base_url:
-      https://ai-gateway.vercel.sh/v1` + `model.default: "meta/llama-3.3-70b"`
-      in config.yaml; key in .env as `OPENROUTER_API_KEY` (the generic
-      OpenAI-compatible slot); key validated against the gateway's /v1/models
-      (309 models visible; slug confirmed)
-- [ ] first founder message answered end-to-end (Telegram → gateway → Llama)
+- [x] LLM wiring — four traps, all hit on first enable:
+      1. **Edit config ONLY via `hermes config set`** — the CLI normalizes and
+         rewrites config.yaml on every tools/config command, so sed against
+         template text silently matches nothing (cost us the first hour).
+      2. **`model.api_key` must be set IN config** — the gateway runtime does
+         not honor the `OPENROUTER_API_KEY`/`OPENAI_API_KEY` env fallback for
+         `custom` providers ("Missing Authentication header" from the gateway
+         while the same key curls fine). chmod 600 config.yaml after.
+      3. **`model.max_tokens` must sit under the provider's output cap**
+         (2048 is safe) — default blows past it and every call 400s.
+      4. **Llama 3.3-70b cannot drive Hermes's tool schema** (Groq-style
+         `failed_generation` on function calls) — default is
+         `openai/gpt-oss-120b`: price-equivalent class, strong tool calling.
+         Charter budget frame unchanged (US$10/mo cap).
+      Key validated against /v1/models (309 visible); gateway routes with
+      automatic provider failover (observed: bedrock primary, groq fallback).
+- [x] on-box one-shot test exists: `hermes -z "<prompt>"` — proves the whole
+      agent path without a phone round-trip
+- [ ] first founder message answered end-to-end (Telegram → gateway → model)
 - [ ] cron morning-briefing job created and delivered once
 
 ## Rebuild path
