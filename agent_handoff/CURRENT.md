@@ -1,189 +1,90 @@
 # CURRENT — session handoff (one file, overwritten each wrap)
 
-_Stamped: 2026-07-11 03:05 +10:00 (FIRST BOOT ON syd4 — the machine migration LANDED
-and the rehearsal's pain points are already ratcheted. Ops queue still parked pending
-the founder's rehearsal-pass confirmation.)_
+_Stamped: 2026-07-11 19:55 +10:00 (hotspot session ON THE WORK LAPTOP — the
+founder-interface plan's three legs shipped in one day: fleet login alerts LIVE,
+dashboard box-side done, Hermes E0 LIVE on syd3. Ops queue still parked on the
+rehearsal-pass confirmation.)_
 
-## State
+## Which machine is which (read this first)
 
-**MIGRATION LANDED — the agent lives on syd4 now** (BinaryLane `std-4vcpu` 4 vCPU /
-8 GB / 100 GB, 66.226.147.123, `syd4.swordfish.cfd`, tcp/22 only, NO Docker; founder
-drives it from the 2011 MacBook over SSH). First-boot verification, all green:
+- **syd4 = the agent's primary home** (`~/work/swordfish`). This session ran on the
+  **Windows work laptop (secondary)** over the founder's mobile hotspot — laptop rule
+  stands: NO network beyond general websites + GitHub without asking the founder
+  first (an earlier egress-22 probe may have tripped an IT alarm). Hotspot sessions
+  are founder-approved per session.
+- Sync discipline: git is the bus; one active home per project at a time; laptop
+  wrap = guard → commit → push → MANIFEST staging refresh (done this wrap, 19:52).
+- **Swordfish agent = senior operations manager of the migration for ALL portfolio
+  projects** (founder appointment 2026-07-11): owns workstation readiness, per-agent
+  secrets restoration, sync discipline, founder interfaces. Thalon's agent was
+  briefed at `E:\thalon\agent_handoff\FROM-SWORDFISH-2026-07-11.md` (his repo,
+  uncommitted); his first task = inventory his gitignored secrets on the laptop and
+  stage to `thalon-migration\` (they never reached syd4).
 
-- `hostname -s` = syd4, login banner shown; agent memory + transcripts loaded
-  (MANIFEST Part 4 slug rename worked — the agent knows its own history).
-- Repo `~/work/swordfish` clean at `0b45b6b` = origin/main; `.env` +
-  `inventory/secrets/` + `.context/` present and confirmed gitignored. Vault restored
-  as **plain files at `~/vault` (READ-ONLY by rule, no MCP)**; Thalon repo at
-  `~/work/thalon`.
-- Grep guard PASS via on-box pwsh 7.6.3.
-- **Real op end-to-end:** cockpit-smoke dispatched *from this box* vs
-  syd4.swordfish.cfd → **34/34** (run 29107082841 — the count grew from 33 with the
-  smoothness-layer assertion, commit 0b45b6b). gh device-flow auth live as steveneam.
-- **First-boot wiring done:** Dokploy MCP re-added **local scope** from the staged
-  `~/migration/claude-global.json` (key lives in untracked `~/.claude.json`; note the
-  staged project key is `E:\swordfish` — match by substring). Stale `obsidian-vault`
-  entry **removed from tracked `.mcp.json`** (this commit). Break-glass
-  `id_ed25519` installed to `~/.ssh` (chmod 600) — CI-as-hands stays the primary
-  channel. Plugins carried over automatically. The Chrome browser MCP is the one
-  lost capability, as documented — not needed for ops.
-- USB seed was refreshed 23:50 on the laptop's final day — the drive is current;
-  memories written since live here and are restic-backed nightly (RTO 3 s proven).
+## Shipped this session (all committed, guard+zizmor green; design =
+## `agent_handoff/founder-interface-plan-2026-07-11.md`)
 
-**Rehearsal debrief (founder feedback 2026-07-11, fixes applied same session):**
+1. **Fleet SSH-login alerts LIVE on syd2/syd3/syd4** — pam_exec hook posts every
+   login to the founder's Telegram (@Swordfish_alerts_bot) labeled by WHICH KEY
+   (authorized_keys comment; unknown keys shout), 2-min throttle, daily failed-auth
+   digest 21:00 UTC. LLM-free by design. Apply/rebuild = `alerts-apply` workflow
+   (secrets `ALERTS_TELEGRAM_BOT_TOKEN`/`ALERTS_TELEGRAM_CHAT_ID`; per-box env file
+   can never be pinned in cloud-init — markers added). Verified end-to-end ×3 boxes.
+2. **Dashboard (Leg 1) box-side done** — `generate-dashboard.sh` ran on syd4
+   (5 buttons; output untracked BY DESIGN — guarded dir names). Founder's 5-min Mac
+   setup remains: `provisioning/workstation/mac/MAC-DASHBOARD-SETUP.md` (LaunchAgent
+   auto-tunnel + file:// start page in Chromium).
+3. **Hermes E0 LIVE on syd3** (charter pull-forward, founder call — amendment to log
+   at next checkpoint): hermes-agent 0.18.2, non-sudo user, founder-only Telegram
+   allowlist (@Swordfish_hermes_bot — DELIBERATELY a separate bot from alerts),
+   eyes-only toolset (web/todo/memory/session_search/clarify/cronjob), manual
+   approvals, LLM = **openai/gpt-oss-120b via the founder's Vercel AI Gateway**
+   (llama-3.3-70b FAILS Hermes tool calling — see the four ratcheted traps in
+   `provisioning/hermes/README.md`), morning briefing cron 21:00 UTC (job
+   0581352d8f6d, test-fired + founder-received). First founder conversation
+   confirmed working. **Rebuild = install-hermes-syd3.sh + fill .env** (tokens live
+   in `inventory/secrets/telegram.env` + `hermes-llm.env` — gitignored, synced to
+   syd4's clone 2026-07-11 19:53 so they ride the nightly restic backup; note:
+   syd3's restic source is /home/deploy, so /home/hermes itself is NOT backed up —
+   deliberate, rebuild-from-script is the DR path).
 
-- **The claude login was an ordeal:** restored `.credentials.json` did NOT carry the
-  login; the long OAuth URL couldn't be copied because tmux mouse mode was capturing
-  the terminal's mouse (native Mac selection dead). Founder had to disable mouse mode
-  by hand, select/paste into Chromium, relay the code back. **Ratcheted:** tmux
-  `mouse off` is now the default on syd4 (live) + BOTH cloud-inits, with `prefix+m`
-  as an on-demand toggle and a `copy text` crib line in the login banner. The
-  checklist's login section is rewritten: ranked paths (code-server terminal in
-  Chromium — founder-verified "worked well" — then native terminal selection, then
-  phone QR as fallback; QR is fine for gh's short code, impractical for claude's
-  long URL). Logins are per-user-per-box: **the other project agents on syd4 reuse
-  this login — the ordeal does not repeat per project.** syd3 will need one login
-  round when its slice restores.
-- **Checklist Part 3 had a stale vault folder name** — the drive folder was renamed
-  to `walter` before the checklist was written. Fixed in the on-box copy
-  (`~/migration/MACBOOK-CHECKLIST.md`, now the canonical edition — drive re-copy
-  queued for next time the drive is plugged in). The old folder name carried a
-  guarded token; `walter` is safe to name.
-- **Thalon's gitignored secrets were NOT copied** (location unknown to the founder).
-  Recorded in the checklist: thalon's agent inventories its own secret paths on
-  first boot, then scp from the drive (check `thalon/` and `thalon-migration/`).
-- **syd3 still runs the old mouse-on tmux config** — its firewall blocks box-to-box
-  ssh, so the fix couldn't be pushed from here. The Mac-relay one-liners are in the
-  checklist's LATER section; cloud-init already pinned for rebuilds.
+## Next
 
-**Same session — zizmor fixed + drill checks grown:** both cockpit backup workflows
-used dynamic `secrets[format(...)]` indexing, which makes Actions provision the
-ENTIRE secrets context to the runner (the exact cross-box sharing the per-box
-prefixes exist to prevent) and failed zizmor. Reworked to static per-prefix
-references + bash indirect expansion (adding a box = add its env lines + case
-guard). cockpit-restore-drill content verification is now per-box: SYD4 asserts the
-seed state (`~/.claude`, vault, repos + secrets); SYD3 stays at fresh-box baseline
-until its slice restore.
-
-**syd3 = ops cockpit, LIVE + VERIFIED + BACKED UP** (unchanged): Vultr syd
-`vhf-1c-2gb` $12/mo credit-funded, 139.180.170.11, `syd3.swordfish.cfd`, tcp/22
-only, NO Docker. cockpit-smoke 29/29-era green + ssh-audit clean; restic→B2 nightly
-+ tested restore (RTO 3 s); dead-man leg receiver-acked. Its **swordfish seed-slice
-restore is still open** (optional — end-state A-vs-B, everything-on-syd4 vs
-swordfish-isolated-on-syd3, is decided now that the portfolio has moved).
-
-**syd2 posture unchanged: 60/63 — pre-cutover ceiling** (3 FAILs = sniStrict route
-checks for `hello./status./metrics.`; certs can only issue once DNS points here).
-syd1 (Vultr) still live as fallback. Thalon brief delivered
-(`agent_handoff/thalon-wiring-brief-2026-07-08.md`), six ask-backs outstanding;
-stealth mode on record (thalon.org unwired until launch call).
-
-## Next (strict order)
-
-1. **Founder: confirm the rehearsal passed.** This first-boot session is the
-   evidence (MacBook → syd4, real op green end-to-end). That confirmation — and
-   nothing else — un-parks the ops queue.
-2. ~~Box tail: grow cockpit-restore-drill content checks~~ **DONE + PROVEN**
-   (run 29109061050: snapshot `bb5b6018`, 3.1 GB / 19,336 files restored to the
-   runner in 23 s, RPO 0 h, per-box content checks PASS incl. the seed state —
-   the whole workstation is recoverable from B2 alone). Remaining tails: Kuma
-   push dead-man leg post-cutover · founder relays the mouse-off tmux config to
-   syd3 from the Mac (checklist LATER section has the exact commands) · founder
-   re-copies the updated MACBOOK-CHECKLIST.md to the USB drive next time it's
-   plugged in.
-3. **Optional:** syd3 swordfish-slice restore (MANIFEST minimal-slice checklist) if
-   end-state B (infra-key isolation) is chosen.
-4. **⛔ PARKED OPS QUEUE — resumes only after item 1, in this order:**
-   1. **⛔ CUTOVER (founder gate — present the step-card first).** Re-point A-records
-      `deploy. status. metrics. hello.` → 103.249.236.41 (set-a-record.ps1 ×4) →
-      edge-apply vs syd2 with `deploy_fqdn=deploy.swordfish.cfd` → Server Domain
-      update in syd2 Dokploy → smoke vs syd2 with default deploy_fqdn → **63/63**
-      (certs issue on first SNI hit; syd1 untouched fallback).
-   2. **verify-deadman on syd2** — natural-fire timer passed 15:00 UTC Jul 8;
-      window state unknown since — check receiver freshness when resuming.
-   3. **Soak** (founder-set duration) → syd1 **destroy-vs-keep re-confirmed at that
-      gate** (amendment notes it may stay as warm fallback) → drop temp
-      `deploy2/status2/metrics2` records → flip KUMA_PUSH_URL to the `status.` host
-      + re-run backups-apply → retire/annotate the syd1 inventory row.
-   4. **Thalon wiring** (after the six ask-backs return): Dokploy project + scoped
-      API credential + staging hostname (BasicAuth + noindex) + `THALON_DATA_DIR`
-      into restic set + PGlite export hook into `pre-backup.d` + Kuma monitor.
-   5. **Hermes E0 + Pi scoping** per CHARTER (Vercel AI Gateway + Groq/Llama,
-      US$10/mo cap; founder provides the gateway key at install).
-5. **Key rotation** (MANIFEST checklist) only after the whole new environment is
-   proven — last step of the migration, not before.
-
-**Late-session findings (2026-07-11 ~03:15):**
-
-- **syd4 cannot originate ANY port-22 connection** — github.com, gitlab.com, syd2
-  and syd3 all time out on 22 while 443 egress works everywhere; ufw is clean
-  (allow outgoing) and the BinaryLane advanced-firewall rules are inbound-only →
-  upstream egress-22 policy (BinaryLane network side). CI-as-hands is unaffected
-  (runners connect inbound to every box) and remains the primary channel; git/gh
-  over HTTPS unaffected. **Founder approved the chartered SSH-on-443 fallback
-  (AGENTS.md rule 2) and it is APPLIED on syd3** via the new `ssh443-apply`
-  workflow (run 29109656340, converge + idempotency-proof green): sshd listens
-  22+443, ufw admits 443 from syd4/32 only, syd3 cloud-init pinned. **CHANNEL
-  LIVE 2026-07-11 ~05:00:** founder added 66.226.147.123 to the Vultr API key's
-  Access Control → **Vultr is agent-managed from the cockpit now** — the agent
-  added the provider rule itself via API (group `swordfish-syd3`, rule id 3,
-  tcp/443 from syd4/32), `ssh syd3` verified (~60 s propagation), and syd3's
-  tmux/banner QoL was synced over the channel same session (no Mac relay
-  needed; checklist follow-up cleared).
-- **B2 daily download cap hit 2026-07-11** (founder email): caused by two full
-  restore drills in one day (3.1 GB snapshot each) — **nothing is lost or
-  overwritten**; the cap only throttles further *downloads* until midnight UTC or
-  a cap raise; nightly *uploads* (backups) are unaffected. Founder option: raise
-  the daily download cap in B2 'Caps & Alerts' so a monthly drill never trips it.
-  Agent option (proposed): exclude `~/migration/browsers/` (~large, static,
-  still on the USB drive) from the syd4 backup source to shrink drill downloads.
-- **tmux cosmetics per founder request:** black background + dark status bar,
-  live on syd4 + pinned in both cloud-inits (with the mouse-off layer).
-- **Second ergonomics incident (~04:15): terminal-chat copy is structurally broken
-  on the MacBook** — Terminal.app drops the selection on every TUI redraw, so
-  Cmd+C from the chat silently copies nothing (founder pasted stale clipboard).
-  **Ratcheted: code-server in Chromium is now the official reading/copying front
-  door** — "TYPE in the terminal, READ/COPY in VS Code": banner rewritten (live +
-  both cloud-inits), checklist Part 7 promoted from optional to recommended-early,
-  and a founder command sheet created at `~/migration/MAC-COMMANDS.txt` (one-time
-  ssh-config block, Vultr + B2 clicks, staging-folder scp lines). Standing rule
-  for agents: anything the founder must copy/click/read goes into a file he opens
-  in code-server, never into chat text.
-- **Portfolio workstation wiring COMPLETE (founder-directed, ~03:50):** Project 1's
-  and Project 2's repos cloned to `~/work/<their-dir-names>` (fresh clones are
-  content-identical — their own records show zero unpushed commits) and the vault
-  agent attached at `~/vault`. All five project agents' memories are re-attached to
-  their new paths (`~/.claude/projects` slug renames; verified each memory index
-  present). No additional logins needed — claude + gh auth are per-box. Each
-  project agent inventories its own gitignored secrets on first boot; their staging
-  folders remain on the portable drives (founder scp's while a drive is in the
-  Mac). Swordfish did NOT touch their code — workstation provisioning only.
-- **Rotation list grew:** sourcing the PS-era `.env` (`KEY= value` spacing)
-  echoed several secret values into this session's box-local transcript
-  (encrypted-backup exposure only). Include in the already-chartered
-  post-proving rotation: VULTR, PORKBUN ×2, B2 ×2, DOKPLOY ×2, UPTIMEROBOT,
-  GHCR_PULL_TOKEN, healthchecks URLs. Also normalize `.env` to `KEY=value`.
+1. **Founder: rehearsal-pass confirmation** — STILL the gate that un-parks the ops
+   queue (cutover → verify-deadman → soak/syd1 → Thalon wiring → Hermes E1 slot).
+2. **Founder, when convenient:** Mac dashboard setup (5 min) · re-copy updated
+   MACBOOK-CHECKLIST.md to the USB drive · optional B2 download-cap raise.
+3. **E1 build (next session, one session):** conversational relay — phone message →
+   Hermes (relay command allowlisted) → persistent per-project Claude Code session
+   on syd4 (`claude -p --resume`, stream-json back, `--permission-prompt-tool` for
+   out-of-fence taps). Design already in the plan doc.
+4. **Consolidation follow-ups (founder Q&A 2026-07-11):** healthchecks.io alert
+   channel → Telegram (watcher STAYS off-infra — it alerts on ABSENCE of pings,
+   Telegram-from-box cannot) · audit + retire ntfy (redundant post-Telegram) ·
+   post-cutover: Dokploy notifications → Telegram + dashboard buttons for
+   Dokploy/Kuma · **Sentry + PostHog (founder has free accounts) = app-layer, each
+   project wires its own; never self-host either on our boxes** — note for the
+   Thalon brief.
+5. Renovate housekeeping: PR #4 (golang digest) mergeable anytime; traefik 3.7.7
+   branch waits for post-cutover edge-apply protocol.
 
 ## Standing
 
-- You run on LINUX now: bash, LF, `~/work/swordfish`; repo `.ps1` scripts run via
-  `pwsh`. Windows-era paths in old records need translation (E:\ → the drive /
-  history).
-- Traefik 3.7.6 Renovate PR: edge-apply protocol (post-cutover, default deploy_fqdn;
-  pre-cutover syd2 runs need `deploy_fqdn=deploy2.swordfish.cfd`).
-- Do NOT re-dispatch backups-apply / restore-drill vs syd1 — repo secrets hold syd2's
-  bucket key + receivers now.
-- AGENTS.md edits break the CLAUDE.md hardlink — recreate + hash-verify after.
-- Fleet `hardening-smoke` does NOT apply to cockpit-class boxes — use `cockpit-smoke`
-  (now 34 assertions).
+- Laptop network rule (above) · AGENTS.md edits break the CLAUDE.md hardlink —
+  recreate + hash-verify after · cockpit-class boxes use `cockpit-smoke` (34) ·
+  do NOT re-dispatch backups-apply/restore-drill vs syd1 · alerts bot is SEND-ONLY
+  and separate from the Hermes bot so a popped workload box can never command the
+  cockpit agent · Hermes config edits ONLY via `hermes config set` (CLI rewrites
+  the yaml; seds silently no-op) · pre-stage founder actions: his steps are only
+  paste/tap/click/spend — the agent pre-makes everything else.
 
 ## Constraints in force
 
-No local Docker (CI + VPS only) · 443 is the reliable channel · zero guarded tokens
-(A/B only — Thalon unmasked) in tracked files · backups-before-workloads satisfied on
-syd2/syd3/syd4 · cutover + instance-destroy are founder gates · thalon.org stays
-unwired until the launch call · rehearsal-pass confirmation precedes the ops queue ·
-founder is the sole author.
+No local Docker (CI + VPS only) · 443 reliable channel · zero guarded tokens (A/B)
+in tracked files · backups-before-workloads satisfied syd2/3/4 · cutover +
+instance-destroy are founder gates · thalon.org unwired until launch call ·
+rehearsal-pass confirmation precedes the ops queue · Hermes never gets spend keys /
+provisioning authority (E-ladder in charter) · founder is the sole author.
 
-_All work is committed and pushed — safe to clear; this file + agent memory (both
-living on syd4, restic-backed nightly) carry the full state._
+_All work is committed and pushed; the staging drive was refreshed 19:52 — safe to
+clear; this file + agent memory + the seed carry the full state to any machine._
