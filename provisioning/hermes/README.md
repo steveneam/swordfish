@@ -87,15 +87,20 @@ Vercel AI Gateway key. Then:
       07:00 Sydney, delivers to the founder's Telegram; test run fired at
       creation). Content v0 = public endpoints only (hello./status.) — grows
       real metrics (Kuma/Beszel/healthchecks read APIs) post-cutover.
-- [x] **trap 5 — a hung run silently deletes the cron job** (hit 2026-07-13):
-      job 0581352d8f6d fired on schedule 2026-07-11 21:00 UTC, the run hung
-      mid-LLM-call (orphaned CLOSE-WAIT to the gateway, journal silent from
-      that moment), and at 2026-07-12 01:36 UTC the scheduler's stale-claim
-      cleanup REMOVED the job record — service `active`, ticker healthy,
-      `jobs.json` empty, no briefings, no error anywhere. Detection:
-      `hermes cron status` + `hermes cron list` (empty = dead), or journal
-      silence spanning a scheduled fire. Recovery (verbatim, as `hermes` user;
-      recreated as job d8e6bb992d5e):
+- [x] **trap 5 — founder bot-actions are journal-invisible and look exactly
+      like scheduler bugs** (hit 2026-07-13): job 0581352d8f6d's 2026-07-11
+      21:00 UTC run delivered, but its gateway session hung afterwards
+      (orphaned CLOSE-WAIT to the AI gateway; journal silent from that moment;
+      the next restart pruned it as "left by a crashed gateway"). Then
+      `jobs.json` emptied at 2026-07-12 01:36 UTC with zero journal trace —
+      first read as scheduler stale-claim cleanup, actually **the founder
+      stopping the reminder himself from Telegram** (clarified 2026-07-13:
+      adapter-level bot commands write job state without journald lines).
+      Lesson: before diagnosing a silent state change on a founder-facing
+      system, ask the founder first. Detection of a genuinely dead schedule:
+      `hermes cron status` + `hermes cron list` (empty = nothing will fire),
+      or journal silence spanning a scheduled fire. Recovery (verbatim, as
+      `hermes` user; recreated as job d8e6bb992d5e):
 
           sudo systemctl restart hermes-gateway   # clears the hung thread
           hermes cron create --name morning-briefing --deliver telegram \

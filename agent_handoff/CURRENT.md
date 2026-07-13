@@ -1,95 +1,89 @@
 # CURRENT — session handoff (one file, overwritten each wrap)
 
-_Stamped: 2026-07-11 19:55 +10:00 (hotspot session ON THE WORK LAPTOP — the
-founder-interface plan's three legs shipped in one day: fleet login alerts LIVE,
-dashboard box-side done, Hermes E0 LIVE on syd3. Ops queue still parked on the
-rehearsal-pass confirmation.)_
+_Stamped: 2026-07-13 13:55 +10:00 (short syd4 session, launched from the HOME dir —
+see the protocol note. Hermes briefing incident diagnosed + resolved with founder
+clarification; dashboard Mac setup = founder's declared priority for the next
+session; ops queue still parked on the rehearsal-pass confirmation.)_
 
-## Which machine is which (read this first)
+## State
 
-- **syd4 = the agent's primary home** (`~/work/swordfish`). This session ran on the
-  **Windows work laptop (secondary)** over the founder's mobile hotspot — laptop rule
-  stands: NO network beyond general websites + GitHub without asking the founder
-  first (an earlier egress-22 probe may have tripped an IT alarm). Hotspot sessions
-  are founder-approved per session.
-- Sync discipline: git is the bus; one active home per project at a time; laptop
-  wrap = guard → commit → push → MANIFEST staging refresh (done this wrap, 19:52).
-- **Swordfish agent = senior operations manager of the migration for ALL portfolio
-  projects** (founder appointment 2026-07-11): owns workstation readiness, per-agent
-  secrets restoration, sync discipline, founder interfaces. Thalon's agent was
-  briefed at `E:\thalon\agent_handoff\FROM-SWORDFISH-2026-07-11.md` (his repo,
-  uncommitted); his first task = inventory his gitignored secrets on the laptop and
-  stage to `thalon-migration\` (they never reached syd4).
-
-## Shipped this session (all committed, guard+zizmor green; design =
-## `agent_handoff/founder-interface-plan-2026-07-11.md`)
-
-1. **Fleet SSH-login alerts LIVE on syd2/syd3/syd4** — pam_exec hook posts every
-   login to the founder's Telegram (@Swordfish_alerts_bot) labeled by WHICH KEY
-   (authorized_keys comment; unknown keys shout), 2-min throttle, daily failed-auth
-   digest 21:00 UTC. LLM-free by design. Apply/rebuild = `alerts-apply` workflow
-   (secrets `ALERTS_TELEGRAM_BOT_TOKEN`/`ALERTS_TELEGRAM_CHAT_ID`; per-box env file
-   can never be pinned in cloud-init — markers added). Verified end-to-end ×3 boxes.
-2. **Dashboard (Leg 1) box-side done** — `generate-dashboard.sh` ran on syd4
-   (5 buttons; output untracked BY DESIGN — guarded dir names). Founder's 5-min Mac
-   setup remains: `provisioning/workstation/mac/MAC-DASHBOARD-SETUP.md` (LaunchAgent
-   auto-tunnel + file:// start page in Chromium).
-3. **Hermes E0 LIVE on syd3** (charter pull-forward, founder call — amendment to log
-   at next checkpoint): hermes-agent 0.18.2, non-sudo user, founder-only Telegram
-   allowlist (@Swordfish_hermes_bot — DELIBERATELY a separate bot from alerts),
-   eyes-only toolset (web/todo/memory/session_search/clarify/cronjob), manual
-   approvals, LLM = **openai/gpt-oss-120b via the founder's Vercel AI Gateway**
-   (llama-3.3-70b FAILS Hermes tool calling — see the four ratcheted traps in
-   `provisioning/hermes/README.md`), morning briefing cron 21:00 UTC (job
-   0581352d8f6d, test-fired + founder-received). First founder conversation
-   confirmed working. **Rebuild = install-hermes-syd3.sh + fill .env** (tokens live
-   in `inventory/secrets/telegram.env` + `hermes-llm.env` — gitignored, synced to
-   syd4's clone 2026-07-11 19:53 so they ride the nightly restic backup; note:
-   syd3's restic source is /home/deploy, so /home/hermes itself is NOT backed up —
-   deliberate, rebuild-from-script is the DR path).
+- **main @ this wrap's commit** (prior: 2540e5b hermes trap 5; before that pulled
+  the laptop hotspot wrap 055eb0b — everything the laptop shipped is on this box).
+- **Hermes E0 on syd3: healthy, briefing PAUSED by founder choice.** Full timeline:
+  the morning-briefing (0581352d8f6d) fired on schedule 2026-07-11 21:00 UTC and
+  DELIVERED (founder-confirmed); its gateway session hung afterwards (orphaned
+  CLOSE-WAIT to the AI gateway; journal silent from that moment; the 2026-07-13
+  restart pruned it as "left by a crashed gateway"). `jobs.json` then emptied at
+  2026-07-12 01:36 UTC with no journal trace — initially misread as scheduler
+  stale-claim cleanup; **actually the founder stopped the reminder himself from
+  Telegram** (clarified 2026-07-13; adapter-level bot commands leave no journald
+  lines). Gateway restarted clean; job recreated as **d8e6bb992d5e**, test-fired
+  green (founder received it), then **paused at founder request** — resume on syd3:
+  `sudo -u hermes hermes cron resume d8e6bb992d5e`. Trap 5 + the verbatim create
+  command are pinned in `provisioning/hermes/README.md` (rule-9 gap closed — the
+  original create command had lived only in the laptop session).
+- **Founder's stated reason for stopping it:** the morning alert digests
+  ("syd2/3/4 auth digest 24: N failed/invalid ssh attempts, 0 fail2ban bans") —
+  morning-noise consolidation is now a real work item (Next 3).
+- **Dashboard Part 1 re-run this session:** `/home/deploy/dashboard/index.html`
+  fresh (5 buttons → code-server `?folder=` links, one per project + vault).
+- `work` alias on syd4 = `tmux new -A -s main` (attach-or-create; no cd — cd to
+  the project before launching claude).
 
 ## Next
 
-1. **Founder: rehearsal-pass confirmation** — STILL the gate that un-parks the ops
-   queue (cutover → verify-deadman → soak/syd1 → Thalon wiring → Hermes E1 slot).
-2. **Founder, when convenient:** Mac dashboard setup (5 min) · re-copy updated
-   MACBOOK-CHECKLIST.md to the USB drive · optional B2 download-cap raise.
-3. **E1 build (next session, one session):** conversational relay — phone message →
-   Hermes (relay command allowlisted) → persistent per-project Claude Code session
-   on syd4 (`claude -p --resume`, stream-json back, `--permission-prompt-tool` for
-   out-of-fence taps). Design already in the plan doc.
-4. **Consolidation follow-ups (founder Q&A 2026-07-11):** healthchecks.io alert
-   channel → Telegram (watcher STAYS off-infra — it alerts on ABSENCE of pings,
-   Telegram-from-box cannot) · audit + retire ntfy (redundant post-Telegram) ·
-   post-cutover: Dokploy notifications → Telegram + dashboard buttons for
-   Dokploy/Kuma · **Sentry + PostHog (founder has free accounts) = app-layer, each
-   project wires its own; never self-host either on our boxes** — note for the
-   Thalon brief.
-5. Renovate housekeeping: PR #4 (golang digest) mergeable anytime; traefik 3.7.7
-   branch waits for post-cutover edge-apply protocol.
+1. **Founder: rehearsal-pass confirmation** — STILL the only gate un-parking the
+   ops queue (cutover step-card presented first, then verify-deadman → soak/syd1 →
+   Thalon wiring → E1 slot).
+2. **Dashboard Mac setup — founder's declared priority (his call, 2026-07-13):**
+   walk him through Parts 2–3 of
+   `provisioning/workstation/mac/MAC-DASHBOARD-SETUP.md` (2 scp lines +
+   `launchctl load` + file:// start page in Chromium). Part 1 (box side) is done.
+   His steps are paste/click only — pre-stage anything further he'd need.
+3. **Morning-noise consolidation** (new, from the founder's briefing stop):
+   (a) briefing fate — stays paused; revisit resume-vs-remove at the E0/E1 verdict
+   gate; (b) tune the daily failed-auth digest toward anomaly-only (every-morning
+   counts of routine internet scanner noise is what drove the stop);
+   (c) **verify fail2ban is actually banning on syd2/3/4** — digests report
+   "0 bans" alongside nonzero failed attempts every day; check jail status
+   (failed attempts on key-only boxes are harmless background noise, but 0 bans
+   ever is worth one look).
+4. **E1 conversational relay** (design in
+   `agent_handoff/founder-interface-plan-2026-07-11.md`) — after the dashboard.
+5. Unchanged from 2026-07-11: Renovate PR #4 mergeable anytime · traefik 3.7.7
+   waits for post-cutover edge-apply · healthchecks→Telegram channel · ntfy
+   retirement audit · Dokploy notifications post-cutover · Sentry/PostHog =
+   app-layer, never self-hosted.
+
+## Protocol notes (expensive lessons, 2026-07-13)
+
+- **Launch sessions INSIDE `~/work/swordfish`.** A session launched from
+  `/home/deploy` attaches an EMPTY memory slug (`-home-deploy`) — the old
+  NEXT-SESSION.txt "open /home/deploy" flow caused exactly that this session
+  (recovered by reading the memory store manually). Correct launch: `work` →
+  `cd ~/work/swordfish` → `claude`. The dashboard buttons already open
+  code-server in the right folder per project.
+- **Founder actions via the Telegram bot are journal-invisible** — before
+  diagnosing any silent state change on a founder-facing system, ask the founder
+  first (this session burned ~30 min on a phantom scheduler bug).
 
 ## Standing
 
-- **Cross-machine sync ratchet (executable): `scripts/sync-with-box.sh`** — additive
-  two-way memory sync + push-if-absent secrets, any project, any machine; run at
-  wrap when the network permits; briefs relayed to all four other agents' repos
-  2026-07-11 (their `agent_handoff/`, Walter at root). DIVERGED/DIFFERS lines are
-  human decisions.
-- Laptop network rule (above) · AGENTS.md edits break the CLAUDE.md hardlink —
-  recreate + hash-verify after · cockpit-class boxes use `cockpit-smoke` (34) ·
-  do NOT re-dispatch backups-apply/restore-drill vs syd1 · alerts bot is SEND-ONLY
-  and separate from the Hermes bot so a popped workload box can never command the
-  cockpit agent · Hermes config edits ONLY via `hermes config set` (CLI rewrites
-  the yaml; seds silently no-op) · pre-stage founder actions: his steps are only
-  paste/tap/click/spend — the agent pre-makes everything else.
+Carry forward unchanged from the 2026-07-11 wrap: `scripts/sync-with-box.sh` at
+wrap when network permits · laptop network rule (laptop instances only) ·
+AGENTS.md edits break the CLAUDE.md hardlink — recreate + hash-verify ·
+cockpit-class boxes use `cockpit-smoke` (34) · do NOT re-dispatch
+backups-apply/restore-drill vs syd1 · alerts bot is SEND-ONLY and separate from
+the Hermes bot · Hermes config edits ONLY via `hermes config set` · pre-stage
+founder actions (his steps = paste/tap/click/spend only).
 
 ## Constraints in force
 
-No local Docker (CI + VPS only) · 443 reliable channel · zero guarded tokens (A/B)
-in tracked files · backups-before-workloads satisfied syd2/3/4 · cutover +
+No local Docker (CI + VPS only) · 443 reliable channel · zero guarded tokens
+(A/B) in tracked files · backups-before-workloads satisfied syd2/3/4 · cutover +
 instance-destroy are founder gates · thalon.org unwired until launch call ·
-rehearsal-pass confirmation precedes the ops queue · Hermes never gets spend keys /
-provisioning authority (E-ladder in charter) · founder is the sole author.
+rehearsal-pass confirmation precedes the ops queue · Hermes never gets spend
+keys / provisioning authority · founder is the sole author.
 
-_All work is committed and pushed; the staging drive was refreshed 19:52 — safe to
-clear; this file + agent memory + the seed carry the full state to any machine._
+_All work committed and pushed at wrap — safe to clear; this file + agent memory
+(syd4, restic-backed nightly) carry the full state._
