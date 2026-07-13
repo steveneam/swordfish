@@ -15,82 +15,54 @@
 > founder decision below). If the box state and this file disagree, the box
 > wins — say so, then fix the file.
 
-_Stamped: 2026-07-13 21:35 +10:00 (thalon staging pack COMPLETE + auto-deploy
-channel built and generalized by founder directive; E1 swordfish-topic leg
-passed live.)_
+_Stamped: 2026-07-13 21:55 +10:00 (E1 finding-e closed: relay outbound now
+rides the alerts bot; one-tap founder ask pending.)_
 
 ## State
 
 - **main @ HEAD, all pushed, guard green** (git log is the authority).
-- **THALON STAGING PACK COMPLETE** — the whole remainder plus both actions
-  from thalon's `STAGING-VERIFY-2026-07-13.md` and all three asks from their
-  `AUTODEPLOY-REQUEST-2026-07-13.md` (folder: `~/work/thalon/agent_handoff/`):
-  - **Fixed pin `fa54d787…@7621f5e3…` deployed** — the engine routes that
-    500'd on the old image (`/blog`, rss, sitemap, llms.txt) are 200 through
-    the edge; founder unblocked on /blog.
-  - **Double-Basic deadlock resolved (their finding 2, option 1) — real root
-    cause found:** Dokploy generates its basicauth middleware with
-    `removeHeader: true`, so the app NEVER saw the Authorization header.
-    Flipped false + both layers unified on the `preview:…` pair; `/app` is
-    200 through staging. The flag survives deploys (tested) but security
-    CRUD regenerates it — **`provisioning/thalon/staging-assert.sh`** (14
-    checks, all green) asserts the posture and auto-converges that flag.
-  - **Restic wiring live and CI-proven:** syd2 profile rewritten STANDALONE
-    (positional-inherit landmine) with `thalon-data` in the set, `pg/**`
-    out; `pre-backup.d/30-thalon-pglite-dump` calls the dump endpoint
-    in-container (node fetch on loopback, token never leaves the container,
-    hard 200-gate + fresh-artifact check + self-arming rot guard).
-    backups-apply run 29243982813: dump `200 {bytes:4381823, ms:1165}`,
-    snapshot `d1d22b8c`, repo history intact. The run shows "failure" ONLY
-    from the known pre-cutover 60/63 posture ceiling (hello/status/metrics
-    route checks — pass at cutover). assert-hardening now checks hook 30.
-  - **Kuma watch live** (syd2 kuma = status2, monitor id 5): probes
-    `/api/health` THROUGH the edge auth with the preview pair — stronger
-    than the queued 401-liveness idea (a 401 only proves Traefik). Beating
-    200-OK, cert-expiry on, ntfy → founder phone.
-  - **Scoped CI credential cut + proven:** `provisioning/dokploy/
-    tenant-credential.sh` (parameterized, idempotent, scope-verified). The
-    CI recipe was exercised live with the key: `application.update`
-    (image-only — never saveDockerProvider, it can clobber pull creds) →
-    `application.deploy` → health 200. Key delivered via thalon's
-    gitignored `.context/staging-secrets-from-swordfish.md`; full answers in
-    `~/work/thalon/agent_handoff/FROM-SWORDFISH-AUTODEPLOY-2026-07-13.md`.
-    Traps burned into script + `runbooks/dogfood.md` quirk ledger:
-    assignPermissions wants the USER id and 200s silently on a wrong one;
-    better-auth api keys default to TEN-requests-per-DAY (reads as bare
-    "Unauthorized" = looks like a permission bug); update gates on
-    service:create → canCreateServices=true for tenants.
-- **FOUNDER DIRECTIVE (this session, mid-turn): the auto-deploy channel is
-  for ALL projects, not just thalon** — every tenant's handoff pack = Dokploy
-  project + scoped credential (tenant-credential.sh) + the same documented
-  update→deploy→probe recipe. Project CIs deploy their own apps; swordfish
-  never touches their app side (boundary unchanged).
-- **E1 relay E2E: PASSED, founder-confirmed** — thalon topic round-tripped
-  live 21:19–21:20 (injection verified in the thalon terminal, real reply
-  delivered to his phone before he even pinged us). Historical footnote from
-  the ledger: the morning "How you doing?" reply to the Swordfish topic was
-  eaten by the early-Stop bug (canned "(turn ended with no text reply)" went
-  instead) — that was findings f+g, ALREADY fixed in d40a975 at 10:15, three
-  minutes after the event; today's test ran on the fixed path. Optional
-  Swordfish-topic re-confirm queued in NEEDS-STEVEN. `~/e1-rehearsal`
-  deleted.
-- **`~/COPY-ME.txt` refreshed**: single preview pair now opens site AND
-  workspace; the old `steven:…` workspace password is retired.
-- Fleet at wrap: 4 boxes up; syd2 nightly at 15:00 UTC now carries the
-  thalon volume + dump chain.
+- **E1 finding-e CLOSED (this session):** the queued "config-silence hermes
+  via allowed_chats" was **refuted by adapter source** (v0.18.2 IS the
+  latest upstream): reply-to-bot/@mention dispatch has no toggle, and
+  excluding the group from `TELEGRAM_ALLOWED_CHATS` also kills observation
+  (observe allowlist = `group_allowed_chats ∩ allowed_chats`; state.db has
+  no pre-gate inbox → unstored messages are invisible to the poller = eaten
+  founder messages). **The ratchet is identity, not config:**
+  `provisioning/workstation/relay/relay-send.sh` sends ALL relay outbound
+  (Stop-hook replies, poller notices, !cmd responses, fallback sweep) as
+  the send-only **alerts bot**, so a founder reply to a relayed message can
+  never match hermes's reply-to-bot trigger. Hermes env/config untouched —
+  its observe wiring stays exactly as designed; never "fix" this with
+  allowed_chats. Until the founder adds `@Swordfish_alerts_bot` to the ops
+  group, relay-send falls back LOUDLY to `hermes send` — fallback path
+  verified live E2E this session (expected 400 → journal line → delivered).
+  Full semantics: dated note at the end of
+  `agent_handoff/hermes-e1-relay-design-2026-07-13.md`. Relay service
+  restarted and healthy (3 mapped topics).
+- **Prior session (see git log 994680e / 1228835):** thalon staging pack
+  complete (fixed pin live, double-Basic root-caused, restic+dump chain
+  CI-proven, kuma watch through edge auth, scoped CI credential delivered);
+  auto-deploy channel generalized to ALL tenants (founder directive); E1
+  relay E2E founder-confirmed.
+- Fleet: 4 boxes up; syd2 nightly 15:00 UTC carries the thalon volume +
+  dump chain.
 
 ## Next
 
-1. **E1 follow-up (queued at finding e):** silence hermes's own group
-   dispatch via `allowed_chats` — READ the adapter semantics in the
-   hermes-agent repo on syd3 first, config only via `hermes config set`.
-2. **Morning-noise consolidation:** adopt hermes's daily-briefing cron
+1. **Morning-noise consolidation:** adopt hermes's daily-briefing cron
    pattern — one 07:30 digest instead of scattered pings (design notes in
-   the hermes-cloud research, previous wrap).
+   the hermes-cloud research, wrap of 2026-07-12; hermes approvals are
+   manual + cron_mode deny — work within that).
+2. **When the founder adds `@Swordfish_alerts_bot` to the group:** nothing
+   to run — the voice switches per-send automatically. Optionally confirm
+   via journal (no more "falling back" lines) and consider routing
+   wrap-protocol closing summaries through `relay-send.sh` (noted in the
+   design doc).
 3. **Founder actions — all in NEEDS-STEVEN.md** (dashboard renders it):
-   subscriptions.yml correction · rehearsal-pass confirmation (un-parks the
-   ops queue) · drive .txt deletion · Mac census re-scan · hermes terminal
-   call · thalon-topic relay test.
+   add alerts bot to ops group · subscriptions.yml correction ·
+   rehearsal-pass confirmation (un-parks the ops queue) · drive .txt
+   deletion · Mac census re-scan · hermes terminal call · optional
+   Swordfish-topic relay re-confirm.
 4. **On rehearsal-pass → the parked ops queue:** cutover step-card →
    verify-deadman → soak/syd1. At cutover ALSO: re-point `*2` hostnames,
    retire syd1 from the dashboard (`collectors/lib.sh` host lists + its
@@ -111,10 +83,11 @@ passed live.)_
 - **Inside a `cat script | bash` script, every bare `ssh` MUST use `-n`.**
 - **Remote command strings: keep systemd/journalctl args SPACE-FREE.**
 - **The Mac's rsync is Apple's OLD one** — `-P`, not `--info=progress2`.
-- **Delivery-green ≠ content-true** — and its newest cousin: an API that
-  200s silently on a wrong id (Dokploy assignPermissions). Read back what
-  you wrote.
-- Dokploy quirk ledger (all of today's traps): `runbooks/dogfood.md`.
+- **Delivery-green ≠ content-true** — read back what you wrote; APIs can
+  200 silently on wrong ids (Dokploy assignPermissions).
+- **inventory/secrets values may carry stray whitespace/CR** (laptop sync):
+  consume with `tr -d '[:space:]'` — a leading space 400s the Telegram API.
+- Dokploy quirk ledger: `runbooks/dogfood.md`.
 
 ## Standing
 
@@ -122,10 +95,11 @@ passed live.)_
 AGENTS.md edits break the CLAUDE.md hardlink — recreate + hash-verify ·
 cockpit-class boxes use `cockpit-smoke` · do NOT re-dispatch
 backups-apply/restore-drill vs syd1 (frozen; it lacks hook 30 by design) ·
-alerts bot is SEND-ONLY and separate from the Hermes bot · Hermes config
-edits ONLY via `hermes config set` · `hermes cron list` HIDES paused jobs —
-read `jobs.json` · pre-stage founder actions · the vault is **walter**
-(writable, as a guest) · maintain NEEDS-STEVEN.md at every wrap.
+alerts bot is SEND-ONLY and separate from the Hermes bot (and now also the
+relay's outbound voice) · Hermes config edits ONLY via `hermes config set` ·
+`hermes cron list` HIDES paused jobs — read `jobs.json` · pre-stage founder
+actions · the vault is **walter** (writable, as a guest) · maintain
+NEEDS-STEVEN.md at every wrap.
 
 ## Constraints in force
 
