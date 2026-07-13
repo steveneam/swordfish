@@ -60,10 +60,45 @@ OnBootSec=2min
 WantedBy=timers.target
 UNIT
 
+# Event-driven git accuracy (walter-cockpit pattern, founder ask 2026-07-13):
+# the 15-min snapshot can catch a repo mid-wrap and show stale uncommitted
+# counts for up to 15 minutes. A path unit watching each repo's .git state
+# (index = stage/commit, refs = commit/push) triggers a local-only projects
+# refresh within seconds of any commit or push. StartLimitIntervalSec=0 +
+# the 2s ExecStartPre sleep coalesce an add+commit+push burst without ever
+# rate-limiting the unit into a dead state.
+install_if_changed 0644 /etc/systemd/system/swordfish-dashboard-projects.service <<'UNIT'
+[Unit]
+Description=swordfish: refresh the projects card after a commit/push
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+User=deploy
+ExecStartPre=/usr/bin/sleep 2
+ExecStart=/usr/bin/bash /home/deploy/work/swordfish/provisioning/workstation/generate-dashboard.sh projects
+UNIT
+
+# The path unit is GENERATED from the on-box directory glob, never written
+# out literally: repo directory names on this box can include guarded
+# portfolio names, and this file is git-tracked. The generated unit lands
+# untracked in /etc/systemd/system.
+{
+  printf '[Unit]\nDescription=swordfish: watch repo git state for the projects card\n\n[Path]\n'
+  for gd in /home/deploy/work/*/.git /home/deploy/vault/.git; do
+    [ -d "$gd" ] || continue
+    printf 'PathModified=%s/index\n' "$gd"
+    printf 'PathModified=%s/packed-refs\n' "$gd"
+    printf 'PathModified=%s/refs/heads\n' "$gd"
+    printf 'PathModified=%s/refs/remotes/origin\n' "$gd"
+  done
+  printf 'Unit=swordfish-dashboard-projects.service\n\n[Install]\nWantedBy=paths.target\n'
+} | install_if_changed 0644 /etc/systemd/system/swordfish-dashboard-projects.path
+
 if [ "$changed" -eq 1 ]; then
   sudo systemctl daemon-reload
 fi
-for u in swordfish-dashboard-web.service swordfish-dashboard-regen.timer; do
+for u in swordfish-dashboard-web.service swordfish-dashboard-regen.timer swordfish-dashboard-projects.path; do
   if ! systemctl is-enabled --quiet "$u" 2>/dev/null; then
     sudo systemctl enable --now "$u"
     changed=1
@@ -99,6 +134,16 @@ for var in BINARYLANE_API_TOKEN VULTR_API_KEY PORKBUN_API_KEY PORKBUN_SECRET_API
 done
 ss -ltn | grep -q '127.0.0.1:8090' \
   || { echo "FAIL: 8090 not bound to localhost only"; exit 1; }
+# event-driven projects refresh: the fast service must rewrite projects.json
+# (the inotify trigger itself was proven end-to-end at install, 2026-07-13:
+# git add -> dirty count up within seconds -> unstage -> back to clean)
+before=$(stat -c %Y /home/deploy/dashboard/data/projects.json 2>/dev/null || echo 0)
+sudo systemctl start swordfish-dashboard-projects.service
+after=$(stat -c %Y /home/deploy/dashboard/data/projects.json 2>/dev/null || echo 0)
+[ "$after" -gt "$before" ] \
+  || { echo "FAIL: projects fast-refresh did not rewrite projects.json"; exit 1; }
+systemctl is-active --quiet swordfish-dashboard-projects.path \
+  || { echo "FAIL: projects .git path unit not active"; exit 1; }
 
 if [ "$changed" -eq 0 ]; then
   echo "== converged: no changes"

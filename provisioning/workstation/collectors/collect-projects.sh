@@ -32,7 +32,10 @@ git_json() { # $1 = repo dir -> {is_repo, branch, last_commit_rel, dirty, unpush
   local branch lastc dirty unpushed
   branch=$(git -C "$d" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')
   lastc=$(git -C "$d" log -1 --format='%cr' 2>/dev/null || echo 'no commits')
-  dirty=$(git -C "$d" status --porcelain 2>/dev/null | wc -l)
+  # --no-optional-locks: a plain `git status` may REWRITE .git/index (stat
+  # cache refresh), and the commit/push path unit watches that file - the
+  # collector must never re-trigger itself.
+  dirty=$(git -C "$d" --no-optional-locks status --porcelain 2>/dev/null | wc -l)
   unpushed=$(git -C "$d" rev-list --count '@{u}..HEAD' 2>/dev/null || echo -1)
   jq -n --arg b "$branch" --arg c "$lastc" --argjson d "$dirty" --argjson u "$unpushed" \
     '{is_repo: true, branch: $b, last_commit_rel: $c, dirty: $d, unpushed: $u}'
