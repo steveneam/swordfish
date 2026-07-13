@@ -80,6 +80,29 @@ Telegram forum group (founder-owned, bot is admin)
    it cannot be injected into. Constraints that survive from E0: hermes
    never gets spend keys or provisioning authority; sender check = founder's
    user id only.
+10. **No trigger words — with one deterministic escape hatch.** (Founder
+   question 2026-07-13 evening.) Starting: none needed — the injector's
+   `tmux new -A` attaches-or-creates, so the founder's first plain message
+   in a topic wakes the project; talking IS starting. Ending: none needed —
+   sessions idle in tmux by design (crash-proof); "wrap it up" as a normal
+   message triggers the wrap ritual the agents already follow. Monitoring:
+   the dashboard + closing summaries. The exception is emergencies, which
+   must not depend on the LLM being healthy: messages starting with `!` are
+   consumed by the POLLER itself, never injected — `!status` (session
+   alive? agent mid-turn? last reply age — instant, zero tokens), `!stop`
+   (send Escape: interrupt the current turn), `!kill` (kill the tmux
+   session; the next plain message recreates it fresh). Everything not
+   starting with `!` passes through verbatim.
+11. **Topic routing policy** (from the founder's which-chat question, asked
+   in General — which the live validation initially MISSED): every topic in
+   the group is watched; the General topic maps to the swordfish agent (the
+   ops manager), so nothing typed in the group is ever unread. Unmapped
+   new topics get a one-time poller notice ("no project mapped — add to
+   relay-map") instead of silence. Bot DM stays hermes's own surface
+   (assistant duties, briefings, one-way pings). Corollary for the build:
+   the poller reads ALL rows since its watermark continuously — it never
+   filters to an expected thread and never stops after an expected message
+   (exactly how the manual run missed the General question).
 
 ## Seams validated live (2026-07-13 evening)
 
@@ -124,5 +147,8 @@ poller matches on the embedded user_id, not display name.
 - Topic set at launch: swordfish only, or pre-create topics for every
   project now (empty topics cost nothing)?
 - Poll cadence (default: 5 s).
-- Kill switch wording in NEEDS-STEVEN (one founder line:
-  `ssh syd4 sudo systemctl stop swordfish-relay.timer`).
+- Build order: E1 immediately after Thalon starts, or before?
+
+(The kill switch stopped being a decision: `!kill` in the topic, handled by
+the poller — decision 10. A poller-down backstop stays documented in
+NEEDS-STEVEN as the one-line systemctl stop.)
