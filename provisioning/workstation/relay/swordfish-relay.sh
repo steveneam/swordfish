@@ -53,6 +53,11 @@ prime_master() {
 }
 
 fetch_rows() { # rows since watermark as JSON lines: {id, thread, content}
+  # RATCHET (finding e): no observed=1 filter. Hermes classifies a message
+  # as reply-to-bot/mention and dispatches its own agent on rules we do not
+  # control (topic-starter replies, replies to relay notices...). The relay
+  # takes EVERY founder user-row in the group - a message can never be
+  # eaten; worst case hermes ALSO chats (config-silencing is a follow-up).
   ssh_syd3_stdin 'sudo -n python3 -' <<PY
 import json, sqlite3
 db = sqlite3.connect("file:/home/hermes/.hermes/state.db?mode=ro", uri=True)
@@ -60,7 +65,7 @@ for r in db.execute(
     "select m.id, s.thread_id, m.content from messages m "
     "join sessions s on s.id=m.session_id "
     "where s.source='telegram' and s.chat_id='${GROUP_ID}' "
-    "and m.role='user' and m.observed=1 and m.id > $(cat "$wm_file") "
+    "and m.role='user' and m.id > $(cat "$wm_file") "
     "order by m.id"):
     print(json.dumps({"id": r[0], "thread": str(r[1] or ""), "content": r[2] or ""}))
 PY

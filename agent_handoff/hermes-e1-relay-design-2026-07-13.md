@@ -132,7 +132,16 @@ so a bot-created topic makes every founder message look like a
 reply-to-bot — hermes's mention trigger fires and its agent eats the
 message before it can be observed. The bot-created thalon topic was deleted;
 the poller hot-reloads relay-map each cycle so mapping a founder-created
-topic needs no restart.
+topic needs no restart. (e) **RATCHET — the relay ignores hermes's message
+classification entirely** (founder call at second E2E, "better have the
+ratchet there"): replying to ANY bot message (including the relay's own
+notices) also trips the reply-to-bot dispatch, so the observed=1 filter made
+delivery depend on rules we don't control. fetch_rows now takes every
+founder user-row in the group since the watermark; in a mapped topic a
+message can never be eaten. Cost: hermes may ALSO dispatch and chat noise
+into the topic until its group dispatch is silenced — follow-up: read the
+platform adapter's allowed_chats semantics, then config-silence hermes in
+the ops group (its surface stays the DM).
 
 ## Build list (after design sign-off)
 
