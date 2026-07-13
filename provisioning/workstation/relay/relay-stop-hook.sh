@@ -26,6 +26,26 @@ for m in "$MARKER_DIR"/*.json; do
 done
 [ -n "$marker" ] || exit 0
 
+# two sessions can share a project dir (a legacy terminal tab + the relay's
+# tmux session): only the turn the relay actually started may consume the
+# marker - its transcript's last user message carries the relay prefix.
+python3 - "$transcript" <<'PY' || exit 0
+import json, sys
+last = None
+for line in open(sys.argv[1], errors="replace"):
+    try: e = json.loads(line)
+    except Exception: continue
+    if e.get("type") == "user":
+        c = (e.get("message") or {}).get("content")
+        if isinstance(c, list):
+            t = " ".join(b.get("text", "") for b in c
+                         if isinstance(b, dict) and b.get("type") == "text")
+        else:
+            t = c if isinstance(c, str) else ""
+        if t.strip(): last = t.strip()
+sys.exit(0 if last and last.startswith("[Steven via hermes-relay]") else 1)
+PY
+
 chat=$(jq -r '.chat' "$marker"); thread=$(jq -r '.thread' "$marker")
 msg_id=$(jq -r '.msg_id' "$marker")
 rm -f "$marker"   # consume FIRST: a send failure must not re-fire every turn
