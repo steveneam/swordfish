@@ -15,9 +15,9 @@
 > founder decision below). If the box state and this file disagree, the box
 > wins — say so, then fix the file.
 
-_Stamped: 2026-07-13 19:00 +10:00 (git-accuracy + hermes session: projects
-card event-driven · telegram reply-path explained · hermes card branded ·
-hermes-cloud research done · **next session = START THALON on the VPS**.)_
+_Stamped: 2026-07-13 19:30 +10:00 (git-accuracy + hermes session: projects
+card event-driven · hermes card branded · **E1 DESIGN VALIDATED END-TO-END
+LIVE with the founder** · next session = START THALON on the VPS.)_
 
 ## State
 
@@ -113,19 +113,30 @@ hermes-cloud research done · **next session = START THALON on the VPS**.)_
    them): correct `subscriptions.yml` once · rehearsal-pass confirmation
    (un-parks the ops queue) · delete the drive's 9 loose .txt ("later" per
    founder) · census re-scan on the Mac (`mac-census.sh`).
-3. **On rehearsal-pass confirmation → the parked ops queue:** cutover
-   step-card → verify-deadman → soak/syd1 → **E1 relay**.
+3. **E1 relay BUILD** — the design is FINISHED and VALIDATED end-to-end
+   live with the founder this session (his unmentioned message in the
+   Swordfish forum topic → observed row in syd3 state.db → pulled by syd4 →
+   injected into a live agent session → reply back into the topic).
+   Everything is in `agent_handoff/hermes-e1-relay-design-2026-07-13.md`:
+   locked decisions, seam table all-green, 7-step build list. Group
+   `-1004431865496`, swordfish topic thread `2`, observe-mode already wired
+   (`provisioning/hermes/e1-observe-mode.sh`, idempotent). Build order vs
+   Thalon + two small decisions are queued in NEEDS-STEVEN. The
+   `~/e1-rehearsal` dir + its transcript stay as the build's test target
+   (tmux session killed at wrap).
+4. **On rehearsal-pass confirmation → the rest of the parked ops queue:**
+   cutover step-card → verify-deadman → soak/syd1.
    E1 got a third founder refinement this session: per-project message
    attribution must be queryable both directions + closing-session summaries
    to Telegram (memory: hermes-e1-relay-directive has the design answer —
    tmux/transcript = routing key; consider one Telegram group-topic per
    project via sessions.thread_id; dashboard then grows a per-project "last
    Hermes relay" line).
-4. **At cutover:** retire syd1 from the dashboard by editing ONE file
+5. **At cutover:** retire syd1 from the dashboard by editing ONE file
    (`collectors/lib.sh` host lists) + drop its api_box call; re-point the *2
    hostnames there too.
-5. **At drive retirement:** delete collect-migration.sh + its card.
-6. Unchanged: morning-noise consolidation (adopt hermes's daily-briefing
+6. **At drive retirement:** delete collect-migration.sh + its card.
+7. Unchanged: morning-noise consolidation (adopt hermes's daily-briefing
    cron pattern — see State) · Renovate PR #4 · traefik 3.7.7
    post-cutover · healthchecks→Telegram · ntfy retirement audit · Dokploy
    notifications post-cutover · port-map call.

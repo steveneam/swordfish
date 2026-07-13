@@ -91,9 +91,18 @@ Telegram forum group (founder-owned, bot is admin)
 | reply extraction from transcript JSONL | ✅ assistant text extracted by parser |
 | target-agent trust of injected text | ⚠️ refused without provenance context → decision 6 |
 | `hermes send` to a DM | ✅ (three sends today) |
-| `hermes send --to telegram:<chat>:<thread>` into a topic | ⏳ needs the founder's forum group (in progress live) |
-| observe-without-reply group mode | ⏳ same dependency; env keys identified from the project's own docs |
+| `hermes send --to telegram:<chat>:<thread>` into a topic | ✅ delivered into the Swordfish topic (chat `-1004431865496`, thread `2`) |
+| observe-without-reply group mode | ✅ founder's unmentioned "Status please" arrived `observed=1`, agent silent; wired by `provisioning/hermes/e1-observe-mode.sh` |
+| **full E2E loop** | ✅ founder topic message → observed row → pulled by syd4 → injected into live session → agent reply sent back into the topic (manual run of exactly what the poller automates) |
 | turn latency expectation | ℹ️ reply time = agent turn time (rehearsal one-liner took ~60 s at xhigh effort) — set founder expectation, not a bug |
+
+**Post-validation findings:** (a) a gateway restart auto-resumes interrupted
+sessions by injecting an empty user turn — the poller's sender check +
+non-empty-text check both already exclude these rows, keep both. (b) hermes
+currently HAS terminal access on syd3 (it ran `nslookup` when the founder
+posted "ping-e1") — drifts from the E0 "terminal disabled" posture; flagged
+in NEEDS-STEVEN. (c) Telegram tags observed rows `[name|user_id]` — the
+poller matches on the embedded user_id, not display name.
 
 ## Build list (after design sign-off)
 
