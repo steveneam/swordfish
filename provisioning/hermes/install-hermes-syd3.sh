@@ -44,10 +44,17 @@ fi
 
 # --- E0 toolset: disable everything execution-capable (idempotent) -----------
 # survivors = web, todo, memory, session_search, clarify, cronjob
-if sudo -u hermes bash -lc 'hermes tools list' | grep -E '✓ enabled +(terminal|code_execution|computer_use|browser|file|skills|delegation|image_gen|tts|vision) ' >/dev/null; then
-  sudo -u hermes bash -lc 'hermes tools disable terminal code_execution computer_use browser file skills delegation image_gen tts vision'
-  changed=1
-fi
+# PER PLATFORM: `hermes tools disable` defaults to --platform cli only, while
+# each gateway platform resolves its own list (telegram's default composite
+# `hermes-telegram` = EVERYTHING). Found live 2026-07-13: telegram-side hermes
+# ran nslookup/uname and attempted sudo with the cli platform "disabled" -
+# `hermes tools list` (no flag) shows cli and says nothing about the gateway.
+for _plat in cli telegram; do
+  if sudo -u hermes bash -lc "hermes tools list --platform $_plat" | grep -E '✓ enabled +(terminal|code_execution|computer_use|browser|file|skills|delegation|image_gen|tts|vision) ' >/dev/null; then
+    sudo -u hermes bash -lc "hermes tools disable --platform $_plat terminal code_execution computer_use browser file skills delegation image_gen tts vision"
+    changed=1
+  fi
+done
 
 # --- posture: marker-guarded append (never clobber the upstream template) ----
 if ! sudo grep -q 'swordfish E0 posture' /home/hermes/.hermes/config.yaml; then

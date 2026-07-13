@@ -228,3 +228,15 @@ relayed message is delivered as a `message_reaction` update, which hermes
 does not subscribe to, so no row ever lands in state.db. If the founder
 "replies" with a reaction, nothing happens anywhere; only typed messages
 reach an agent (he has been told in-topic).
+
+**Addendum 2 (2026-07-13 ~22:20): finding (b) resolved — and it was worse
+than flagged.** Hermes's terminal access was real, not cosmetic: the E0
+`hermes tools disable` had only configured the **cli** platform (the CLI's
+default), while the gateway resolves each platform's own `platform_toolsets`
+list — telegram's default composite `hermes-telegram` = everything. Under
+that hole, telegram-side hermes ran nslookup/uname and once attempted `sudo`
+(stopped only by the unit's NoNewPrivileges). Founder called "disable it";
+fixed with `hermes tools disable --platform telegram …`, verified through
+the gateway's own `_get_platform_tools()` resolution, gateway restarted.
+Executable ratchet: install-hermes-syd3.sh now converges the toolset list
+PER PLATFORM (cli + telegram).

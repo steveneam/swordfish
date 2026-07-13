@@ -15,12 +15,35 @@
 > founder decision below). If the box state and this file disagree, the box
 > wins — say so, then fix the file.
 
-_Stamped: 2026-07-13 22:05 +10:00 (E1 finding-e closed AND confirmed live:
-founder added the alerts bot same evening; relay speaks alerts-voiced.)_
+_Stamped: 2026-07-13 22:25 +10:00 (rehearsal-pass CONFIRMED by founder — ops
+queue UN-PARKED; hermes telegram tool hole found and closed; alerts voice
+live.)_
 
 ## State
 
 - **main @ HEAD, all pushed, guard green** (git log is the authority).
+- **REHEARSAL-PASS CONFIRMED** (founder, this session: "based on the fact
+  that you and thalon are running, the migration worked") — the parked ops
+  queue is OPEN. Cutover *execution* remains a founder gate; building the
+  step-card and verify-deadman is agent work and is now the top of Next.
+- **Hermes terminal access: actually closed this session.** The E0 disable
+  had only configured the `cli` platform; telegram resolved its composite
+  default (= ALL tools) — telegram-side hermes ran nslookup/uname and once
+  attempted sudo (blocked by NoNewPrivileges). Fixed with
+  `hermes tools disable --platform telegram …`, verified via the gateway's
+  own `_get_platform_tools()` resolution, gateway restarted, installer
+  ratchet now converges per-platform. Details: design-doc addendum 2 +
+  hermes-e0-traps memory.
+- **Founder housekeeping cleared:** subscriptions.yml Claude entry filled
+  (AU$34/mo Pro incl GST; next_charge 2026-08-13 ASSUMED from "on pro now"
+  — correct from receipt); drive .txt deletion declared done; Swordfish-
+  topic relay re-confirm exercised (his "Ok" injected mid-turn; reply rode
+  the Stop hook). Gmail MCP token EXPIRED — needs founder re-auth before
+  receipt lookups work.
+- **Census: pending founder run** — `~/mac-census.sh` on the box matches
+  the repo; his one-liner: `ssh deploy@syd4.swordfish.cfd cat mac-census.sh | bash`
+  (also on his MAC-COMMANDS sheet). Agent reads
+  `~/migration/incoming/census/*.tsv` when it lands.
 - **E1 finding-e CLOSED (this session):** the queued "config-silence hermes
   via allowed_chats" was **refuted by adapter source** (v0.18.2 IS the
   latest upstream): reply-to-bot/@mention dispatch has no toggle, and
@@ -53,29 +76,30 @@ founder added the alerts bot same evening; relay speaks alerts-voiced.)_
 
 ## Next
 
-1. **Morning-noise consolidation:** adopt hermes's daily-briefing cron
+1. **THE OPS QUEUE (un-parked): cutover step-card → verify-deadman →
+   soak/syd1.** Build the step-card + deadman first; the cutover MOMENT is
+   a founder gate (present the card, wait for go). At cutover ALSO:
+   re-point `*2` hostnames, retire syd1 from the dashboard
+   (`collectors/lib.sh` host lists + its api_box call), thalon's CI
+   api_base flips deploy2→deploy (they keep it a repo variable — already
+   told), `staging-assert.sh` + `~/.claude.json` dokploy MCP DOKPLOY_URL
+   defaults follow.
+2. **Morning-noise consolidation:** adopt hermes's daily-briefing cron
    pattern — one 07:30 digest instead of scattered pings (design notes in
    the hermes-cloud research, wrap of 2026-07-12; hermes approvals are
    manual + cron_mode deny — work within that).
-2. **Wrap-protocol closing summaries should ride `relay-send.sh`, not
+3. **Wrap-protocol closing summaries should ride `relay-send.sh`, not
    `hermes send`** (same reply-bait argument — noted in the design doc);
    fold in when the closing-summary protocol lands.
-3. **Founder actions — all in NEEDS-STEVEN.md** (dashboard renders it):
-   subscriptions.yml correction · rehearsal-pass confirmation (un-parks
-   the ops queue) · drive .txt deletion · Mac census re-scan · hermes
-   terminal call · optional Swordfish-topic relay re-confirm.
-4. **On rehearsal-pass → the parked ops queue:** cutover step-card →
-   verify-deadman → soak/syd1. At cutover ALSO: re-point `*2` hostnames,
-   retire syd1 from the dashboard (`collectors/lib.sh` host lists + its
-   api_box call), thalon's CI api_base flips deploy2→deploy (they keep it a
-   repo variable — already told), `staging-assert.sh` + `~/.claude.json`
-   dokploy MCP DOKPLOY_URL defaults follow.
+4. **Founder actions — NEEDS-STEVEN.md** (dashboard renders it): Mac
+   census re-scan (he said he'll run it now) · thalon COPY-ME creds note.
 5. **When Project 1 / Project 2 land on boxes:** same tenant pack via
    tenant-credential.sh — slugs are runtime args, so guarded names never
    enter tracked files; keep Dokploy project names neutral anyway.
 6. Unchanged queue: Renovate PR #4 · traefik 3.7.7 post-cutover ·
    healthchecks→Telegram · ntfy retirement audit · Dokploy notifications
-   post-cutover · port-map call.
+   post-cutover · port-map call · Gmail MCP re-auth (founder, when receipt
+   lookups become useful).
 
 ## Protocol notes
 
@@ -108,9 +132,9 @@ No local Docker (CI + VPS only) · 443 reliable channel · zero guarded tokens
 (A/B) in tracked files · backups-before-workloads satisfied syd2/3/4 (thalon
 chain included) · cutover + instance-destroy are founder gates · thalon.org
 unwired until launch call (staging-assert retires/rewrites at launch) ·
-rehearsal-pass confirmation precedes the ops queue · Hermes never gets spend
-keys / provisioning authority · syd2's inbound 22 answers CI only · founder
-is the sole author.
+rehearsal-pass confirmed 2026-07-13 (ops queue open; cutover moment still a
+founder gate) · Hermes never gets spend keys / provisioning authority ·
+syd2's inbound 22 answers CI only · founder is the sole author.
 
 _All work committed and pushed at wrap — safe to clear; this file + agent
 memory (syd4, restic-backed nightly) carry the full state._
