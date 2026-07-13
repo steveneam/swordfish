@@ -69,40 +69,44 @@ last_session() { # $1 = project dir -> epoch of newest agent transcript, or ""
 <h1>syd4 &mdash; pick a project</h1>
 HEAD
 
+  git_line() { # $1 = repo dir -> "branch X · last commit Y<br><state html>"
+    local d=$1 branch lastc dirty unpushed state
+    if ! git -C "$d" rev-parse --git-dir >/dev/null 2>&1; then
+      echo 'not a git repo'; return
+    fi
+    branch=$(git -C "$d" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')
+    lastc=$(git -C "$d" log -1 --format='%cr' 2>/dev/null || echo 'no commits')
+    dirty=$(git -C "$d" status --porcelain 2>/dev/null | wc -l)
+    unpushed=$(git -C "$d" rev-list --count '@{u}..HEAD' 2>/dev/null || echo '?')
+    if [ "$dirty" -eq 0 ] && [ "$unpushed" = "0" ]; then
+      state='<span class="ok">clean &middot; all pushed</span>'
+    else
+      state="<span class=\"warn\">${dirty} uncommitted &middot; ${unpushed} unpushed</span>"
+    fi
+    echo "branch ${branch} &middot; last commit ${lastc}<br>${state}"
+  }
+
   for d in "$HOME"/work/*/; do
     [ -d "$d" ] || continue
     d="${d%/}"
     name=$(basename "$d")
 
-    if git -C "$d" rev-parse --git-dir >/dev/null 2>&1; then
-      branch=$(git -C "$d" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')
-      lastc=$(git -C "$d" log -1 --format='%cr' 2>/dev/null || echo 'no commits')
-      dirty=$(git -C "$d" status --porcelain 2>/dev/null | wc -l)
-      unpushed=$(git -C "$d" rev-list --count '@{u}..HEAD' 2>/dev/null || echo '?')
-      if [ "$dirty" -eq 0 ] && [ "$unpushed" = "0" ]; then
-        state='<span class="ok">clean &middot; all pushed</span>'
-      else
-        state="<span class=\"warn\">${dirty} uncommitted &middot; ${unpushed} unpushed</span>"
-      fi
-      git_line="branch ${branch} &middot; last commit ${lastc}<br>${state}"
-    else
-      git_line='not a git repo'
-    fi
-
     touched=$(newest_mtime "$d"); touched=${touched:+$(rel "$touched")}
     sess=$(last_session "$d");    sess=${sess:+$(rel "$sess")}
 
     printf '<a class="btn" href="http://localhost:8080/?folder=%s"><div class="name">%s</div><div class="sub">on %s &middot; files touched %s &middot; agent session %s<br>%s</div></a>\n' \
-      "$d" "$name" "$(hostname -s)" "${touched:-never}" "${sess:-none yet}" "$git_line"
+      "$d" "$name" "$(hostname -s)" "${touched:-never}" "${sess:-none yet}" "$(git_line "$d")"
   done
 
   # walter = the research vault (founder named it 2026-07-13). Read-only is
   # AGENT protocol, not a founder restriction - no need to say it on his button.
+  # It is a live git repo like every other project, so it gets the same git
+  # info on its card.
   if [ -d "$HOME/vault" ]; then
     vtouch=$(newest_mtime "$HOME/vault"); vtouch=${vtouch:+$(rel "$vtouch")}
     vcount=$(find "$HOME/vault" -name '*.md' -not -path '*/.git/*' 2>/dev/null | wc -l)
-    printf '<a class="btn" href="http://localhost:8080/?folder=%s"><div class="name">walter</div><div class="sub">on %s &middot; the research vault &middot; %s notes &middot; touched %s</div></a>\n' \
-      "$HOME/vault" "$(hostname -s)" "$vcount" "${vtouch:-never}"
+    printf '<a class="btn" href="http://localhost:8080/?folder=%s"><div class="name">walter</div><div class="sub">on %s &middot; the research vault &middot; %s notes &middot; touched %s<br>%s</div></a>\n' \
+      "$HOME/vault" "$(hostname -s)" "$vcount" "${vtouch:-never}" "$(git_line "$HOME/vault")"
   fi
 
   printf '<p class="note">generated %s UTC on %s &middot; auto-refreshes every 15 min at <b>localhost:8080/proxy/8090</b><br>blank page? the ssh tunnel is down &mdash; it restarts itself within ~10 s</p>\n' \
