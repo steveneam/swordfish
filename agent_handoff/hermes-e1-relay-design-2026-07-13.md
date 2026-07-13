@@ -219,3 +219,12 @@ path exercised end-to-end (expected 400 → fallback logged → delivered to the
 Swordfish topic). Corollary kept for later: wrap-protocol closing summaries
 (decision 8) should call `relay-send.sh`, not `hermes send`, once that
 protocol lands — same reply-bait argument.
+
+**Addendum (2026-07-13 ~22:00): voice switch confirmed live.** The founder
+added `@Swordfish_alerts_bot` same evening; the next relay send went out
+alerts-voiced with no fallback. One more relay-semantics fact found while
+verifying: **Telegram reactions are invisible to the relay** — a 👍 tap on a
+relayed message is delivered as a `message_reaction` update, which hermes
+does not subscribe to, so no row ever lands in state.db. If the founder
+"replies" with a reaction, nothing happens anywhere; only typed messages
+reach an agent (he has been told in-topic).

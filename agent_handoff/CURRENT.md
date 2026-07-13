@@ -15,8 +15,8 @@
 > founder decision below). If the box state and this file disagree, the box
 > wins — say so, then fix the file.
 
-_Stamped: 2026-07-13 21:55 +10:00 (E1 finding-e closed: relay outbound now
-rides the alerts bot; one-tap founder ask pending.)_
+_Stamped: 2026-07-13 22:05 +10:00 (E1 finding-e closed AND confirmed live:
+founder added the alerts bot same evening; relay speaks alerts-voiced.)_
 
 ## State
 
@@ -36,9 +36,13 @@ rides the alerts bot; one-tap founder ask pending.)_
   allowed_chats. Until the founder adds `@Swordfish_alerts_bot` to the ops
   group, relay-send falls back LOUDLY to `hermes send` — fallback path
   verified live E2E this session (expected 400 → journal line → delivered).
-  Full semantics: dated note at the end of
-  `agent_handoff/hermes-e1-relay-design-2026-07-13.md`. Relay service
-  restarted and healthy (3 mapped topics).
+  **Founder added the bot the same evening; the switch is CONFIRMED live**
+  (next send went alerts-voiced, no fallback). Caveat discovered while
+  verifying: **Telegram reactions never reach the relay** (hermes doesn't
+  subscribe to message_reaction updates) — founder told in-topic to type,
+  not tap, when he wants an agent to act. Full semantics: dated notes at
+  the end of `agent_handoff/hermes-e1-relay-design-2026-07-13.md`. Relay
+  service healthy (3 mapped topics).
 - **Prior session (see git log 994680e / 1228835):** thalon staging pack
   complete (fixed pin live, double-Basic root-caused, restic+dump chain
   CI-proven, kuma watch through edge auth, scoped CI credential delivered);
@@ -53,16 +57,13 @@ rides the alerts bot; one-tap founder ask pending.)_
    pattern — one 07:30 digest instead of scattered pings (design notes in
    the hermes-cloud research, wrap of 2026-07-12; hermes approvals are
    manual + cron_mode deny — work within that).
-2. **When the founder adds `@Swordfish_alerts_bot` to the group:** nothing
-   to run — the voice switches per-send automatically. Optionally confirm
-   via journal (no more "falling back" lines) and consider routing
-   wrap-protocol closing summaries through `relay-send.sh` (noted in the
-   design doc).
+2. **Wrap-protocol closing summaries should ride `relay-send.sh`, not
+   `hermes send`** (same reply-bait argument — noted in the design doc);
+   fold in when the closing-summary protocol lands.
 3. **Founder actions — all in NEEDS-STEVEN.md** (dashboard renders it):
-   add alerts bot to ops group · subscriptions.yml correction ·
-   rehearsal-pass confirmation (un-parks the ops queue) · drive .txt
-   deletion · Mac census re-scan · hermes terminal call · optional
-   Swordfish-topic relay re-confirm.
+   subscriptions.yml correction · rehearsal-pass confirmation (un-parks
+   the ops queue) · drive .txt deletion · Mac census re-scan · hermes
+   terminal call · optional Swordfish-topic relay re-confirm.
 4. **On rehearsal-pass → the parked ops queue:** cutover step-card →
    verify-deadman → soak/syd1. At cutover ALSO: re-point `*2` hostnames,
    retire syd1 from the dashboard (`collectors/lib.sh` host lists + its
