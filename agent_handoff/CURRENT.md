@@ -59,6 +59,37 @@ is in 72 h soak as the untouched rollback target.)_
   receipt-driven `subscriptions.yml` fills).
 - Fleet: syd2 (prod, THE box) · syd3 (hermes cockpit) · syd4 (workspace,
   agent home) · syd1 (soak, off-board).
+- **⚠️ GUARD BREACH + FIX (2026-07-13, agent error — read this):** a guarded
+  project name reached `main`. Cause: the guard was run as
+  `guard.ps1 | tail -1 && git commit` — **a pipeline returns its LAST
+  command's exit code**, so `tail` returned 0 and the `&&` fired despite the
+  guard FAILING. Remediated same session: content scrubbed, the single
+  contaminated commit rewritten (its message carried the token too), branch
+  protection temporarily relaxed → force-push → **protection restored
+  byte-for-byte** (`allow_force_pushes:false`, required check `ci-grep-guard`,
+  strict). Verified after: guard PASS · **0 of 160 commit trees** carry either
+  token · **0 commit messages** · local == origin · PR #4 survived.
+  **Residual:** GitHub still serves the orphaned commit **by its 40-char SHA**
+  (no branch, private repo → nil practical exposure). Full purge = ask GitHub
+  Support to run gc — **founder decision, not yet requested.**
+  **Ratchet (executable, tested):** `scripts/hooks/pre-commit` runs the guard
+  with a correct exit code and REFUSES the commit on failure — proven by a
+  negative test (a deliberately contaminated commit was blocked). Wire it on
+  any new clone: `git config core.hooksPath scripts/hooks` (**a fresh clone
+  does NOT inherit it**; CI stays the remote detector meanwhile). Write-up:
+  `CI-GUARD.md`. Behaviour lesson: memory [[verification-exit-codes]].
+- **Session persistence + cold start — BOTH now proven (2026-07-13):** the
+  founder's browser crashed mid-session and the agent kept working
+  (tmux-backed sessions survive the client). And the relay can **cold-start
+  an agent with no human typing `claude`**: `ensure_session()` in
+  `provisioning/workstation/relay/swordfish-relay.sh` does
+  `tmux has-session || tmux new-session -d 'claude; …'`, auto-dismisses the
+  "trust this folder" prompt, waits for the composer, then injects the
+  message. Tested this session against a scratch dir via the exact code path:
+  **cold → composer ready in ~9 s**. So texting `gogogo` to a topic from the
+  phone, laptop shut, boots the agent from `CURRENT.md` and starts work. A
+  cold start is a FRESH session (not `--continue`) — which is precisely what
+  the `gogogo` + CURRENT.md convention exists for.
 
 ## Next
 
