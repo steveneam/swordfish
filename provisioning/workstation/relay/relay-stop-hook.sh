@@ -48,7 +48,6 @@ PY
 
 chat=$(jq -r '.chat' "$marker"); thread=$(jq -r '.thread' "$marker")
 msg_id=$(jq -r '.msg_id' "$marker")
-rm -f "$marker"   # consume FIRST: a send failure must not re-fire every turn
 
 reply=$(python3 - "$transcript" <<'PY'
 import json, sys
@@ -67,7 +66,12 @@ for line in open(sys.argv[1], errors="replace"):
 print((last or "")[:3500])
 PY
 )
-[ -n "$reply" ] || reply="(turn ended with no text reply - check the session)"
+# a session can fire an early Stop before any assistant text exists (seen
+# live: fresh session's init turn ate the marker and the real reply had no
+# ride home). No text -> leave the marker for the next Stop / the poller's
+# fallback sweep; consume only once there is a real reply to send.
+[ -n "$reply" ] || exit 0
+rm -f "$marker"   # consume before sending: a send failure must not re-fire every turn
 
 SSH_CM=(-o ControlMaster=auto -o ControlPath="$HOME/.ssh/cm-%r@%h-%p" -o ControlPersist=1800)
 printf '%s\n' "$reply" | ssh "${SSH_CM[@]}" -o ConnectTimeout=8 -o BatchMode=yes syd3 \

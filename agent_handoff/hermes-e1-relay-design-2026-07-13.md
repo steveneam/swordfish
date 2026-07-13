@@ -141,7 +141,18 @@ founder user-row in the group since the watermark; in a mapped topic a
 message can never be eaten. Cost: hermes may ALSO dispatch and chat noise
 into the topic until its group dispatch is silenced — follow-up: read the
 platform adapter's allowed_chats semantics, then config-silence hermes in
-the ops group (its surface stays the DM).
+the ops group (its surface stays the DM). (f) **Composer drafts merge into
+injections**: send-keys appends to whatever is already typed in the target
+session's composer, and Enter submits the lot as one message (seen live —
+harmless that time because the draft was the founder's own instruction).
+Known hazard, deliberately NOT auto-cleared: wiping unsent founder input
+would be worse. (g) **Early empty Stops must not consume the marker** (seen
+live: a fresh session's init turn fired Stop before any assistant text; the
+placeholder went out and the real reply had no marker left). The hook now
+exits marker-intact when the transcript holds no assistant text yet; the
+marker rides until a turn with real text, or the poller's 120 s fallback
+sweep (which extracts from the transcript directly) sends it — replies are
+deterministic even if the hook never fires at all.
 
 ## Build list (after design sign-off)
 

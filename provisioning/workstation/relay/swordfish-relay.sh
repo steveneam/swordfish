@@ -134,13 +134,55 @@ process_row() { # $1 id $2 thread $3 content
     ledger cmd "$slug" "$thread" "$id" "ensure_session failed"
     return
   fi
-  jq -cn --arg c "$GROUP_ID" --arg t "$thread" --arg m "$id" --argjson ts "$(date +%s)" \
-    '{chat:$c,thread:$t,msg_id:$m,injected_at:$ts}' > "$MARKER_DIR/$slug.json"
+  jq -cn --arg c "$GROUP_ID" --arg t "$thread" --arg m "$id" --arg d "$dir" --argjson ts "$(date +%s)" \
+    '{chat:$c,thread:$t,msg_id:$m,dir:$d,injected_at:$ts}' > "$MARKER_DIR/$slug.json"
   tmux send-keys -t "$slug" "[Steven via hermes-relay] $text"
   sleep 1
   tmux send-keys -t "$slug" Enter
   ledger in "$slug" "$thread" "$id" "${text:0:80}"
   log "injected msg $id -> $slug"
+}
+
+# fallback reply sweep: the Stop hook is the primary reply path, but a
+# session started before the hook was installed (or any hook failure) would
+# leave the founder in silence. A marker older than 120s whose session is
+# idle gets its reply extracted from the transcript right here - replies are
+# deterministic no matter what the hook does.
+sweep_markers() {
+  local m slug dir thread age reply tfile
+  for m in "$MARKER_DIR"/*.json; do
+    [ -f "$m" ] || continue
+    slug=$(basename "$m" .json)
+    age=$(( $(date +%s) - $(jq -r '.injected_at // 0' "$m") ))
+    [ "$age" -gt 120 ] || continue
+    tmux capture-pane -t "$slug" -p 2>/dev/null | grep -q 'esc to interrupt' && continue  # still working
+    dir=$(jq -r '.dir // empty' "$m"); thread=$(jq -r '.thread' "$m")
+    [ -n "$dir" ] || { rm -f "$m"; continue; }
+    tfile=$(ls -t "$HOME/.claude/projects/$(printf '%s' "$dir" | tr '/.' '--')"/*.jsonl 2>/dev/null | head -1)
+    [ -n "$tfile" ] || continue
+    reply=$(python3 - "$tfile" <<'PY'
+import json, sys
+last_u, last_a = None, None
+for line in open(sys.argv[1], errors="replace"):
+    try: e = json.loads(line)
+    except Exception: continue
+    c = (e.get("message") or {}).get("content")
+    t = ""
+    if isinstance(c, list):
+        t = " ".join(b.get("text","") for b in c if isinstance(b,dict) and b.get("type")=="text").strip()
+    elif isinstance(c, str): t = c.strip()
+    if not t: continue
+    if e.get("type") == "user": last_u = t
+    elif e.get("type") == "assistant": last_a = t
+print((last_a or "")[:3500] if last_u and last_u.startswith("[Steven via hermes-relay]") else "")
+PY
+)
+    [ -n "$reply" ] || continue
+    rm -f "$m"
+    printf '%s\n' "$reply" | send "$thread"
+    ledger out "$slug" "$thread" "$(jq -r '.msg_id' "$m" 2>/dev/null || echo '?')" "${reply:0:80} (fallback)"
+    log "fallback reply sent for $slug"
+  done
 }
 
 log "relay up: group $GROUP_ID, $(( ${#map[@]} )) mapped topics, watermark $(cat "$wm_file")"
