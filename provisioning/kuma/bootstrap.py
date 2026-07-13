@@ -50,6 +50,21 @@ HTTP_MONITORS = [
     ("hello (deploy receipt)", "https://hello.swordfish.cfd"),
 ]
 
+# thalon staging (dogfood tenant, 2026-07-13): probe /api/health THROUGH the
+# edge BasicAuth with the preview pair - a bare 401 would only prove Traefik's
+# middleware answers, not the app (the thalon staging-verify note blesses the
+# creds-based probe). Doubles as the executable guard on the edge auth chain:
+# if Dokploy ever regenerates its basicauth middleware back to
+# removeHeader: true (it did on creation; flipped 2026-07-13), the workspace
+# breaks silently but THIS stays green - health is public at the app layer -
+# so the monitor guards liveness+TLS, not the header pass-through; the
+# pass-through guard is the staging-apply converge script.
+# Pair file (gitignored): inventory/secrets/thalon-preview.basicauth
+# ("user:pass", one line - the app edge pair). Monitor swaps to thalon.org at
+# launch (cert-expiry watch rides along; edge auth drops then).
+PREVIEW_MONITOR_NAME = "thalon staging (preview health)"
+PREVIEW_URL = "https://preview.swordfish.cfd/api/health"
+
 
 def read_or_create(path: Path, gen):
     if path.exists():
@@ -150,6 +165,19 @@ def main():
         "interval": 60, "retryInterval": 60, "maxretries": 2,
         "expiryNotification": True, "ignoreTls": False, "maxredirects": 10, **base_fields,
     }) for name, url in HTTP_MONITORS]
+
+    pair_file = SEC / "thalon-preview.basicauth"
+    if pair_file.exists():
+        user, _, pw = pair_file.read_text().strip().partition(":")
+        http_ids.append(ensure_monitor({
+            "type": "http", "name": PREVIEW_MONITOR_NAME, "url": PREVIEW_URL,
+            "method": "GET", "interval": 60, "retryInterval": 60, "maxretries": 2,
+            "expiryNotification": True, "ignoreTls": False, "maxredirects": 10,
+            "authMethod": "basic", "basic_auth_user": user, "basic_auth_pass": pw,
+            **base_fields,
+        }))
+    else:
+        print(f"SKIP: {pair_file.name} missing - thalon preview monitor not converged on this run")
 
     # ---- attach notification + ensure push token -----------------------------
     for mid in [push_id, *http_ids]:
