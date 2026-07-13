@@ -40,10 +40,17 @@ live.)_
   topic relay re-confirm exercised (his "Ok" injected mid-turn; reply rode
   the Stop hook). Gmail MCP token EXPIRED — needs founder re-auth before
   receipt lookups work.
-- **Census: pending founder run** — `~/mac-census.sh` on the box matches
-  the repo; his one-liner: `ssh deploy@syd4.swordfish.cfd cat mac-census.sh | bash`
-  (also on his MAC-COMMANDS sheet). Agent reads
-  `~/migration/incoming/census/*.tsv` when it lands.
+- **Census RUN and ANALYZED** (`~/migration/incoming/census/Steven.tsv`,
+  108k files): every drive folder maps to a verified box-side home (both
+  data packs, both project repos, vault, thalon incl website-design-general,
+  migration staging, the 9 cleared .txts) EXCEPT ~130 MB of gitignored
+  research data inside the two ship-first projects' repo folders (Project
+  2: graphify scratch — its own manifest says non-regenerable — plus
+  app/backend/data + sample/gene extras; Project 1: .tools). Rescue
+  one-liner staged at `~/mac-ark-leftovers.sh` (box home, UNTRACKED — real
+  names inside) → lands in `~/migration/incoming/drive-ark/`; verify
+  against census, then the drive is clear to retire. Queued in
+  NEEDS-STEVEN.
 - **E1 finding-e CLOSED (this session):** the queued "config-silence hermes
   via allowed_chats" was **refuted by adapter source** (v0.18.2 IS the
   latest upstream): reply-to-bot/@mention dispatch has no toggle, and
