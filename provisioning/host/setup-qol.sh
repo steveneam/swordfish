@@ -41,15 +41,37 @@ case ":$PATH:" in
   *) [ -d "$HOME/.local/bin" ] && PATH="$HOME/.local/bin:$PATH" ;;
 esac
 # protocol: sessions launch inside the swordfish repo (the memory slug
-# attaches to the launch dir - a $HOME launch comes up empty)
+# attaches to the launch dir - a $HOME launch comes up empty).
+# Session named after the FOLDER so `work` over ssh and a code-server
+# terminal tab (agent-term) converge on the same session, never two agents.
 work() {
   local d="$HOME/work/swordfish"; [ -d "$d" ] || d="$HOME"
-  tmux new -A -s main -c "$d"
+  tmux new -A -s "$(basename "$d")" -c "$d"
 }
 qr() { qrencode -t ANSIUTF8 "$1"; }
 alias snapshots='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" snapshots'
 alias backup-now='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" backup'
 QOL
+
+# agent-term: code-server's DEFAULT terminal profile (wired in the box's
+# code-server settings.json - see cloud-init). Every integrated terminal lands
+# in a tmux session named after the workspace folder, so a browser/window
+# crash never kills the agent - reopening the terminal reattaches to the same
+# live session (a bare-terminal claude died with its pty on 2026-07-13, taking
+# uncommitted work with it). First open auto-starts claude; when claude exits
+# you land in a shell inside tmux. A plain shell is the "bash" profile in the
+# terminal dropdown. A second tab on the same project MIRRORS the first -
+# that is tmux, not a bug.
+install_if_changed 0755 /usr/local/bin/agent-term <<'AGENTTERM'
+#!/bin/bash
+d="$PWD"
+# protocol: never launch the agent at $HOME (empty memory slug)
+[ "$d" = "$HOME" ] && [ -d "$HOME/work/swordfish" ] && d="$HOME/work/swordfish"
+s=$(printf '%s' "$(basename "$d")" | tr -cs 'A-Za-z0-9_-' '-')
+s=${s#-}; s=${s%-}; [ -n "$s" ] || s=agent
+exec tmux new-session -A -s "$s" -c "$d" \
+  'claude; echo; echo "[claude exited - type claude to relaunch, or claude --continue to resume the last conversation]"; exec bash'
+AGENTTERM
 
 if ! grep -qF '/etc/profile.d/swordfish-qol.sh' /etc/bash.bashrc; then
   printf '\n# swordfish: profile.d only reaches login shells; code-server terminals are\n# interactive non-login (2026-07-13). QoL stays in one file, hooked in here.\n[ -f /etc/profile.d/swordfish-qol.sh ] && . /etc/profile.d/swordfish-qol.sh\n' \
@@ -60,6 +82,8 @@ fi
 # --- verify ------------------------------------------------------------------
 bash -ic 'type work' >/dev/null 2>&1 || { echo "FAIL: work invisible to non-login interactive shells"; exit 1; }
 bash -lc 'type work' >/dev/null 2>&1 || { echo "FAIL: work invisible to login shells"; exit 1; }
+[ -x /usr/local/bin/agent-term ] || { echo "FAIL: agent-term missing or not executable"; exit 1; }
+bash -n /usr/local/bin/agent-term || { echo "FAIL: agent-term does not parse"; exit 1; }
 
 if [ "$changed" -eq 0 ]; then
   echo "== converged: no changes"

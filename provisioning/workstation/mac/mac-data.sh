@@ -14,6 +14,11 @@
 # SLOW BY NATURE: this is gigabytes going over the founder's home UPLOAD link.
 # rsync is incremental and resumable - if it dies, just run the line again and
 # it picks up where it stopped. ssh -n on control calls (see mac-import.sh).
+#
+# node_modules never crosses the wire: it regenerates from lockfiles on the
+# box, and the census showed the design folder's copy is ORPHANED anyway
+# (4,370 of its 4,385 files, with no package.json outside it to reinstall
+# from) - founder's dedupe call 2026-07-13.
 set -u
 BOX=deploy@syd4.swordfish.cfd
 
@@ -30,7 +35,7 @@ for vol in /Volumes/*/; do
     src="$vol/$p-data"
     [ -d "$src" ] || continue
     echo "== $(basename "$src")  =>  box (big - progress below, safe to re-run)"
-    rsync -a --info=progress2 --exclude .git "$src" "$BOX:migration/incoming/" && staged=1
+    rsync -a --info=progress2 --exclude .git --exclude node_modules "$src" "$BOX:migration/incoming/" && staged=1
   done
 
   # generic top-level folders the census flagged as unclaimed
@@ -38,7 +43,7 @@ for vol in /Volumes/*/; do
     src="$vol/$name"
     [ -d "$src" ] || continue
     echo "== $name  =>  box"
-    rsync -a --info=progress2 --exclude .git "$src" "$BOX:migration/incoming/" && staged=1
+    rsync -a --info=progress2 --exclude .git --exclude node_modules "$src" "$BOX:migration/incoming/" && staged=1
   done
 done
 

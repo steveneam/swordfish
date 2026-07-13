@@ -104,7 +104,12 @@ write_files:
         "files.autoSave": "afterDelay",
         "workbench.colorTheme": "Dark Modern",
         "window.autoDetectColorScheme": false,
-        "workbench.preferredDarkColorTheme": "Dark Modern"
+        "workbench.preferredDarkColorTheme": "Dark Modern",
+        "terminal.integrated.defaultProfile.linux": "agent",
+        "terminal.integrated.profiles.linux": {
+          "agent": { "path": "/usr/local/bin/agent-term" },
+          "bash": { "path": "/bin/bash" }
+        }
       }
 
   - path: /etc/apt/apt.conf.d/20auto-upgrades
@@ -171,14 +176,32 @@ write_files:
         *) [ -d "$HOME/.local/bin" ] && PATH="$HOME/.local/bin:$PATH" ;;
       esac
       # protocol: sessions launch inside the swordfish repo (the memory slug
-      # attaches to the launch dir - a $HOME launch comes up empty)
+      # attaches to the launch dir - a $HOME launch comes up empty).
+      # Session named after the FOLDER so `work` over ssh and a code-server
+      # terminal tab (agent-term) converge on the same session, never two agents.
       work() {
         local d="$HOME/work/swordfish"; [ -d "$d" ] || d="$HOME"
-        tmux new -A -s main -c "$d"
+        tmux new -A -s "$(basename "$d")" -c "$d"
       }
       qr() { qrencode -t ANSIUTF8 "$1"; }
       alias snapshots='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" snapshots'
       alias backup-now='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" backup'
+
+  # agent-term: code-server's default terminal profile (wired in settings.json
+  # above). Lands every terminal in a tmux session named after the workspace
+  # folder - a window crash never kills the agent; reopening the tab
+  # reattaches. CANONICAL: provisioning/host/setup-qol.sh (lockstep copy).
+  - path: /usr/local/bin/agent-term
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      d="$PWD"
+      # protocol: never launch the agent at $HOME (empty memory slug)
+      [ "$d" = "$HOME" ] && [ -d "$HOME/work/swordfish" ] && d="$HOME/work/swordfish"
+      s=$(printf '%s' "$(basename "$d")" | tr -cs 'A-Za-z0-9_-' '-')
+      s=${s#-}; s=${s%-}; [ -n "$s" ] || s=agent
+      exec tmux new-session -A -s "$s" -c "$d" \
+        'claude; echo; echo "[claude exited - type claude to relaunch, or claude --continue to resume the last conversation]"; exec bash'
 
   - path: /etc/tmux.conf
     permissions: "0644"
