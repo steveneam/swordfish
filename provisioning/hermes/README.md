@@ -87,6 +87,27 @@ Vercel AI Gateway key. Then:
       07:00 Sydney, delivers to the founder's Telegram; test run fired at
       creation). Content v0 = public endpoints only (hello./status.) — grows
       real metrics (Kuma/Beszel/healthchecks read APIs) post-cutover.
+- [x] **trap 5 — a hung run silently deletes the cron job** (hit 2026-07-13):
+      job 0581352d8f6d fired on schedule 2026-07-11 21:00 UTC, the run hung
+      mid-LLM-call (orphaned CLOSE-WAIT to the gateway, journal silent from
+      that moment), and at 2026-07-12 01:36 UTC the scheduler's stale-claim
+      cleanup REMOVED the job record — service `active`, ticker healthy,
+      `jobs.json` empty, no briefings, no error anywhere. Detection:
+      `hermes cron status` + `hermes cron list` (empty = dead), or journal
+      silence spanning a scheduled fire. Recovery (verbatim, as `hermes` user;
+      recreated as job d8e6bb992d5e):
+
+          sudo systemctl restart hermes-gateway   # clears the hung thread
+          hermes cron create --name morning-briefing --deliver telegram \
+            "0 21 * * *" \
+            "Morning briefing v0 (public endpoints only, grows real metrics post-cutover). Using the web tool, check these two public endpoints: https://hello.swordfish.cfd (healthy = HTTP 200) and https://status.swordfish.cfd (healthy = HTTP 302 redirect to its login page). Report each as OK or PROBLEM with the HTTP status observed. Then send exactly ONE short Telegram message: one line per endpoint plus a one-line overall summary. Under 10 lines total. No follow-up questions."
+          hermes cron run <new-job-id>            # test fire → founder's phone
+
+      The create command was NOT recorded verbatim the first time and proved
+      unrecoverable (creating session lived on the laptop; hermes session
+      dumps hold only error requests) — hence it is pinned here now. Standing
+      check: after any missed 07:00 Sydney briefing, run the detection pair
+      above BEFORE suspecting Telegram or the LLM.
 
 ## E0 is LIVE (2026-07-11). Next rung: E1
 
