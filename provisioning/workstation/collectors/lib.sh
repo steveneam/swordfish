@@ -22,9 +22,16 @@ emit() { # $1 = name
   fi
 }
 
-fail() { # $1 = name, $2 = message
+# failure contract (two modes, stated honestly): a CRASH lands here and the
+# error stub replaces the old payload -> UNAVAILABLE card; a TIMEOUT KILL
+# (orchestrator's `timeout 120`) writes nothing -> the previous JSON stays
+# and its age display goes amber. Known hole: a `set -u` abort exits without
+# taking the `main || fail` branch - keep collectors free of unbound vars.
+fail() { # $1 = name, $2 = message (atomic, like emit)
+  local tmp
+  tmp=$(mktemp)
   jq -n --arg e "$2" --argjson t "$(date +%s)" \
-    '{generated_at: $t, error: $e}' > "$DATA_DIR/$1.json"
+    '{generated_at: $t, error: $e}' > "$tmp" && mv "$tmp" "$DATA_DIR/$1.json"
 }
 
 # secret files synced from the Windows laptop carry CRLF line endings; a bare
@@ -32,8 +39,30 @@ fail() { # $1 = name, $2 = message
 # 2026-07-13: both Beszel hubs 400'd until the \r was stripped).
 secret() { tr -d '\r\n' < "$1"; }
 
+# same CRLF story for KEY=value lines in the laptop-synced .env, PLUS some
+# values carry a leading space after the '=' (Porkbun keys rejected as
+# "Invalid API key" until trimmed, found live 2026-07-13).
+envval() { # $1 = var name, $2 = env file (default: repo .env)
+  grep "^${1}[[:space:]]*=" "${2:-$HOME/work/swordfish/.env}" | head -1 \
+    | cut -d= -f2- | tr -d '\r"' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'
+}
+
 # ssh multiplexing for every collector ssh call: each NEW ssh session fires
 # the pam login alert to the founder's Telegram, and the 15-min timer would
 # turn that into ~96 pings/day. One persistent master = one pam session,
-# refreshed on every run (ControlPersist outlives the 15-min gap).
+# refreshed on every run (ControlPersist outlives the 15-min gap). The
+# orchestrator PRIMES the master before forking collectors - three parallel
+# cold starts would otherwise race ControlMaster=auto and the losers open
+# their own pam sessions (code review 2026-07-13).
 SSH_CM=(-o ControlMaster=auto -o ControlPath="$HOME/.ssh/cm-%r@%h-%p" -o ControlPersist=1800)
+
+# the one home for the syd3 call shape (5 call sites once lived in 3 files;
+# remote-quoting bugs breed in copies - keep journalctl/systemd args here
+# space-free, e.g. --since=-24h, never --since \"24 hours ago\")
+ssh_syd3() { ssh -n "${SSH_CM[@]}" -o ConnectTimeout=8 -o BatchMode=yes syd3 "$@"; }
+ssh_syd3_stdin() { ssh "${SSH_CM[@]}" -o ConnectTimeout=8 -o BatchMode=yes syd3 "$@"; }
+
+# public TLS surfaces per box - cutover renames the *2 hosts, edit ONCE here
+# (cross-refs: kuma/bootstrap.py HTTP_MONITORS, beszel/bootstrap.py BASE)
+SYD1_HOSTS=(deploy.swordfish.cfd status.swordfish.cfd metrics.swordfish.cfd hello.swordfish.cfd)
+SYD2_HOSTS=(deploy2.swordfish.cfd status2.swordfish.cfd metrics2.swordfish.cfd)

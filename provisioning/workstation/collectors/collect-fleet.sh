@@ -44,7 +44,7 @@ local_box() { # $1 = box name; local /proc + systemctl reads
 
 syd3_box() {
   local out
-  out=$(ssh -n "${SSH_CM[@]}" -o ConnectTimeout=8 -o BatchMode=yes syd3 '
+  out=$(ssh_syd3 '
     echo "uptime_s=$(cut -d. -f1 /proc/uptime)"
     echo "load1=$(awk "{print \$1}" /proc/loadavg)"
     echo "mem_pct=$(free | awk "/^Mem:/{printf \"%.1f\", \$3/\$2*100}")"
@@ -55,11 +55,16 @@ syd3_box() {
     for s in ssh fail2ban hermes-gateway; do
       echo "svc_${s}=$(systemctl is-active $s 2>/dev/null)"
     done' 2>/dev/null) || { jq -n '{name: "syd3", source: "ssh", up: false}'; return; }
+  # numeric fields from the remote box are UNTRUSTED (a compromised syd3
+  # could emit a JSON string through --argjson and reach the page): anything
+  # that isn't a plain number becomes null (security review 2026-07-13)
+  num() { grep "^${1}=" <<<"$out" | cut -d= -f2 | grep -xE '[0-9]+(\.[0-9]+)?' || echo null; }
   local uptime_s load1 mem_pct disk rr rres rlast
-  uptime_s=$(grep '^uptime_s=' <<<"$out" | cut -d= -f2)
-  load1=$(grep '^load1=' <<<"$out" | cut -d= -f2)
-  mem_pct=$(grep '^mem_pct=' <<<"$out" | cut -d= -f2)
-  disk=$(grep '^disk=' <<<"$out" | cut -d= -f2 | sed 's/^,//')
+  uptime_s=$(num uptime_s)
+  load1=$(num load1)
+  mem_pct=$(num mem_pct)
+  disk=$(grep '^disk=' <<<"$out" | cut -d= -f2 | sed 's/^,//' \
+         | grep -xE '[0-9]+,[0-9]+' || echo 'null,null')
   rr=$(grep '^rr=' <<<"$out" | cut -d= -f2)
   rres=$(grep '^restic_result=' <<<"$out" | cut -d= -f2)
   rlast=$(ts_to_epoch "$(grep '^restic_last=' <<<"$out" | cut -d= -f2-)")
@@ -91,18 +96,22 @@ api_box() { # $1=name $2=beszel-base $3=kuma-base $4=deadman-monitor $5...=probe
   bpw=$(secret "$SEC_DIR/beszel-admin.password")
   kpw=$(secret "$SEC_DIR/kuma-admin.password")
 
-  tok=$(curl -s -m 10 "$bbase/api/collections/users/auth-with-password" \
-        -d "identity=ops@swordfish.cfd" -d "password=$bpw" | jq -r '.token // empty')
+  # secrets travel via stdin/@-files, never argv - /proc/<pid>/cmdline is
+  # world-readable while curl runs (security review 2026-07-13)
+  tok=$(printf 'identity=%s&password=%s' "ops@swordfish.cfd" "$bpw" \
+        | curl -s -m 10 "$bbase/api/collections/users/auth-with-password" \
+               --data @- | jq -r '.token // empty')
   sys=null
   if [ -n "$tok" ]; then
-    sys=$(curl -s -m 10 "$bbase/api/collections/systems/records" -H "Authorization: $tok" \
+    sys=$(curl -s -m 10 "$bbase/api/collections/systems/records" \
+               -H @<(printf 'Authorization: %s\n' "$tok") \
           | jq --arg n "$name" '[.items[] | select(.name == $n)][0] // null')
   fi
 
   # dead-man: the box's own Kuma push monitor - up means the backup pinged
   # inside its 30 h window (24 h period + 6 h grace), which IS snapshot-age-OK
   local mval
-  mval=$(curl -s -m 10 -u "swordfish:$kpw" "$kbase/metrics" 2>/dev/null \
+  mval=$(curl -s -m 10 -K <(printf 'user = "swordfish:%s"\n' "$kpw") "$kbase/metrics" 2>/dev/null \
          | awk -v m="monitor_name=\"$monitor\"" '/^monitor_status/ && index($0, m) {print $NF}')
   [ -n "$mval" ] && deadman=$mval
 
@@ -127,9 +136,9 @@ main() {
   b4=$(local_box syd4 ssh fail2ban code-server swordfish-dashboard-web)
   b3=$(syd3_box)
   b2=$(api_box syd2 https://metrics2.swordfish.cfd https://status2.swordfish.cfd \
-       swordfish-syd2-backup deploy2.swordfish.cfd status2.swordfish.cfd metrics2.swordfish.cfd)
+       swordfish-syd2-backup "${SYD2_HOSTS[@]}")
   b1=$(api_box syd1 https://metrics.swordfish.cfd https://status.swordfish.cfd \
-       swordfish-syd1-backup deploy.swordfish.cfd status.swordfish.cfd metrics.swordfish.cfd hello.swordfish.cfd)
+       swordfish-syd1-backup "${SYD1_HOSTS[@]}")
   jq -n --argjson t "$(date +%s)" \
         --argjson b4 "$b4" --argjson b3 "$b3" --argjson b2 "$b2" --argjson b1 "$b1" \
     '{generated_at: $t, boxes: [$b4, $b3, $b2, $b1]}' \

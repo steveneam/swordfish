@@ -7,7 +7,11 @@ set -uo pipefail
 # the credential and never enters JSON/HTML). No OAuth, no Google API project.
 # Parser is python3 stdlib only; recurring events get a bounded, simple
 # RRULE expansion (DAILY/WEEKLY/MONTHLY/YEARLY + INTERVAL/BYDAY/COUNT/UNTIL,
-# EXDATE honored). Times render in Australia/Sydney.
+# EXDATE honored; long-running series fast-forwarded to the window).
+# KNOWN LIMITS, accepted scope: date-only UNTIL is treated as midnight so
+# the final day's occurrence is excluded; RECURRENCE-ID overrides are not
+# recognized (a moved single occurrence can show at both times).
+# Times render in Australia/Sydney.
 
 . "$(dirname "$0")/lib.sh"
 
@@ -50,7 +54,7 @@ def parse_dt(prop, val):
 
 WD = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
 
-def expand(start, rrule, exdates, all_day):
+def expand(start, rrule, exdates):
     """bounded simple expansion; yields occurrence starts inside the window"""
     if not rrule:
         if now - dt.timedelta(days=1) <= start <= horizon:
@@ -66,6 +70,19 @@ def expand(start, rrule, exdates, all_day):
                  if "T" in u else dt.datetime.strptime(u, "%Y%m%d").replace(tzinfo=SYD))
     bydays = [WD[d[-2:]] for d in r.get("BYDAY", "").split(",") if d[-2:] in WD] if freq == "WEEKLY" else []
     cur, emitted = start, 0
+    # fast-forward long-running DAILY/WEEKLY series to just before the window:
+    # the iteration cap otherwise exhausts on old dailies and the event
+    # silently vanishes from the card (code review 2026-07-13)
+    window_start = now - dt.timedelta(days=1)
+    if freq in ("DAILY", "WEEKLY") and cur < window_start:
+        step = dt.timedelta(days=interval) if freq == "DAILY" else dt.timedelta(weeks=interval)
+        k = int((window_start - cur) / step) - 1
+        if k > 0:
+            if count is not None:
+                emitted += k * (len(bydays) or 1)
+                if emitted >= count:
+                    return
+            cur += k * step
     for _ in range(1000):
         if until and cur > until:
             return
@@ -90,15 +107,28 @@ def expand(start, rrule, exdates, all_day):
         elif freq == "WEEKLY":
             cur += dt.timedelta(weeks=interval)
         elif freq == "MONTHLY":
+            # a series on the 29th-31st SKIPS short months and keeps going
+            # (Google semantics) - the old `return` killed the whole series
+            # at the first short month (code review 2026-07-13)
             m = cur.month - 1 + interval
-            try:
-                cur = cur.replace(year=cur.year + m // 12, month=m % 12 + 1)
-            except ValueError:
+            for _ in range(48):
+                try:
+                    cur = cur.replace(year=cur.year + m // 12, month=m % 12 + 1)
+                    break
+                except ValueError:
+                    m += interval
+            else:
                 return
         elif freq == "YEARLY":
-            try:
-                cur = cur.replace(year=cur.year + interval)
-            except ValueError:
+            # Feb-29 series: skip non-leap years, same story
+            y = cur.year + interval
+            for _ in range(8):
+                try:
+                    cur = cur.replace(year=y)
+                    break
+                except ValueError:
+                    y += interval
+            else:
                 return
         else:
             return
@@ -110,7 +140,7 @@ for l in lines:
         vevents += 1
     elif l.startswith("END:VEVENT") and cur is not None:
         if "start" in cur:
-            for occ in expand(cur["start"], cur.get("rrule"), cur["exdates"], cur.get("all_day")):
+            for occ in expand(cur["start"], cur.get("rrule"), cur["exdates"]):
                 events.append({"start": occ.astimezone(SYD).isoformat(),
                                "summary": cur.get("summary", "(no title)"),
                                "all_day": cur.get("all_day", False)})

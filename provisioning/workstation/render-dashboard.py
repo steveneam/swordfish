@@ -192,7 +192,7 @@ def fleet_html(f):
         upb = badge("UP", "ok") if up else (badge("?", "warn") if up is None else badge("DOWN", "bad"))
         cpu = b.get("cpu_pct")
         cpu_c = f"<td>{cpu:.1f}%</td>" if cpu is not None else (
-            f'<td>load {b["load1"]}</td>' if b.get("load1") is not None else "<td>—</td>")
+            f'<td>load {esc(b["load1"])}</td>' if b.get("load1") is not None else "<td>—</td>")
         rr = ' <span class="chip warn">reboot pending</span>' if b.get("reboot_required") else ""
         rows.append(
             f'<tr><td><b>{esc(b["name"])}</b>{rr}<br><span class="dim">{esc(b.get("source", ""))}</span></td>'
@@ -257,21 +257,61 @@ def security_html(s):
 def money_html(m):
     if m.get("error"):
         return f"<p>{esc(m['error'])}</p>"
-    if m.get("gated"):
-        return f'<p class="dim">⏳ {esc(m.get("note", "gated"))}</p>'
+    parts = []
+
+    api = m.get("api") or {}
     rows = []
-    for s in (m.get("subscriptions") or []):
-        du = s.get("days_until")
-        cls = "bad" if (du is not None and du <= 3) else ("warn" if du is not None and du <= 7 else "")
-        rows.append(f'<tr><td>{esc(s.get("name"))}</td>'
-                    f'<td>{esc(s.get("currency", ""))} {esc(s.get("amount", "?"))}</td>'
-                    f'<td>{esc(s.get("cycle", ""))}</td>'
-                    f'<td class="{cls}">{esc(s.get("next_charge") or "—")}'
-                    f'{f" ({du}d)" if du is not None else ""}</td>'
-                    f'<td>{esc(s.get("card") or "")}</td></tr>')
-    return (f'<p>monthly run-rate ≈ <b>{esc(m.get("monthly_run_rate", "?"))}</b></p>'
-            "<table><tr><th>what</th><th>amount</th><th>cycle</th><th>next charge</th><th>card</th></tr>"
-            + "".join(rows) + f'</table><p class="dim">{esc(m.get("api_note", ""))}</p>')
+    bl = api.get("binarylane") or {}
+    if bl.get("error"):
+        rows.append(f'<tr><td>BinaryLane</td><td colspan="2">{badge(bl["error"], "bad")}</td></tr>')
+    else:
+        chips = " ".join(f'<span class="chip">{esc(s.get("name", "?"))} '
+                         f'{s.get("total", "?")}</span>' for s in (bl.get("servers") or []))
+        rows.append(f'<tr><td>BinaryLane</td><td>unbilled AUD <b>{esc(bl.get("unbilled_total", "?"))}'
+                    f"</b></td><td>{chips}</td></tr>")
+    vu = api.get("vultr") or {}
+    if vu.get("error"):
+        rows.append(f'<tr><td>Vultr</td><td colspan="2">{badge(vu["error"], "bad")}</td></tr>')
+    else:
+        bal = vu.get("balance")
+        credit = f"credit USD <b>{-bal:.2f}</b>" if isinstance(bal, (int, float)) and bal < 0 \
+                 else f"balance USD {esc(bal)}"
+        rows.append(f'<tr><td>Vultr</td><td>{credit}</td>'
+                    f'<td>pending {esc(vu.get("pending_charges", "?"))}</td></tr>')
+    pb = api.get("porkbun") or {}
+    if pb.get("error"):
+        rows.append(f'<tr><td>Porkbun</td><td colspan="2">{badge(pb["error"], "bad")}</td></tr>')
+    else:
+        doms = pb.get("domains") or []
+        auto = all(d.get("auto_renew") for d in doms)
+        nearest = doms[0] if doms else None
+        near = (f'nearest <b>{esc(nearest["domain"])}</b> in {nearest.get("days_left", "?")}d'
+                if nearest else "no domains")
+        rows.append(f'<tr><td>Porkbun</td><td>{len(doms)} domains'
+                    f'{" · all auto-renew" if auto and doms else ""}</td><td>{near}</td></tr>')
+    b2 = api.get("b2") or {}
+    rows.append(f'<tr><td>Backblaze B2</td><td colspan="2" class="dim">{esc(b2.get("note", "—"))}</td></tr>')
+    parts.append("<table>" + "".join(rows) + "</table>")
+
+    if m.get("subscriptions_missing"):
+        parts.append('<p class="dim">subscriptions.yml missing — SaaS spend not tracked</p>')
+    else:
+        srows = []
+        for s in (m.get("subscriptions") or []):
+            du = s.get("days_until")
+            cls = "bad" if (du is not None and du <= 3) else ("warn" if du is not None and du <= 7 else "")
+            srows.append(f'<tr><td>{esc(s.get("name"))}</td>'
+                         f'<td>{esc(s.get("currency", ""))} {esc(s.get("amount", "?"))}</td>'
+                         f'<td>{esc(s.get("cycle", ""))}</td>'
+                         f'<td class="{cls}">{esc(s.get("next_charge") or "—")}'
+                         f'{f" ({du}d)" if du is not None else ""}</td>'
+                         f'<td class="dim">{esc(s.get("card") or "")}</td></tr>')
+        parts.append("<h3>SaaS (founder-maintained)</h3>"
+                     "<table><tr><th>what</th><th>amount</th><th>cycle</th><th>next charge</th><th>note</th></tr>"
+                     + "".join(srows)
+                     + f'</table><p class="dim">SaaS monthly run-rate ≈ {esc(m.get("monthly_run_rate", "?"))} '
+                     "(placeholder amounts until the one-time correction pass)</p>")
+    return "".join(parts)
 
 def calendar_html(c):
     if c.get("error"):
@@ -408,7 +448,8 @@ JS = """
     document.querySelectorAll('.age[data-ts]').forEach(el => {
       const s = now - Number(el.dataset.ts);
       el.textContent = 'data ' + (s < 90 ? 'live' :
-        s < 3600 ? Math.round(s / 60) + 'm old' : Math.round(s / 360) / 10 + 'h old');
+        s < 3600 ? Math.round(s / 60) + 'm old' :
+        s < 172800 ? Math.round(s / 360) / 10 + 'h old' : Math.round(s / 86400) + 'd old');
       el.classList.toggle('stale', s > 2400);
     });
   }
@@ -427,6 +468,12 @@ def main():
     up4 = next((b.get("uptime_s") for b in fleet.get("boxes", [])
                 if isinstance(b, dict) and b.get("name") == "syd4"), None)
 
+    # the needs queue draws on three data files - its age is the OLDEST of
+    # them, so the top card carries a staleness signal like every other
+    needs_ts = [d.get("generated_at") for d in (projects, security, money)
+                if isinstance(d.get("generated_at"), int)]
+    needs_meta = {"generated_at": min(needs_ts)} if needs_ts else {"error": "no source data"}
+
     def safe(fn, data, name):
         try:
             return fn(data)
@@ -441,7 +488,7 @@ def main():
 <header><h1>syd4 · infrastructure cockpit</h1>
 <div class="clock"><span id="clk">…</span><br>
 <span class="dim">box up {uptime_h(up4)} · page regenerates every 15 min</span></div></header>
-{section("needs-steven", "Needs Steven", None, safe(lambda _: needs_items(projects, security, money), None, "needs"))}
+{section("needs-steven", "Needs Steven", needs_meta, safe(lambda _: needs_items(projects, security, money), None, "needs"))}
 {section("projects", "Projects", projects, safe(projects_html, projects, "projects"))}
 {section("fleet", "Fleet health", fleet, safe(fleet_html, fleet, "fleet"))}
 {section("security", "Security", security, safe(security_html, security, "security"))}

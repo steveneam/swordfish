@@ -13,9 +13,7 @@ set -uo pipefail
 
 . "$(dirname "$0")/lib.sh"
 
-TLS_HOSTS=(deploy.swordfish.cfd metrics.swordfish.cfd status.swordfish.cfd
-           hello.swordfish.cfd deploy2.swordfish.cfd metrics2.swordfish.cfd
-           status2.swordfish.cfd)
+TLS_HOSTS=("${SYD1_HOSTS[@]}" "${SYD2_HOSTS[@]}")  # one home: lib.sh
 DOMAINS=(swordfish.cfd thalon.org)
 
 lines_to_logins() { # stdin = alert lines -> JSON array with a suspicious flag
@@ -37,10 +35,14 @@ local_auth() { # syd4 counts + posture
 }
 
 syd3_auth() {
+  # NB --since=-24h, deliberately space-free: the earlier `--since \"24 hours
+  # ago\"` variant reached the remote $() as three args, journalctl errored
+  # silently and every count rendered a CONFIDENT 0 (code review 2026-07-13
+  # caught it - the exact confident-wrong-briefing failure mode again)
   local out
-  out=$(ssh -n "${SSH_CM[@]}" -o ConnectTimeout=8 -o BatchMode=yes syd3 '
-    echo "fails=$(sudo -n journalctl -u ssh --since \"24 hours ago\" --no-pager 2>/dev/null | grep -cE "Invalid user|Failed (publickey|password)|banner exchange.*invalid")"
-    echo "bans=$(sudo -n journalctl -u fail2ban --since \"24 hours ago\" --no-pager 2>/dev/null | grep -c " Ban ")"
+  out=$(ssh_syd3 '
+    echo "fails=$(sudo -n journalctl -u ssh --since=-24h --no-pager 2>/dev/null | grep -cE "Invalid user|Failed (publickey|password)|banner exchange.*invalid")"
+    echo "bans=$(sudo -n journalctl -u fail2ban --since=-24h --no-pager 2>/dev/null | grep -c " Ban ")"
     echo "ufw=$(sudo -n ufw status 2>/dev/null | head -1 | awk "{print \$2}")"
     echo "pass=$(sudo -n sshd -T 2>/dev/null | awk "/^passwordauthentication/{print \$2}")"' 2>/dev/null) \
     || { jq -n '{box: "syd3", unreachable: true}'; return; }
@@ -85,12 +87,15 @@ domains_json() {
 }
 
 main() {
-  local logins4 logins3 auth tls domains
+  local logins4 raw3 logins3 auth tls domains
   logins4=$(sudo -n journalctl -t swordfish-alerts --since "7 days ago" -o cat --no-pager 2>/dev/null \
             | tail -15 | lines_to_logins)
-  logins3=$(ssh -n "${SSH_CM[@]}" -o ConnectTimeout=8 -o BatchMode=yes syd3 \
-              'sudo -n journalctl -t swordfish-alerts --since "7 days ago" -o cat --no-pager 2>/dev/null | tail -15' \
-              2>/dev/null | lines_to_logins || echo '[]')
+  # capture SPLIT from fallback: `ssh | jq || echo []` under pipefail emitted
+  # BOTH jq's [] and the fallback [] when ssh died -> invalid JSON -> the
+  # whole card (syd4 data included) went UNAVAILABLE (code review 2026-07-13)
+  raw3=$(ssh_syd3 'sudo -n journalctl -t swordfish-alerts --since=-7d -o cat --no-pager 2>/dev/null | tail -15' \
+         2>/dev/null) || raw3=""
+  logins3=$(lines_to_logins <<<"$raw3")
   auth=$(jq -n --argjson a "$(local_auth)" --argjson b "$(syd3_auth)" '[$a, $b]')
   tls=$(tls_json)
   domains=$(domains_json)

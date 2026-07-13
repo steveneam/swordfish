@@ -20,6 +20,15 @@ set -uo pipefail
 
 DIR=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$HOME/dashboard/data"
+. "$DIR/collectors/lib.sh"
+
+# prime the ssh master BEFORE forking: three collectors hitting a cold
+# ControlMaster=auto in parallel race the socket, and every loser opens a
+# direct connection = a pam Telegram ping (code review 2026-07-13). One
+# check-or-start here makes the "one ping ever" claim structural.
+ssh -O check "${SSH_CM[@]}" syd3 2>/dev/null \
+  || ssh "${SSH_CM[@]}" -o ConnectTimeout=8 -o BatchMode=yes -fN syd3 2>/dev/null \
+  || true
 
 pids=()
 for c in "$DIR"/collectors/collect-*.sh; do

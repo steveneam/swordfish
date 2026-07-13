@@ -81,8 +81,22 @@ for sid in needs-steven fleet security money calendar hermes; do
   grep -q "section id=\"$sid\"" <<<"$page" \
     || { echo "FAIL: cockpit section '$sid' missing from the page"; exit 1; }
 done
-grep -qE '(swordfish-ops|token|password)=' <<<"$page" \
-  && { echo "FAIL: the page leaks something credential-shaped"; exit 1; }
+# leak check asserts on the secret VALUES, not key-name shapes (a key-name
+# grep certifies nothing - security review 2026-07-13): the page must not
+# contain any live credential this pipeline touches
+SEC=/home/deploy/work/swordfish/inventory/secrets
+for f in beszel-admin.password kuma-admin.password google-calendar-founder.ics.url; do
+  [ -f "$SEC/$f" ] || continue
+  v=$(tr -d '\r\n' < "$SEC/$f")
+  [ -n "$v" ] && grep -qF -- "$v" <<<"$page" \
+    && { echo "FAIL: content of secret $f is present in the page"; exit 1; }
+done
+for var in BINARYLANE_API_TOKEN VULTR_API_KEY PORKBUN_API_KEY PORKBUN_SECRET_API_KEY; do
+  v=$(grep "^${var}[[:space:]]*=" /home/deploy/work/swordfish/.env 2>/dev/null \
+      | head -1 | cut -d= -f2- | tr -d '\r"' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+  [ -n "$v" ] && grep -qF -- "$v" <<<"$page" \
+    && { echo "FAIL: value of $var is present in the page"; exit 1; }
+done
 ss -ltn | grep -q '127.0.0.1:8090' \
   || { echo "FAIL: 8090 not bound to localhost only"; exit 1; }
 

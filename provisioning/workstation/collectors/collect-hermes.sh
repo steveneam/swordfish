@@ -17,10 +17,13 @@ set -uo pipefail
 
 main() {
   local svc out
-  svc=$(ssh -n "${SSH_CM[@]}" -o ConnectTimeout=8 -o BatchMode=yes syd3 \
-        'systemctl is-active hermes-gateway.service' 2>/dev/null) || svc=unreachable
+  # is-active prints inactive/failed AND exits non-zero: keep the captured
+  # truth, "unreachable" only when nothing came back (code review 2026-07-13
+  # - a stopped gateway and a dead tunnel need OPPOSITE founder actions)
+  svc=$(ssh_syd3 'systemctl is-active hermes-gateway.service' 2>/dev/null) || true
+  [ -n "$svc" ] || svc=unreachable
 
-  out=$(ssh "${SSH_CM[@]}" -o ConnectTimeout=8 -o BatchMode=yes syd3 'sudo -n python3 -' <<'PY' 2>/dev/null
+  out=$(ssh_syd3_stdin 'sudo -n python3 -' <<'PY' 2>/dev/null
 import json, os, glob, sqlite3, time
 H = "/home/hermes/.hermes"
 r = {}
@@ -59,7 +62,11 @@ except Exception as e:
     r["messages_error"] = str(e)
 
 try:
-    outs = glob.glob(f"{H}/cron/output/*")
+    # outputs nest as output/<job-id>/<timestamp>.md; symlink guard because
+    # this runs as root - a planted link must not surface an arbitrary
+    # file's head on the dashboard (security review 2026-07-13)
+    outs = [p for p in glob.glob(f"{H}/cron/output/*") + glob.glob(f"{H}/cron/output/*/*")
+            if os.path.isfile(p) and not os.path.islink(p)]
     if outs:
         newest = max(outs, key=os.path.getmtime)
         r["last_cron_output"] = {"file": os.path.basename(newest),

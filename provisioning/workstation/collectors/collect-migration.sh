@@ -15,6 +15,7 @@ main() {
 
   local areas='[]' d name bytes files
   for d in "$MIG"/*/; do
+    [ -d "$d" ] || continue
     d="${d%/}"; name=$(basename "$d")
     case "$name" in browsers|claude-home|gh|ssh) continue ;; esac
     bytes=$(du -sb "$d" 2>/dev/null | cut -f1)
