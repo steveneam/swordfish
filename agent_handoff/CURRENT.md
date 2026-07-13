@@ -15,9 +15,11 @@
 > founder decision below). If the box state and this file disagree, the box
 > wins — say so, then fix the file.
 
-_Stamped: 2026-07-13 19:30 +10:00 (git-accuracy + hermes session: projects
-card event-driven · hermes card branded · **E1 DESIGN VALIDATED END-TO-END
-LIVE with the founder** · next session = START THALON on the VPS.)_
+_Stamped: 2026-07-13 20:35 +10:00 (the big evening session: projects card
+event-driven · hermes card branded · **THALON AWAKE + DEPLOYED to syd2
+staging** · **E1 RELAY DESIGNED, BUILT, LIVE, founder-tested** · this
+legacy tab RETIRES at this wrap — the canonical swordfish session is the
+tmux one, reachable via dashboard button / `work` / the Swordfish topic.)_
 
 ## State
 
