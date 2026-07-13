@@ -21,11 +21,16 @@
 # the project list comes from the box at runtime, so no project names live
 # in this tracked file (anonymity guard). Safe to re-run any time.
 # Canonical copy: this file; working copy: ~deploy/mac-import.sh on syd4.
+#
+# Every bare ssh below uses -n: this script arrives via `cat ... | bash`, so
+# an ssh without -n inherits that pipe as stdin and SWALLOWS THE REST OF THE
+# SCRIPT as remote input - execution just stops, silently (hit live
+# 2026-07-13; rsync/scp are immune, their transport ssh gets its own stdin).
 set -u
 BOX=deploy@syd4.swordfish.cfd
 
-PROJECTS=$(ssh "$BOX" 'ls "$HOME/work"') || { echo "cannot reach the box"; exit 1; }
-ssh "$BOX" 'mkdir -p "$HOME/migration/incoming"'
+PROJECTS=$(ssh -n "$BOX" 'ls "$HOME/work"') || { echo "cannot reach the box"; exit 1; }
+ssh -n "$BOX" 'mkdir -p "$HOME/migration/incoming"'
 
 staged=0
 for vol in /Volumes/*/; do
@@ -48,13 +53,13 @@ for vol in /Volumes/*/; do
       for item in secrets inventory/secrets .context; do
         [ -e "$src/$item" ] || continue
         echo "   -> $p/$item  =>  box:~/migration/incoming/$p/"
-        ssh "$BOX" "mkdir -p \"\$HOME/migration/incoming/$p\""
+        ssh -n "$BOX" "mkdir -p \"\$HOME/migration/incoming/$p\""
         rsync -a --exclude .git "$src/$item" "$BOX:migration/incoming/$p/" && staged=1
       done
       for f in "$src"/.env*; do
         [ -f "$f" ] || continue
         echo "   -> $p/$(basename "$f")  =>  box:~/migration/incoming/$p/"
-        ssh "$BOX" "mkdir -p \"\$HOME/migration/incoming/$p\""
+        ssh -n "$BOX" "mkdir -p \"\$HOME/migration/incoming/$p\""
         scp -q "$f" "$BOX:migration/incoming/$p/" && staged=1
       done
       break
@@ -73,7 +78,7 @@ for vol in /Volumes/*/; do
   #    never blindly applied.
   if [ -d "$vol/migration-staging/claude-home/projects" ]; then
     echo "   -> claude-home/projects snapshot  =>  box:~/migration/incoming/claude-home/"
-    ssh "$BOX" 'mkdir -p "$HOME/migration/incoming/claude-home"'
+    ssh -n "$BOX" 'mkdir -p "$HOME/migration/incoming/claude-home"'
     rsync -a "$vol/migration-staging/claude-home/projects" "$BOX:migration/incoming/claude-home/" && staged=1
   fi
 done
