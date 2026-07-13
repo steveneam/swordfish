@@ -59,12 +59,13 @@ Still nothing: `cat /tmp/syd4-tunnel.log` and read the last line.
 
 ## Part 3 — Chromium (one paste, then clicks)
 
-1. Still in Terminal — this opens the dashboard without typing any username:
+1. Still in Terminal — this opens the LIVE dashboard (info cards, refreshes
+   itself every 15 min, served from the box through the tunnel):
 
-       open -a "Chromium" ~/Desktop/syd4-dashboard.html
+       open -a "Chromium" http://localhost:8080/proxy/8090/
 
-   (If macOS can't find Chromium: open Chromium yourself, press ⌘-O, pick
-   `syd4-dashboard.html` on the Desktop.)
+   (If macOS can't find Chromium, open Chromium yourself and go to that
+   address. `~/Desktop/syd4-dashboard.html` remains as a static fallback.)
 2. Bookmark it: ⌘D, Done.
 3. Make it the start page: ⋮ menu → Settings → On startup → "Open a specific
    page or set of pages" → Add a new page → paste the address from the
@@ -76,8 +77,10 @@ Still nothing: `cat /tmp/syd4-tunnel.log` and read the last line.
 
 ## When the project list changes
 
-Re-run Part 1 on syd4, then on the Mac re-run ONLY the second `scp` line from
-Part 2 (the index.html one). Everything else stays.
+Nothing to do — the live page (`localhost:8080/proxy/8090`) regenerates
+itself every 15 minutes on the box (setup-dashboard.sh installed the timer).
+Only the static Desktop fallback goes stale; refresh it with the second
+`scp` line from Part 2 if you care to.
 
 ## Undo / troubleshoot
 

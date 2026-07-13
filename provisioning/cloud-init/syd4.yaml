@@ -256,8 +256,16 @@ runcmd:
   - curl -fsSL --retry 5 --retry-all-errors -o /tmp/nodesource.sh https://deb.nodesource.com/setup_22.x
   - bash /tmp/nodesource.sh
   - apt-get update
-  - DEBIAN_FRONTEND=noninteractive apt-get install -y gh nodejs
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y gh nodejs python3-pip python3-venv
   - npm install -g @openai/codex
+
+  # --- Go toolchain: pinned tarball, sha256-verified (apt's golang lags;
+  #     portfolio CI builds on go 1.26). Bump = move the pin + hash here. ---
+  - curl -fsSL --retry 3 -o /tmp/go.tgz https://go.dev/dl/go1.26.5.linux-amd64.tar.gz
+  - echo "5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053  /tmp/go.tgz" | sha256sum -c -
+  - tar -C /usr/local -xzf /tmp/go.tgz
+  - ln -sf /usr/local/go/bin/go /usr/local/bin/go
+  - ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
 
   # --- claude-code: native user-space build (download-then-execute, same
   #     rationale as the NodeSource fetch above). Root npm -g broke self-update
@@ -289,4 +297,8 @@ runcmd:
   #     founder's Telegram land via the alerts-apply workflow - its secrets
   #     env file (/etc/swordfish/alerts.env) can never be pinned here. On any
   #     rebuild, dispatch alerts-apply against this host after first boot.
-  #     Layer: provisioning/host/setup-login-alerts.sh (2026-07-11). ---
+  #     Layer: provisioning/host/setup-login-alerts.sh (2026-07-11).
+  #     ALSO post-boot (needs the repo cloned first): the live founder
+  #     dashboard - run provisioning/workstation/setup-dashboard.sh
+  #     (regen timer + localhost-only 8090 server, reached via
+  #     code-server's /proxy/8090/ through the Mac tunnel; 2026-07-13). ---

@@ -27,6 +27,9 @@ else
   echo "== tunnel starting - give it ~10 seconds, then it should be up."
 fi
 
-open -a "Chromium" "$HOME/Desktop/syd4-dashboard.html" 2>/dev/null \
+# the LIVE dashboard (auto-refreshing, served from the box through the
+# tunnel); the Desktop file stays as an offline fallback snapshot
+open -a "Chromium" "http://localhost:8080/proxy/8090/" 2>/dev/null \
+  || open "http://localhost:8080/proxy/8090/" \
   || open "$HOME/Desktop/syd4-dashboard.html"
-echo "== dashboard opened in the browser. Bookmark it: press Cmd-D. Done."
+echo "== live dashboard opened in the browser. Bookmark it: press Cmd-D. Done."
