@@ -15,9 +15,9 @@
 > founder decision below). If the box state and this file disagree, the box
 > wins — say so, then fix the file.
 
-_Stamped: 2026-07-13 18:25 +10:00 (git-accuracy session: **the projects card
-is now event-driven** — commit/push status refreshes within seconds, not on
-the 15-min timer.)_
+_Stamped: 2026-07-13 19:00 +10:00 (git-accuracy + hermes session: projects
+card event-driven · telegram reply-path explained · hermes card branded ·
+hermes-cloud research done · **next session = START THALON on the VPS**.)_
 
 ## State
 
@@ -42,6 +42,29 @@ the 15-min timer.)_
   no LLM, no agent loop, reuses gateway credentials; first used this
   session at the founder's request as a done/waiting signal. This is a
   notification channel, NOT the E1 relay (still behind the rehearsal gate).
+- **Telegram replies do NOT come back here — explained + memorized.** The
+  founder replied to the ping; it landed in the hermes agent's own chat
+  session and hermes answered him itself. Not an @-mention problem: the
+  bridge to project sessions IS the E1 build. Interim: replies are readable
+  from syd3 `state.db` (source='telegram'). E1 design references found in
+  the hermes-agent repo on syd3 (relay-connector-contract, team-telegram
+  group-topics) — memory: hermes-e1-relay-directive.
+- **Hermes card wears the hermes brand** (founder ask): gold
+  #FFD700/#8B6508 theme from the project's own docusaurus CSS + the Nous
+  logo, fetched once by collect-hermes.sh into `~/dashboard/assets/`
+  (untracked, served same-origin, fetch-if-missing so a compromised fleet
+  box can't re-poison it).
+- **Hermes-cloud research (founder ask) — conclusions:** Nous Portal is the
+  cloud offering (one subscription: 300+ models via OpenRouter + managed
+  tool gateway: Firecrawl search, FAL images, TTS, cloud browser, Modal
+  sandboxes; `hermes setup --portal`) — it is a SPEND, founder's call, main
+  win would be web-search for briefing jobs + model failover. Free wins to
+  adopt: (1) their daily-briefing-bot cron pattern IS our queued
+  morning-noise consolidation — one 07:30 digest instead of scattered
+  pings; (2) `hermes webhook` could push GitHub/CI events to Telegram, but
+  their own docs flag prompt-injection from webhook payloads — prefer their
+  cron-poll PR-review pattern (no public endpoint) if we want it; (3) the
+  team-assistant group-topics pattern validates the E1 attribution design.
 - **The cockpit dashboard is LIVE** at the same URL
   (`localhost:8080/proxy/8090/`). Architecture per the plan doc: 7 parallel
   fail-safe collectors (`provisioning/workstation/collectors/`) → JSON in
@@ -78,23 +101,32 @@ the 15-min timer.)_
 
 ## Next
 
-1. **Founder actions, all queued in NEEDS-STEVEN.md** (the dashboard shows
+1. **START THALON ON THE VPS** — founder directive 2026-07-13 evening ("i
+   want to start up thalon in the vps next session"); this UN-PARKS the
+   Thalon-wiring item ahead of the rehearsal gate (the gate still holds for
+   the cutover chain). Thalon = first dogfood tenant of **syd2**
+   (backups-before-workloads already satisfied there); repo `~/work/thalon`;
+   wake-up = the 5-point checklist in memory captain-of-the-ship (thalon has
+   never started on this box). thalon.org stays unwired until the launch
+   call — founder gate.
+2. **Founder actions, all queued in NEEDS-STEVEN.md** (the dashboard shows
    them): correct `subscriptions.yml` once · rehearsal-pass confirmation
    (un-parks the ops queue) · delete the drive's 9 loose .txt ("later" per
    founder) · census re-scan on the Mac (`mac-census.sh`).
-2. **On rehearsal-pass confirmation → the parked ops queue:** cutover
-   step-card → verify-deadman → soak/syd1 → Thalon wiring → **E1 relay**.
+3. **On rehearsal-pass confirmation → the parked ops queue:** cutover
+   step-card → verify-deadman → soak/syd1 → **E1 relay**.
    E1 got a third founder refinement this session: per-project message
    attribution must be queryable both directions + closing-session summaries
    to Telegram (memory: hermes-e1-relay-directive has the design answer —
    tmux/transcript = routing key; consider one Telegram group-topic per
    project via sessions.thread_id; dashboard then grows a per-project "last
    Hermes relay" line).
-3. **At cutover:** retire syd1 from the dashboard by editing ONE file
+4. **At cutover:** retire syd1 from the dashboard by editing ONE file
    (`collectors/lib.sh` host lists) + drop its api_box call; re-point the *2
    hostnames there too.
-4. **At drive retirement:** delete collect-migration.sh + its card.
-5. Unchanged: morning-noise consolidation · Renovate PR #4 · traefik 3.7.7
+5. **At drive retirement:** delete collect-migration.sh + its card.
+6. Unchanged: morning-noise consolidation (adopt hermes's daily-briefing
+   cron pattern — see State) · Renovate PR #4 · traefik 3.7.7
    post-cutover · healthchecks→Telegram · ntfy retirement audit · Dokploy
    notifications post-cutover · port-map call.
 

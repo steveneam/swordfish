@@ -84,6 +84,19 @@ PY
     '{generated_at: $t, service: $svc,
       note: "single-channel E0 bot; per-project threads land at E1"} + $d' \
     | emit hermes
+
+  # one-time brand asset for the card (founder ask 2026-07-13: the hermes
+  # section wears the hermes-agent theme + logo). Fetch-if-missing only, so
+  # a compromised fleet box cannot keep re-poisoning the file; it is a plain
+  # <img> on the page, never inlined or executed. 21KB nous-logo.png is the
+  # pre-shrunk mark (logo.png is the same image at 1.3MB).
+  local asset="$HOME/dashboard/assets/hermes-logo.png"
+  if [ ! -f "$asset" ]; then
+    mkdir -p "$HOME/dashboard/assets"
+    ssh_syd3 'sudo -n -u hermes base64 /home/hermes/.hermes/hermes-agent/website/static/img/nous-logo.png' \
+      | base64 -d > "$asset.tmp" 2>/dev/null \
+      && [ -s "$asset.tmp" ] && mv "$asset.tmp" "$asset" || rm -f "$asset.tmp"
+  fi
 }
 
 main || fail hermes "hermes collector crashed"

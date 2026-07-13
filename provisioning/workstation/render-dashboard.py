@@ -426,6 +426,17 @@ CSS = """
   a.btn:hover{background:#24344a;border-color:#3d5470}
   .name{font-size:1.15rem}
   .sub{font-size:.76rem;color:#7b8fa3;margin-top:.35rem;line-height:1.5}
+  /* hermes card wears the hermes-agent brand (founder ask 2026-07-13):
+     gold #FFD700/#8B6508 from the project's own docusaurus theme, logo
+     fetched once by collect-hermes.sh into assets/ (untracked, served
+     same-origin - never inlined) */
+  #hermes{border-color:#8B6508;background:#171307}
+  #hermes h2{color:#FFD700}
+  #hermes h2::before{content:"";width:1.5rem;height:1.5rem;flex:none;border-radius:.35rem;
+    background:#fff url(assets/hermes-logo.png) center/cover no-repeat}
+  #hermes th{color:#c89222}
+  #hermes .age{color:#8a7a4a}
+  #hermes .age.stale{color:#e0b060}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
   .cal .when{display:inline-block;min-width:9rem;color:#9db4c8;margin:0 .4rem 0 0}
   .cal li{list-style:none;margin-left:-1.1rem}
