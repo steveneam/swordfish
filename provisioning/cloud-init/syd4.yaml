@@ -83,7 +83,13 @@ write_files:
       ClientAliveInterval 60
       ClientAliveCountMax 10
 
-  # code-server perf preset: what makes VS Code render well on a 2011 CPU
+  # code-server perf preset: what makes VS Code render well on a 2011 CPU.
+  # Dark theme pinned here (founder 2026-07-13) - these are MACHINE-level user
+  # settings, so every project the dashboard opens comes up dark; without the
+  # pin a fresh box would follow the browser's light/dark hint instead.
+  # The theme id MUST be "Dark Modern" - that is code-server's id (see its
+  # theme-defaults extension); MS VS Code's "Default Dark Modern" does not
+  # resolve here and would silently fall back.
   - path: /home/deploy/.local/share/code-server/User/settings.json
     owner: deploy:deploy
     defer: true
@@ -95,7 +101,10 @@ write_files:
         "editor.smoothScrolling": false,
         "editor.cursorSmoothCaretAnimation": "off",
         "workbench.list.smoothScrolling": false,
-        "files.autoSave": "afterDelay"
+        "files.autoSave": "afterDelay",
+        "workbench.colorTheme": "Dark Modern",
+        "window.autoDetectColorScheme": false,
+        "workbench.preferredDarkColorTheme": "Dark Modern"
       }
 
   - path: /etc/apt/apt.conf.d/20auto-upgrades
