@@ -12,3 +12,4 @@ inventory/secrets/
 .claude/settings.local.json
 .claude/worktrees/
 .claude/*.bak
+COPY-ME.txt
