@@ -65,9 +65,15 @@ passed live.)_
   project + scoped credential (tenant-credential.sh) + the same documented
   update→deploy→probe recipe. Project CIs deploy their own apps; swordfish
   never touches their app side (boundary unchanged).
-- **E1 relay: the Swordfish-topic leg PASSED live** — founder's relay message
-  arrived prefixed, reply landed back in his topic. Only the thalon-topic
-  leg remains (queued in NEEDS-STEVEN).
+- **E1 relay E2E: PASSED, founder-confirmed** — thalon topic round-tripped
+  live 21:19–21:20 (injection verified in the thalon terminal, real reply
+  delivered to his phone before he even pinged us). Historical footnote from
+  the ledger: the morning "How you doing?" reply to the Swordfish topic was
+  eaten by the early-Stop bug (canned "(turn ended with no text reply)" went
+  instead) — that was findings f+g, ALREADY fixed in d40a975 at 10:15, three
+  minutes after the event; today's test ran on the fixed path. Optional
+  Swordfish-topic re-confirm queued in NEEDS-STEVEN. `~/e1-rehearsal`
+  deleted.
 - **`~/COPY-ME.txt` refreshed**: single preview pair now opens site AND
   workspace; the old `steven:…` workspace password is retired.
 - Fleet at wrap: 4 boxes up; syd2 nightly at 15:00 UTC now carries the
