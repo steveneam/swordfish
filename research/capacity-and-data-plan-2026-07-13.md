@@ -105,7 +105,27 @@ and pre-approved in principle for moving. Two very different destinations:
    next box create, and the cash-ceiling re-read (US$52 → up to ~US$104)
    belongs at a charter checkpoint, not buried in an ops commit.
 
-## Founder questions (one line each is enough)
+## Founder answers (same evening, 2026-07-13 ~23:20)
+
+1. The ≥100 GB RLS DB is **Project 1's → stays on managed Supabase for now**
+   (matches the keep-managed invariant; option D economics apply).
+2. **Yes — a self-hosted Postgres for Thalon + Project 2** is wanted. Since
+   there's no launch/traffic yet, it lands on the EXISTING syd2 at **zero new
+   spend** (85 GB disk free, 72% RAM free): one Postgres 17 service via
+   Dokploy, per-tenant databases + roles (RLS native), credentials handed off
+   per tenant-credential pattern, pg_dump→restic chain now, graduate to
+   wal-g/pgBackRest when size demands. Backups + restore drill BEFORE any
+   real tenant data (invariant).
+3. Render-disk access pattern: founder doesn't recall — **deferred**; decide
+   B2+CDN vs box NVMe when Project 1's agent can check how the app reads it.
+4. Growth: pre-launch, no traffic — the driver is **cost reduction, not
+   capacity**. So: NO resize now, no data box now; the sizing options below
+   activate at launch/traffic, not before.
+5. Clarified in chat: the US$78 / US$104 figures are **all-in monthly cash
+   totals for the whole fleet** (every box we pay cash for, disk bundled) —
+   current total is ~US$52; nothing needs buying today.
+
+## Founder questions (answered above — kept for the record)
 
 1. The ≥100 GB RLS database — **which project's data is it?** If Project 1
    clinical/compliance: it stays managed (charter invariant) and option D

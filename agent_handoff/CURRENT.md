@@ -69,23 +69,33 @@ is in 72 h soak as the untouched rollback target.)_
    `deploy2` temp A-record note in `inventory/boxes.md`, then **present the
    syd1 destroy-vs-warm-fallback gate** (founder decision; at destroy also
    retire syd1's healthchecks check, UptimeRobot monitors, B2 bucket).
-2. **Post-cutover unblocked queue, now open:** syd3+syd4 Kuma push dead-man
+2. **Postgres tenant-DB service on syd2 (founder call 2026-07-13, zero new
+   spend):** Postgres 17 via Dokploy on the EXISTING box — per-tenant
+   databases + roles for Thalon and Project 2 (RLS is native; slugs stay
+   runtime args), pg_dump→restic chain + restore drill BEFORE any tenant
+   data (invariant), credentials via `tenant-credential.sh` pattern. Full
+   context + sizing ladder: `research/capacity-and-data-plan-2026-07-13.md`
+   (Project 1's DB stays on managed Supabase; resize gates activate at
+   launch/traffic, not before).
+3. **Post-cutover unblocked queue, now open:** syd3+syd4 Kuma push dead-man
    legs (were "post-cutover follow-up" in boxes.md) · traefik 3.7.7 bump ·
    Dokploy notifications · morning-noise consolidation (fold kuma/ntfy/
    healthchecks pings into the 07:30 slot; grow briefing to real metrics —
    prompt already written, see `provisioning/hermes/README.md`).
-3. **Wrap-protocol closing summaries should ride `relay-send.sh`, not
+4. **Wrap-protocol closing summaries should ride `relay-send.sh`, not
    `hermes send`** (reply-bait argument — noted in the relay design doc);
    fold in when the closing-summary protocol lands.
-4. **Founder actions — NEEDS-STEVEN.md** (dashboard renders it): Dokploy
+5. **Founder actions — NEEDS-STEVEN.md** (dashboard renders it): Dokploy
    bookmark → deploy.swordfish.cfd · subscriptions.yml FILL fields (Claude
    card; GitHub next_charge + card) · Mac census re-scan · thalon COPY-ME
    creds note · Gmail MCP re-auth.
-5. **When Project 1 / Project 2 land on boxes:** tenant pack via
+6. **When Project 1 / Project 2 land on boxes:** tenant pack via
    `tenant-credential.sh` (defaults now point at `deploy.`) — slugs are
-   runtime args, guarded names never enter tracked files.
-6. Unchanged queue: Renovate PR #4 · healthchecks→Telegram · ntfy
-   retirement audit · port-map call.
+   runtime args, guarded names never enter tracked files; Project 2's
+   database rides the Next-2 Postgres service.
+7. Unchanged queue: Renovate PR #4 · healthchecks→Telegram · ntfy
+   retirement audit · port-map call · Render-disk access-pattern check
+   (deferred with Project 1's agent — B2+CDN vs box NVMe).
 
 ## Protocol notes
 
