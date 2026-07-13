@@ -101,14 +101,22 @@ LIVE with the founder** · next session = START THALON on the VPS.)_
 
 ## Next
 
-1. **START THALON ON THE VPS** — founder directive 2026-07-13 evening ("i
-   want to start up thalon in the vps next session"); this UN-PARKS the
-   Thalon-wiring item ahead of the rehearsal gate (the gate still holds for
-   the cutover chain). Thalon = first dogfood tenant of **syd2**
-   (backups-before-workloads already satisfied there); repo `~/work/thalon`;
-   wake-up = the 5-point checklist in memory captain-of-the-ship (thalon has
-   never started on this box). thalon.org stays unwired until the launch
-   call — founder gate.
+1. **THALON — STARTED 2026-07-13 ~19:25 (founder "go with thalon" same
+   evening):** wake-up checklist 5/5 — staged secrets restored per
+   `~/migration/thalon-migration/secrets/RESTORE.md` (env.local, .context
+   with the vault pointer rewritten to `/home/deploy/vault`, all .data
+   trees; all verified gitignored), and the **thalon agent is AWAKE in its
+   crash-proof tmux session** (`tmux attach -t thalon`, or the dashboard's
+   thalon button → terminal panel), briefed to write
+   `~/work/thalon/agent_handoff/ASK-BACKS-FOR-SWORDFISH.md` (port · image
+   tag+digest · THALON_DATA_DIR · export-hook spec · env list). Swordfish
+   side done tonight: Dokploy project `thalon` created on syd2
+   (`deploy2.swordfish.cfd`, id `A1iRiXnllMDxFAUmj1_DV`) + GHCR pull token
+   verified (http 200). **Swordfish next, on the ask-backs:** scoped
+   credential → neutral staging hostname on swordfish.cfd (BasicAuth +
+   noindex, A → 103.249.236.41) → persistent volume into the restic set →
+   Kuma watch → hand the pack to the thalon agent. thalon.org stays
+   unwired — founder launch gate. Ref: thalon-wiring-brief-2026-07-08.
 2. **Founder actions, all queued in NEEDS-STEVEN.md** (the dashboard shows
    them): correct `subscriptions.yml` once · rehearsal-pass confirmation
    (un-parks the ops queue) · delete the drive's 9 loose .txt ("later" per
