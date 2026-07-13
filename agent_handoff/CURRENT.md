@@ -11,106 +11,81 @@
 >
 > Then **state the top of Next in one sentence, say what you are starting, and
 > start it.** Do not ask "shall I?" — the Next list IS the standing approval.
-> Stop only at a founder gate (spend · cutover · destroy · anything named a
-> founder decision below). If the box state and this file disagree, the box
-> wins — say so, then fix the file.
+> Stop only at a founder gate (spend · destroy · anything named a founder
+> decision below). If the box state and this file disagree, the box wins —
+> say so, then fix the file.
 
-_Stamped: 2026-07-13 22:55 +10:00 (founder directive at wrap: **the cutover
-is next session's work** — on `gogogo`, start the step-card. Today also:
-rehearsal-pass confirmed, hermes telegram tool hole closed, alerts voice
-live, drive cleared to retire, morning briefing resumed.)_
+_Stamped: 2026-07-13 23:05 +10:00 (**THE CUTOVER IS DONE** — executed this
+session on the founder's relay-verified `cutover go`; syd2 is THE box; syd1
+is in 72 h soak as the untouched rollback target.)_
 
 ## State
 
 - **main @ HEAD, all pushed, guard green** (git log is the authority).
-- **REHEARSAL-PASS CONFIRMED** (founder, this session: "based on the fact
-  that you and thalon are running, the migration worked") — the parked ops
-  queue is OPEN. Cutover *execution* remains a founder gate; building the
-  step-card and verify-deadman is agent work and is now the top of Next.
-- **Hermes terminal access: actually closed this session.** The E0 disable
-  had only configured the `cli` platform; telegram resolved its composite
-  default (= ALL tools) — telegram-side hermes ran nslookup/uname and once
-  attempted sudo (blocked by NoNewPrivileges). Fixed with
-  `hermes tools disable --platform telegram …`, verified via the gateway's
-  own `_get_platform_tools()` resolution, gateway restarted, installer
-  ratchet now converges per-platform. Details: design-doc addendum 2 +
-  hermes-e0-traps memory.
-- **Founder housekeeping cleared:** subscriptions.yml Claude entry filled
-  (AU$34/mo Pro incl GST; next_charge 2026-08-13 ASSUMED from "on pro now"
-  — correct from receipt); drive .txt deletion declared done; Swordfish-
-  topic relay re-confirm exercised (his "Ok" injected mid-turn; reply rode
-  the Stop hook). Gmail MCP token EXPIRED — needs founder re-auth before
-  receipt lookups work.
-- **DRIVE CLEARED TO RETIRE** (census → rescue → verify → backup, all
-  closed 2026-07-13): census `Steven.tsv` (108k files) mapped every folder
-  to a verified box-side home; the ~130 MB of drive-only gitignored
-  research data inside the two ship-first projects' repo folders was
-  rescued by the founder's one-liner to `~/migration/incoming/drive-ark/`,
-  verified file-complete against the census (gaps = excluded .pyc only;
-  extras = .git dirs the census skipped), pointer notes left UNTRACKED in
-  both projects' `agent_handoff/FROM-SWORDFISH-DRIVE-ARK.md` for wake-up,
-  and captured in manual restic snapshot `94a347f4` (whole-home syd4 set;
-  nightly continues). subscriptions.yml: GitHub = Pro US$4/mo (founder);
-  next_charge/card fields still FILL.
-- **E1 finding-e CLOSED (this session):** the queued "config-silence hermes
-  via allowed_chats" was **refuted by adapter source** (v0.18.2 IS the
-  latest upstream): reply-to-bot/@mention dispatch has no toggle, and
-  excluding the group from `TELEGRAM_ALLOWED_CHATS` also kills observation
-  (observe allowlist = `group_allowed_chats ∩ allowed_chats`; state.db has
-  no pre-gate inbox → unstored messages are invisible to the poller = eaten
-  founder messages). **The ratchet is identity, not config:**
-  `provisioning/workstation/relay/relay-send.sh` sends ALL relay outbound
-  (Stop-hook replies, poller notices, !cmd responses, fallback sweep) as
-  the send-only **alerts bot**, so a founder reply to a relayed message can
-  never match hermes's reply-to-bot trigger. Hermes env/config untouched —
-  its observe wiring stays exactly as designed; never "fix" this with
-  allowed_chats. Until the founder adds `@Swordfish_alerts_bot` to the ops
-  group, relay-send falls back LOUDLY to `hermes send` — fallback path
-  verified live E2E this session (expected 400 → journal line → delivered).
-  **Founder added the bot the same evening; the switch is CONFIRMED live**
-  (next send went alerts-voiced, no fallback). Caveat discovered while
-  verifying: **Telegram reactions never reach the relay** (hermes doesn't
-  subscribe to message_reaction updates) — founder told in-topic to type,
-  not tap, when he wants an agent to act. Full semantics: dated notes at
-  the end of `agent_handoff/hermes-e1-relay-design-2026-07-13.md`. Relay
-  service healthy (3 mapped topics).
-- **Prior session (see git log 994680e / 1228835):** thalon staging pack
-  complete (fixed pin live, double-Basic root-caused, restic+dump chain
-  CI-proven, kuma watch through edge auth, scoped CI credential delivered);
-  auto-deploy channel generalized to ALL tenants (founder directive); E1
-  relay E2E founder-confirmed.
-- Fleet: 4 boxes up; syd2 nightly 15:00 UTC carries the thalon volume +
-  dump chain.
+- **CUTOVER EXECUTED 2026-07-13 ~23:00 AEST**, per
+  `provisioning/cutover-step-card.md` (kept as the record; soak + syd1-fate
+  section still pending). Evidence chain:
+  - DNS: `deploy./status./metrics./hello.` → 103.249.236.41 (Porkbun upsert
+    ×4, TTL 600; authoritative + 1.1.1.1 confirmed within ~1 min).
+  - `edge-apply` vs syd2 run **29251569671** green (converge + idempotency
+    proof + full posture re-assert; Dokploy router off `deploy2.` → 404s now).
+  - `hardening-smoke` vs syd2 run **29251625711** = **64/64** (suite grew +1
+    with the thalon staging probe; the old 60/63 pre-cutover ceiling cleared).
+  - verify-deadman natural-fire vs syd2 run **29251119226** SUCCESS (same
+    day, pre-gate): nightly ran + both dead-man legs receiver-acked.
+  - All four real names probed serving from syd2 with fresh LE certs
+    (notAfter 2026-10-11).
+  - Flips landed + re-proven: `collectors/lib.sh` (SYD1 row gone, real names
+    on syd2) · `collect-fleet.sh` (3-box board) · `staging-assert.sh` +
+    `tenant-credential.sh` defaults → `deploy.` · thalon repo var
+    `DOKPLOY_API_BASE` → `deploy./api` (staging posture green through it) ·
+    syd4 `~/.claude.json` dokploy MCP key swapped to the syd2 key (200-tested;
+    **the syd1-keyed MCP would have died silently** — found at pre-flight).
+  - Dashboard fleet card regenerated: syd4/syd3/syd2, syd2 deadman green.
+- **syd1 = SOAK, rollback target only** (off the dashboard, untouched, still
+  billing against Vultr credit): rollback = 4 Porkbun upserts back to
+  45.63.24.122, ≤10 min. Do NOT deploy to it; its Dokploy IDs are parked in
+  `runbooks/dogfood.md`.
+- **Dashboard question answered (founder, this session):** the numbers were
+  never chat-maintained — machine-visible facts collect automatically every
+  15 min (hermes `jobs.json`, provider APIs, fleet); SaaS spend is the one
+  schema'd table `inventory/secrets/subscriptions.yml` he can edit directly
+  in code-server. What he saw was a 15-min-stale snapshot; verified current
+  now (GitHub Pro US$4 on the card; morning-briefing scheduled/enabled,
+  fires 21:00 UTC daily).
+- Morning-briefing v0 live (hermes cron d8e6bb992d5e); tonight's run doubles
+  as a free cutover witness (it probes `hello.` + `status.` — now syd2).
+- Gmail MCP token still EXPIRED (founder re-auth queued; unblocks
+  receipt-driven `subscriptions.yml` fills).
+- Fleet: syd2 (prod, THE box) · syd3 (hermes cockpit) · syd4 (workspace,
+  agent home) · syd1 (soak, off-board).
 
 ## Next
 
-1. **THE CUTOVER — founder-directed for THIS session ("lets do the
-   cutover next session", 2026-07-13 22:55): step-card → verify-deadman →
-   soak/syd1.** Build the step-card + deadman first; the cutover MOMENT is
-   a founder gate (present the card, wait for go). At cutover ALSO:
-   re-point `*2` hostnames, retire syd1 from the dashboard
-   (`collectors/lib.sh` host lists + its api_box call), thalon's CI
-   api_base flips deploy2→deploy (they keep it a repo variable — already
-   told), `staging-assert.sh` + `~/.claude.json` dokploy MCP DOKPLOY_URL
-   defaults follow.
-2. **Morning-noise consolidation — v0 briefing is LIVE** (founder call
-   this session): hermes cron `morning-briefing` (d8e6bb992d5e) resumed,
-   fires 21:00 UTC = 07:00 AEST daily, checks hello + status endpoints,
-   ONE short DM. Remaining consolidation work stays queued: fold the
-   scattered pings (kuma/ntfy/healthchecks) into that 07:30-ish slot and
-   grow real metrics post-cutover (prompt already written for it).
+1. **Soak watch until ≈2026-07-16 23:00 AEST** (72 h from cutover): monitors
+   stay green + ≥1 natural verify-deadman pass vs syd2 + morning briefings
+   clean. **At soak end:** retire the `*2` A-records (Porkbun delete —
+   there's no delete script yet; API `deleteByNameType`), prune the
+   `deploy2` temp A-record note in `inventory/boxes.md`, then **present the
+   syd1 destroy-vs-warm-fallback gate** (founder decision; at destroy also
+   retire syd1's healthchecks check, UptimeRobot monitors, B2 bucket).
+2. **Post-cutover unblocked queue, now open:** syd3+syd4 Kuma push dead-man
+   legs (were "post-cutover follow-up" in boxes.md) · traefik 3.7.7 bump ·
+   Dokploy notifications · morning-noise consolidation (fold kuma/ntfy/
+   healthchecks pings into the 07:30 slot; grow briefing to real metrics —
+   prompt already written, see `provisioning/hermes/README.md`).
 3. **Wrap-protocol closing summaries should ride `relay-send.sh`, not
-   `hermes send`** (same reply-bait argument — noted in the design doc);
+   `hermes send`** (reply-bait argument — noted in the relay design doc);
    fold in when the closing-summary protocol lands.
-4. **Founder actions — NEEDS-STEVEN.md** (dashboard renders it): Mac
-   census re-scan (he said he'll run it now) · thalon COPY-ME creds note.
-5. **When Project 1 / Project 2 land on boxes:** same tenant pack via
-   tenant-credential.sh — slugs are runtime args, so guarded names never
-   enter tracked files; keep Dokploy project names neutral anyway.
-6. Unchanged queue: Renovate PR #4 · traefik 3.7.7 post-cutover ·
-   healthchecks→Telegram · ntfy retirement audit · Dokploy notifications
-   post-cutover · port-map call · Gmail MCP re-auth (founder, when receipt
-   lookups become useful).
+4. **Founder actions — NEEDS-STEVEN.md** (dashboard renders it): Dokploy
+   bookmark → deploy.swordfish.cfd · subscriptions.yml FILL fields (Claude
+   card; GitHub next_charge + card) · Mac census re-scan · thalon COPY-ME
+   creds note · Gmail MCP re-auth.
+5. **When Project 1 / Project 2 land on boxes:** tenant pack via
+   `tenant-credential.sh` (defaults now point at `deploy.`) — slugs are
+   runtime args, guarded names never enter tracked files.
+6. Unchanged queue: Renovate PR #4 · healthchecks→Telegram · ntfy
+   retirement audit · port-map call.
 
 ## Protocol notes
 
@@ -123,6 +98,8 @@ live, drive cleared to retire, morning briefing resumed.)_
   200 silently on wrong ids (Dokploy assignPermissions).
 - **inventory/secrets values may carry stray whitespace/CR** (laptop sync):
   consume with `tr -d '[:space:]'` — a leading space 400s the Telegram API.
+- Dashboard regen needs `sudo -n systemctl start swordfish-dashboard-regen`
+  (deploy user, non-interactive; bare systemctl start asks for auth).
 - Dokploy quirk ledger: `runbooks/dogfood.md`.
 
 ## Standing
@@ -131,8 +108,8 @@ live, drive cleared to retire, morning briefing resumed.)_
 AGENTS.md edits break the CLAUDE.md hardlink — recreate + hash-verify ·
 cockpit-class boxes use `cockpit-smoke` · do NOT re-dispatch
 backups-apply/restore-drill vs syd1 (frozen; it lacks hook 30 by design) ·
-alerts bot is SEND-ONLY and separate from the Hermes bot (and now also the
-relay's outbound voice) · Hermes config edits ONLY via `hermes config set` ·
+alerts bot is SEND-ONLY and separate from the Hermes bot (and the relay's
+outbound voice) · Hermes config edits ONLY via `hermes config set` ·
 `hermes cron list` HIDES paused jobs — read `jobs.json` · pre-stage founder
 actions · the vault is **walter** (writable, as a guest) · maintain
 NEEDS-STEVEN.md at every wrap.
@@ -140,12 +117,11 @@ NEEDS-STEVEN.md at every wrap.
 ## Constraints in force
 
 No local Docker (CI + VPS only) · 443 reliable channel · zero guarded tokens
-(A/B) in tracked files · backups-before-workloads satisfied syd2/3/4 (thalon
-chain included) · cutover + instance-destroy are founder gates · thalon.org
+(A/B) in tracked files · backups-before-workloads satisfied syd2/3/4 ·
+**syd1 destroy is a founder gate at soak end (≈2026-07-16)** · thalon.org
 unwired until launch call (staging-assert retires/rewrites at launch) ·
-rehearsal-pass confirmed 2026-07-13 (ops queue open; cutover moment still a
-founder gate) · Hermes never gets spend keys / provisioning authority ·
-syd2's inbound 22 answers CI only · founder is the sole author.
+Hermes never gets spend keys / provisioning authority · syd2's inbound 22
+answers CI only · founder is the sole author.
 
 _All work committed and pushed at wrap — safe to clear; this file + agent
 memory (syd4, restic-backed nightly) carry the full state._
