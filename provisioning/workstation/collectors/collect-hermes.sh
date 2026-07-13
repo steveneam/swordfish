@@ -80,9 +80,18 @@ PY
   ) || out='{}'
   [ -n "$out" ] || out='{}'
 
+  # E1 relay attribution: newest ledger row per project (ledger is written
+  # box-locally by swordfish-relay.sh + relay-stop-hook.sh)
+  local relay='[]'
+  if [ -f "$DATA_DIR/relay-ledger.jsonl" ]; then
+    relay=$(tail -n 200 "$DATA_DIR/relay-ledger.jsonl" 2>/dev/null \
+      | jq -cs '[group_by(.project)[] | max_by(.ts)]' 2>/dev/null) || relay='[]'
+  fi
+
   jq -n --argjson t "$(date +%s)" --arg svc "$svc" --argjson d "$out" \
-    '{generated_at: $t, service: $svc,
-      note: "single-channel E0 bot; per-project threads land at E1"} + $d' \
+        --argjson relay "$relay" \
+    '{generated_at: $t, service: $svc, relay: $relay,
+      note: "founder topics relay to project sessions (E1); @mention = hermes itself"} + $d' \
     | emit hermes
 
   # one-time brand asset for the card (founder ask 2026-07-13: the hermes

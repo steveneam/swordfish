@@ -137,17 +137,21 @@ LIVE with the founder** · next session = START THALON on the VPS.)_
    them): correct `subscriptions.yml` once · rehearsal-pass confirmation
    (un-parks the ops queue) · delete the drive's 9 loose .txt ("later" per
    founder) · census re-scan on the Mac (`mac-census.sh`).
-3. **E1 relay BUILD** — the design is FINISHED and VALIDATED end-to-end
-   live with the founder this session (his unmentioned message in the
-   Swordfish forum topic → observed row in syd3 state.db → pulled by syd4 →
-   injected into a live agent session → reply back into the topic).
-   Everything is in `agent_handoff/hermes-e1-relay-design-2026-07-13.md`:
-   locked decisions, seam table all-green, 7-step build list. Group
-   `-1004431865496`, swordfish topic thread `2`, observe-mode already wired
-   (`provisioning/hermes/e1-observe-mode.sh`, idempotent). Build order vs
-   Thalon + two small decisions are queued in NEEDS-STEVEN. The
-   `~/e1-rehearsal` dir + its transcript stay as the build's test target
-   (tmux session killed at wrap).
+3. **E1 relay — BUILT AND RUNNING (founder go same evening, right after
+   thalon staging):** `provisioning/workstation/relay/` = poller daemon
+   (`swordfish-relay.service`, 5 s cadence, watermark at
+   `~/.local/state/swordfish-relay/`, sender-id + non-empty checks, `!status
+   !stop !kill` consumed poller-side, unmapped-topic notice), Stop hook
+   (user-level `~/.claude/settings.json`, marker files in
+   `~/.claude/relay-pending/`, replies only for relay-initiated turns),
+   idempotent `setup-relay.sh` (re-run prints converged). Map (UNTRACKED
+   `inventory/secrets/relay-map`): General 1 + swordfish 2 → swordfish,
+   thalon 18 → thalon (topic created by the bot itself). AGENTS.md rule 10
+   = the provenance prefix (hardlink recreated + hash-verified). Dashboard
+   hermes card now shows "last relay per project" from
+   `~/dashboard/data/relay-ledger.jsonl`. **Founder E2E test queued in
+   NEEDS-STEVEN** (!status in Swordfish topic + plain message in thalon
+   topic); `~/e1-rehearsal` dir is deleted once that passes.
 4. **On rehearsal-pass confirmation → the rest of the parked ops queue:**
    cutover step-card → verify-deadman → soak/syd1.
    E1 got a third founder refinement this session: per-project message

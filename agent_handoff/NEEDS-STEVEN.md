@@ -11,4 +11,4 @@
 - [2026-07-13] Drive: the 9 loose .txt resume prompts are consolidated into each project's handoff — you are cleared to delete them from the drive.
 - [2026-07-13] Census re-scan on the Mac (`mac-census.sh`) at the end of the cockpit-build session — the final nothing-left-behind check before the drive retires.
 - [2026-07-13] Hermes has TERMINAL access on syd3 (it ran nslookup when you posted "ping-e1") — E0 posture said terminal disabled. Say "disable it" or "leave it" (E1 plan = manual approvals + deny rules).
-- [2026-07-13] E1 build decisions (design validated live, see hermes-e1-relay-design-2026-07-13.md): pre-create topics for every project now or add as they wake? · poll cadence (default 5 s) · OK to build E1 right after Thalon starts?
+- [2026-07-13] E1 relay E2E test (the build is LIVE): post `!status` in the Swordfish topic, then a plain message in the new **thalon** topic — the thalon agent's reply should come back into that topic. Kill switch if ever needed: `!kill` in the topic; poller backstop: `sudo systemctl stop swordfish-relay`.

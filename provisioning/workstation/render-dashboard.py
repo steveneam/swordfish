@@ -358,6 +358,16 @@ def hermes_html(h):
                      "<th>last run</th><th>next run</th></tr>" + "".join(rows) + "</table>"
                      '<p class="dim">read from cron/jobs.json — `hermes cron list` hides paused jobs</p>')
 
+    relay = h.get("relay") or []
+    if relay:
+        lines = "".join(
+            f'<li><b>{esc(r.get("project", "?"))}</b> '
+            f'<span class="tag">{esc(r.get("dir", "?"))}</span>'
+            f'{esc(r.get("head", ""))} '
+            f'<span class="when">{rel(r.get("ts"))}</span></li>'
+            for r in sorted(relay, key=lambda r: -(r.get("ts") or 0)))
+        parts.append(f"<h3>last relay per project</h3><ul class='needs'>{lines}</ul>")
+
     for key, label in (("last_in", "founder → hermes"), ("last_out", "hermes → founder")):
         m = h.get(key)
         if m:
