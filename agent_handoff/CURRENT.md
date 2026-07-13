@@ -15,9 +15,10 @@
 > founder decision below). If the box state and this file disagree, the box
 > wins — say so, then fix the file.
 
-_Stamped: 2026-07-13 22:25 +10:00 (rehearsal-pass CONFIRMED by founder — ops
-queue UN-PARKED; hermes telegram tool hole found and closed; alerts voice
-live.)_
+_Stamped: 2026-07-13 22:55 +10:00 (founder directive at wrap: **the cutover
+is next session's work** — on `gogogo`, start the step-card. Today also:
+rehearsal-pass confirmed, hermes telegram tool hole closed, alerts voice
+live, drive cleared to retire, morning briefing resumed.)_
 
 ## State
 
@@ -83,7 +84,8 @@ live.)_
 
 ## Next
 
-1. **THE OPS QUEUE (un-parked): cutover step-card → verify-deadman →
+1. **THE CUTOVER — founder-directed for THIS session ("lets do the
+   cutover next session", 2026-07-13 22:55): step-card → verify-deadman →
    soak/syd1.** Build the step-card + deadman first; the cutover MOMENT is
    a founder gate (present the card, wait for go). At cutover ALSO:
    re-point `*2` hostnames, retire syd1 from the dashboard
