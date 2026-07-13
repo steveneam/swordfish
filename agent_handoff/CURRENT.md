@@ -112,11 +112,27 @@ LIVE with the founder** · next session = START THALON on the VPS.)_
    tag+digest · THALON_DATA_DIR · export-hook spec · env list). Swordfish
    side done tonight: Dokploy project `thalon` created on syd2
    (`deploy2.swordfish.cfd`, id `A1iRiXnllMDxFAUmj1_DV`) + GHCR pull token
-   verified (http 200). **Swordfish next, on the ask-backs:** scoped
-   credential → neutral staging hostname on swordfish.cfd (BasicAuth +
-   noindex, A → 103.249.236.41) → persistent volume into the restic set →
-   Kuma watch → hand the pack to the thalon agent. thalon.org stays
-   unwired — founder launch gate. Ref: thalon-wiring-brief-2026-07-08.
+   verified (http 200). **THEN THE APP WENT LIVE the same evening** — the
+   thalon agent's ask-backs (`~/work/thalon/agent_handoff/
+   ASK-BACKS-FOR-SWORDFISH.md`) were verified (image manifest resolved in
+   GHCR by tag AND digest) and the staging pack was built + verified
+   end-to-end: **https://preview.swordfish.cfd** (Porkbun A → syd2, LE cert
+   issued) serving the pinned image `thalon-web:6408afc…@sha256:319b3…`,
+   edge chain = swordfish-ratelimit → X-Robots-Tag noindex → BasicAuth
+   (anon 401 / authed 200), volume `thalon-data` at `/data`,
+   WORKSPACE_BASIC_AUTH + DB_DUMP_TOKEN set, `/api/health` = ok. Dokploy
+   ids: app `jh_UI2lErDwykJG6FcFBD`, registry `9yhax5WoQH6sAcmxT4U7H`,
+   domain `S4WqKpM4wPTOFdSoTRk0Q`. Preview creds: founder copy in
+   `~/COPY-ME.txt`, thalon copy in its gitignored
+   `.context/staging-secrets-from-swordfish.md`. **Pack remainder (next
+   block):** scoped per-project Dokploy credential → restic wiring (volume
+   into syd2 backup set, `pg/**` excluded, pre-backup.d POST
+   /api/admin/db-dump with 200-gate BEFORE the 15:00 UTC snapshot) → Kuma
+   watch on the preview host (401 = liveness). Dokploy API traps learned:
+   saveEnvironment requires buildArgs+buildSecrets+createEnvFile;
+   registry.create requires imagePrefix; saveDockerProvider takes inline
+   username/password, not registryId. thalon.org stays unwired — founder
+   launch gate. Ref: thalon-wiring-brief-2026-07-08.
 2. **Founder actions, all queued in NEEDS-STEVEN.md** (the dashboard shows
    them): correct `subscriptions.yml` once · rehearsal-pass confirmation
    (un-parks the ops queue) · delete the drive's 9 loose .txt ("later" per
