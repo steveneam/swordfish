@@ -29,6 +29,11 @@ BOX=deploy@syd4.swordfish.cfd
 
 PROJECTS=$(ssh -n "$BOX" 'ls "$HOME/work"') || { echo "cannot reach the box"; exit 1; }
 ssh -n "$BOX" 'mkdir -p "$HOME/migration/incoming/drive-notes"'
+# folders the box agent already placed into project staging get skipped, so a
+# re-run (e.g. for the .txt tail) never re-uploads gigabytes into incoming/ as
+# duplicates. The list lives box-side (incoming/.placed) - this file stays
+# name-free (anonymity guard).
+PLACED=$(ssh -n "$BOX" 'cat "$HOME/migration/incoming/.placed" 2>/dev/null') || PLACED=""
 
 staged=0
 for vol in /Volumes/*/; do
@@ -39,6 +44,7 @@ for vol in /Volumes/*/; do
   for p in $PROJECTS; do
     src="$vol/$p-data"
     [ -d "$src" ] || continue
+    case "$PLACED" in *"$(basename "$src")"*) echo "== $(basename "$src") already placed on the box - skipping"; continue ;; esac
     echo "== $(basename "$src")  =>  box (big - progress below, safe to re-run)"
     rsync -aP --exclude .git --exclude node_modules "$src" "$BOX:migration/incoming/" && staged=1
   done
@@ -47,6 +53,7 @@ for vol in /Volumes/*/; do
   for name in "Data" "Website Design General"; do
     src="$vol/$name"
     [ -d "$src" ] || continue
+    case "$PLACED" in *"$name"*) echo "== $name already placed on the box - skipping"; continue ;; esac
     echo "== $name  =>  box"
     rsync -aP --exclude .git --exclude node_modules "$src" "$BOX:migration/incoming/" && staged=1
   done
