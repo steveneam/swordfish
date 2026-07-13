@@ -69,33 +69,48 @@ is in 72 h soak as the untouched rollback target.)_
    `deploy2` temp A-record note in `inventory/boxes.md`, then **present the
    syd1 destroy-vs-warm-fallback gate** (founder decision; at destroy also
    retire syd1's healthchecks check, UptimeRobot monitors, B2 bucket).
-2. **Postgres tenant-DB service on syd2 (founder call 2026-07-13, zero new
+2. **⛔ SPEND GATE, queued for the founder: resize syd2 → std-6vcpu**
+   (16 GB / 6 vCPU / 180 GB, AUD 78.40 = +AUD 39.20/mo). It PAYS FOR ITSELF:
+   Project 1 is on Render Standard + ~60 GB persistent disk ≈ US$40/mo;
+   moving its ~41 GB of bio assets + compute to the box and cancelling
+   Render nets **≈ US$14/mo cheaper** with 2× RAM/CPU. On "resize go":
+   BinaryLane in-place resize (brief reboot, grow-only disk) → re-run
+   `hardening-smoke` → then the asset landing zone.
+   **KEY FINDING (do not lose this):** the Render disk is a materialized
+   CACHE, not the source of truth — Project 1's own progress log records the
+   sha256-verified seed (ready 7/7, ≈40.8 GB) from their private Supabase
+   source-asset bucket (~38 GB); the corpora are public reference datasets
+   (dbSNP/ClinVar/phyloP/RepeatMasker/ClinGen). **Nothing is stranded by
+   cancelling Render**, and the re-seed IS the restore path — so the asset
+   tree gets an explicit, tested restic EXCLUSION rather than 40 GB of
+   nightly waste. Separation of duties holds: we resize + prepare + back
+   up + hand off; **Project 1's agent runs the materialization**; Render is
+   cancelled only after their checksums verify green on the box.
+   Full analysis: `research/capacity-and-data-plan-2026-07-13.md`.
+3. **Postgres tenant-DB service on syd2 (founder call 2026-07-13, zero new
    spend):** Postgres 17 via Dokploy on the EXISTING box — per-tenant
    databases + roles for Thalon and Project 2 (RLS is native; slugs stay
    runtime args), pg_dump→restic chain + restore drill BEFORE any tenant
-   data (invariant), credentials via `tenant-credential.sh` pattern. Full
-   context + sizing ladder: `research/capacity-and-data-plan-2026-07-13.md`
-   (Project 1's DB stays on managed Supabase; resize gates activate at
-   launch/traffic, not before).
-3. **Post-cutover unblocked queue, now open:** syd3+syd4 Kuma push dead-man
+   data (invariant), credentials via `tenant-credential.sh` pattern.
+   Project 1's clinical DB stays on managed Supabase (keep-managed invariant).
+4. **Post-cutover unblocked queue, now open:** syd3+syd4 Kuma push dead-man
    legs (were "post-cutover follow-up" in boxes.md) · traefik 3.7.7 bump ·
    Dokploy notifications · morning-noise consolidation (fold kuma/ntfy/
    healthchecks pings into the 07:30 slot; grow briefing to real metrics —
    prompt already written, see `provisioning/hermes/README.md`).
-4. **Wrap-protocol closing summaries should ride `relay-send.sh`, not
+5. **Wrap-protocol closing summaries should ride `relay-send.sh`, not
    `hermes send`** (reply-bait argument — noted in the relay design doc);
    fold in when the closing-summary protocol lands.
-5. **Founder actions — NEEDS-STEVEN.md** (dashboard renders it): Dokploy
+6. **Founder actions — NEEDS-STEVEN.md** (dashboard renders it): Dokploy
    bookmark → deploy.swordfish.cfd · subscriptions.yml FILL fields (Claude
    card; GitHub next_charge + card) · Mac census re-scan · thalon COPY-ME
    creds note · Gmail MCP re-auth.
-6. **When Project 1 / Project 2 land on boxes:** tenant pack via
+7. **When Project 1 / Project 2 land on boxes:** tenant pack via
    `tenant-credential.sh` (defaults now point at `deploy.`) — slugs are
    runtime args, guarded names never enter tracked files; Project 2's
-   database rides the Next-2 Postgres service.
-7. Unchanged queue: Renovate PR #4 · healthchecks→Telegram · ntfy
-   retirement audit · port-map call · Render-disk access-pattern check
-   (deferred with Project 1's agent — B2+CDN vs box NVMe).
+   database rides the Next-3 Postgres service.
+8. Unchanged queue: Renovate PR #4 · healthchecks→Telegram · ntfy
+   retirement audit · port-map call.
 
 ## Protocol notes
 

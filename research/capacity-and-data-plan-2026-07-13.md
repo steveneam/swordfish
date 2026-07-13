@@ -118,12 +118,73 @@ and pre-approved in principle for moving. Two very different destinations:
    real tenant data (invariant).
 3. Render-disk access pattern: founder doesn't recall — **deferred**; decide
    B2+CDN vs box NVMe when Project 1's agent can check how the app reads it.
-4. Growth: pre-launch, no traffic — the driver is **cost reduction, not
-   capacity**. So: NO resize now, no data box now; the sizing options below
-   activate at launch/traffic, not before.
+   **SUPERSEDED same evening** — investigated below: the app reads them off
+   the filesystem (absolute runtime asset paths under the disk mount, set in
+   their `render.yaml`), so box NVMe it is; B2+CDN does not apply.
+4. Growth: pre-launch, no traffic — but **the driver is cost reduction, and
+   the Render bill is live**, so the resize is justified by SAVINGS, not
+   capacity (see the Render section: net −US$14/mo).
 5. Clarified in chat: the US$78 / US$104 figures are **all-in monthly cash
    totals for the whole fleet** (every box we pay cash for, disk bundled) —
-   current total is ~US$52; nothing needs buying today.
+   current total is ~US$52. Option A (resize to 16 GB/180 GB → ~US$78) is
+   now RECOMMENDED because cancelling Render (−US$40) more than covers it.
+
+## Project 1's Render disk — INVESTIGATED 2026-07-13 (founder: "look at the
+## project 1 folder and see which one it is")
+
+**Which one:** Render **persistent disk** (there is no "disk instance" in
+Render's product line), mounted at a fixed path and holding the project's
+bio-reference asset tree. Compute is the **Render Standard plan (2 GB / 1 CPU
+≈ US$25/mo)**; the disk adds **US$0.25/GB/mo** (~60 GB ≈ US$15/mo) →
+**≈ US$40/mo total** to cancel.
+
+**⚠️ The load-bearing finding: the Render disk is a CACHE, not the source of
+truth — cancelling Render loses NOTHING.**
+
+- The disk was *seeded*, not authored: Project 1's own progress log
+  (2026-06-21) records the seed via their admin materialization endpoint —
+  **ready 7/7, 0 failed, all sha256 verified**, ≈40.8 GB: dbsnp 29.55 GB
+  (+tbi), phylop 9.87 GB, repeatmasker 701 MB, clingen 528 MB, clinvar
+  vcf+tbi.
+- The **source of truth is their private Supabase Storage source-asset
+  bucket (~38 GB)** — and the underlying corpora (dbSNP, ClinVar, phyloP,
+  RepeatMasker, ClinGen) are **public reference datasets**, re-downloadable
+  from NCBI/UCSC in the worst case. The derived artifacts (repeatmasker
+  compact index, clingen sqlite) are generated + manifested.
+- So there is **no rescue deadline**: the same proven, checksum-verifying
+  materialization run that seeded Render re-seeds a box disk. Cancel Render
+  whenever; nothing is stranded.
+- **Charter check: this data MAY move.** These are public reference assets,
+  NOT the compliance-bound clinical data plane (that's their Supabase
+  Postgres + auth, which stays managed). Moving reference assets + app
+  compute off a mispriced disk is exactly what the charter blesses.
+
+**Sizing: ~40.8 GB of assets (growing — hg38.2bit / Protein View queued).**
+syd2 today is 100 GB with ~85 GB free, so the assets *technically* fit at
+zero spend — but that leaves ~44 GB for Postgres + Docker churn + thalon +
+asset growth, which is a squeeze with no room to be wrong.
+
+**Recommendation (the Render money funds it):**
+**resize syd2 → std-6vcpu (16 GB / 6 vCPU / 180 GB NVMe, AUD 78.40/mo).**
+
+| | monthly |
+|---|---|
+| cancel Render (Standard 2 GB + ~60 GB disk) | **−US$40** |
+| resize syd2 (std-4vcpu → std-6vcpu, +AUD 39.20) | **+US$26** |
+| **net** | **≈ −US$14/mo — cheaper than today, with 2× RAM/CPU and 180 GB** |
+
+Fleet cash after: ≈ US$78/mo, and it absorbs the assets, the tenant
+Postgres, thalon's offload and Project 1's compute with real headroom.
+Supabase Storage keeps the ~38 GB source (~US$0.80/mo) as the durable
+origin; **exclude `bio_assets/` from restic** — backing up 40 GB of
+reproducible public data nightly is waste, the re-seed IS the restore path
+(record that as an explicit, tested exception, not an omission).
+
+**Sequencing (separation of duties):** Swordfish resizes the box, prepares
++ mounts the asset path, sets backup exclusions, and hands off connection
+details. **Project 1's agent runs the materialization + app cutover** — we
+do not reach into their codebase. Render is cancelled only after their
+re-seed verifies sha256-green on the box.
 
 ## Founder questions (answered above — kept for the record)
 
