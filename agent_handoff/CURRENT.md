@@ -91,6 +91,39 @@ is in 72 h soak as the untouched rollback target.)_
   cold start is a FRESH session (not `--continue`) — which is precisely what
   the `gogogo` + CURRENT.md convention exists for.
 
+## Cross-project: `gogogo` BOOT blocks placed (founder-directed, 2026-07-13)
+
+So a **relay-cold-started** session resumes with no chat history, every project's
+handoff file now opens with a BOOT block (read this file + protocol + memory +
+git log → state the next action → START it, don't ask):
+
+| project | handoff file | state |
+|---|---|---|
+| swordfish | `agent_handoff/CURRENT.md` | had it (rule 11) |
+| thalon | `agent_handoff/CURRENT.md` | already had it — *"gogogo boots this too"*; left alone (on a feature branch) |
+| Project 1 | `agent_handoff/CURRENT.md` | **added + committed, NOT pushed** (explicit pathspec; their 3 WIP files untouched) |
+| Project 2 | `agent_handoff/CURRENT.md` | **added + committed, NOT pushed** (same; their no-author-sign-off rule respected) |
+| walter (vault) | **`SESSION.md`** (not `CURRENT.md` — founder corrected me) | **added, UNCOMMITTED** — guest rules: dated + attributed, and never push the vault without go-ahead; its own agent commits per its rule 17. Block repeats the standing no-network constraint: **`gogogo` is NOT a network go-ahead.** |
+
+Each project's auto-loaded `CLAUDE.md` already points at its handoff file as the
+live-state home, so the BOOT block is reachable without editing their operating
+protocols (deliberately not touched — that's their agents' territory).
+
+**Still open for the full phone-only flow:** a new Telegram topic must be bound
+to a project in the UNTRACKED `inventory/secrets/relay-map` (thread_id → dir).
+Unmapped topics get a polite in-topic reply ("not mapped — add it to relay-map on
+syd4"), so it fails safe, but the founder currently cannot self-serve. **Proposed
+(not built, awaiting go): a `!map <project>` relay command** — he creates the
+topic, types `!map thalon` once, the relay writes its own mapping. The relay
+already consumes `!status` / `!stop` / `!kill`, so it is a small addition. Not
+touched mid-conversation because the relay IS the founder's comms channel.
+
+**Observed in Project 1's repo (their call, not ours):** `core.hooksPath` is set
+to `scripts/hooks` but its `pre-commit` is **not executable** — the hook silently
+never runs. Same class of failure as our guard incident (a safety net that looks
+armed but isn't). Flagged, deliberately NOT fixed — activating another team's hook
+unannounced could block their commits.
+
 ## Next
 
 1. **Soak watch until ≈2026-07-16 23:00 AEST** (72 h from cutover): monitors
