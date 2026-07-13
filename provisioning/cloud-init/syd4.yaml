@@ -12,8 +12,9 @@
 # - code-server (VS Code in the browser) binds 127.0.0.1:8080 with --auth none:
 #   the SSH tunnel IS the authentication (ssh -L 8080:localhost:8080). Never
 #   open 8080/443 for it; assert-cockpit.sh checks the bind stays localhost.
-#   npm-installed (registry integrity), same trust path as claude-code.
-# - Codex CLI installed alongside Claude Code (founder uses both harnesses).
+# - Codex CLI installed alongside Claude Code (founder uses both harnesses);
+#   claude-code is the NATIVE user-space build under ~deploy/.local - a root
+#   npm -g install can never self-update as deploy (2026-07-13).
 # - BinaryLane image quirks (learned on syd2): ships NO swapfile (converge
 #   guard below creates 2G) and a local timezone (pinned Etc/UTC here).
 # - Same two authorized keys as the fleet: swordfish-ops + swordfish-ci.
@@ -152,8 +153,20 @@ write_files:
   - path: /etc/profile.d/swordfish-qol.sh
     permissions: "0644"
     content: |
-      # swordfish cockpit quality-of-life (lockstep with provisioning/cloud-init/*.yaml)
-      alias work='tmux new -A -s main'
+      # swordfish fleet quality-of-life. CANONICAL: provisioning/host/setup-qol.sh
+      # (cloud-init carries a lockstep copy for first boot). Non-login shells get
+      # this file via the /etc/bash.bashrc hook the same script installs.
+      # self-updating user-space tools (claude native build) live in ~/.local/bin
+      case ":$PATH:" in
+        *":$HOME/.local/bin:"*) ;;
+        *) [ -d "$HOME/.local/bin" ] && PATH="$HOME/.local/bin:$PATH" ;;
+      esac
+      # protocol: sessions launch inside the swordfish repo (the memory slug
+      # attaches to the launch dir - a $HOME launch comes up empty)
+      work() {
+        local d="$HOME/work/swordfish"; [ -d "$d" ] || d="$HOME"
+        tmux new -A -s main -c "$d"
+      }
       qr() { qrencode -t ANSIUTF8 "$1"; }
       alias snapshots='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" snapshots'
       alias backup-now='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" backup'
@@ -215,6 +228,17 @@ runcmd:
   # --- locales the founder's Mac sends over SSH (kills setlocale warning noise) ---
   - locale-gen en_AU.UTF-8 en_US.UTF-8
 
+  # --- QoL for NON-login shells: profile.d only reaches login shells, and
+  #     code-server integrated terminals are non-login (lesson 2026-07-13).
+  #     Lockstep with provisioning/host/setup-qol.sh (the canonical converge). ---
+  - |
+    grep -qF '/etc/profile.d/swordfish-qol.sh' /etc/bash.bashrc || cat >> /etc/bash.bashrc <<'EOF'
+
+    # swordfish: profile.d only reaches login shells; code-server terminals are
+    # interactive non-login (2026-07-13). QoL stays in one file, hooked in here.
+    [ -f /etc/profile.d/swordfish-qol.sh ] && . /etc/profile.d/swordfish-qol.sh
+    EOF
+
   # --- swapfile: BinaryLane images ship NONE (syd2 datapoint) - converge guard ---
   - swapon --show=NAME --noheadings | grep -qx /swapfile || { fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none; chmod 600 /swapfile; mkswap /swapfile; swapon /swapfile; }
   - grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
@@ -233,7 +257,16 @@ runcmd:
   - bash /tmp/nodesource.sh
   - apt-get update
   - DEBIAN_FRONTEND=noninteractive apt-get install -y gh nodejs
-  - npm install -g @anthropic-ai/claude-code @openai/codex
+  - npm install -g @openai/codex
+
+  # --- claude-code: native user-space build (download-then-execute, same
+  #     rationale as the NodeSource fetch above). Root npm -g broke self-update
+  #     forever ("no write permission to npm prefix", founder-hit 2026-07-13).
+  #     The /usr/local/bin symlink keeps non-interactive SSH contexts
+  #     (assert-cockpit `command -v claude`) working without PATH games. ---
+  - curl -fsSL --retry 5 --retry-all-errors -o /tmp/claude-install.sh https://claude.ai/install.sh
+  - sudo -u deploy -H bash /tmp/claude-install.sh
+  - ln -sf /home/deploy/.local/bin/claude /usr/local/bin/claude
 
   # --- code-server via the official pinned .deb (sha256-verified, phase7
   #     pattern): the npm build needs --unsafe-perm and a postinstall compile -

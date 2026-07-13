@@ -27,6 +27,24 @@ install_if_changed() { # $1=mode $2=dest, content on stdin
   rm -f "$tmp"
 }
 
+# --- fail2ban -> journald (FIRST block: the restart below keys off $changed
+#     still being 0). The digest counts bans with journalctl, but Ubuntu's
+#     default logtarget is /var/log/fail2ban.log - the journal never sees
+#     ' Ban ' lines, so every digest said "0 fail2ban bans" while fail2ban had
+#     really banned (57 lifetime bans on syd4 when found, 2026-07-13). -------
+if command -v fail2ban-client >/dev/null 2>&1; then
+  install_if_changed 0644 /etc/fail2ban/fail2ban.local <<'F2B'
+# swordfish (setup-login-alerts.sh): log to journald so the daily digest can
+# count bans the same way it counts sshd failures. The file default keeps
+# bans invisible to journalctl.
+[Definition]
+logtarget = SYSTEMD-JOURNAL
+F2B
+  if [ "$changed" -eq 1 ]; then
+    sudo systemctl restart fail2ban
+  fi
+fi
+
 # --- the pam_exec hook -------------------------------------------------------
 install_if_changed 0755 /usr/local/bin/swordfish-pam-notify.sh <<'HOOK'
 #!/usr/bin/env bash
@@ -140,6 +158,11 @@ fi
 sudo grep -qF "$PAMLINE" /etc/pam.d/sshd || { echo "FAIL: pam line missing"; exit 1; }
 [ -x /usr/local/bin/swordfish-pam-notify.sh ] || { echo "FAIL: hook missing"; exit 1; }
 systemctl is-active --quiet swordfish-auth-digest.timer || { echo "FAIL: digest timer inactive"; exit 1; }
+if command -v fail2ban-client >/dev/null 2>&1; then
+  systemctl is-active --quiet fail2ban || { echo "FAIL: fail2ban inactive after logtarget change"; exit 1; }
+  sudo fail2ban-client get logtarget | grep -q 'SYSTEMD-JOURNAL' \
+    || { echo "FAIL: fail2ban logtarget is not journald - digest ban count stays 0"; exit 1; }
+fi
 
 if [ "$changed" -eq 0 ]; then
   echo "== converged: no changes"

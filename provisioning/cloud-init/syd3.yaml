@@ -129,13 +129,26 @@ write_files:
       [sshd]
       enabled = true
 
-  # quality-of-life (applied live to syd3+syd4 2026-07-10 - keep in lockstep):
-  # one-word workspace, QR helper for phone-OAuth, backup one-liners
+  # quality-of-life: one-word workspace, QR helper for phone-OAuth, backup
+  # one-liners. Lockstep with provisioning/host/setup-qol.sh (the canonical
+  # converge - live boxes get updates via the qol-apply workflow)
   - path: /etc/profile.d/swordfish-qol.sh
     permissions: "0644"
     content: |
-      # swordfish cockpit quality-of-life (lockstep with provisioning/cloud-init/*.yaml)
-      alias work='tmux new -A -s main'
+      # swordfish fleet quality-of-life. CANONICAL: provisioning/host/setup-qol.sh
+      # (cloud-init carries a lockstep copy for first boot). Non-login shells get
+      # this file via the /etc/bash.bashrc hook the same script installs.
+      # self-updating user-space tools (claude native build) live in ~/.local/bin
+      case ":$PATH:" in
+        *":$HOME/.local/bin:"*) ;;
+        *) [ -d "$HOME/.local/bin" ] && PATH="$HOME/.local/bin:$PATH" ;;
+      esac
+      # protocol: sessions launch inside the swordfish repo (the memory slug
+      # attaches to the launch dir - a $HOME launch comes up empty)
+      work() {
+        local d="$HOME/work/swordfish"; [ -d "$d" ] || d="$HOME"
+        tmux new -A -s main -c "$d"
+      }
       qr() { qrencode -t ANSIUTF8 "$1"; }
       alias snapshots='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" snapshots'
       alias backup-now='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" backup'
@@ -201,6 +214,17 @@ runcmd:
   # --- locales the founder's Mac sends over SSH (kills setlocale warning noise) ---
   - locale-gen en_AU.UTF-8 en_US.UTF-8
 
+  # --- QoL for NON-login shells: profile.d only reaches login shells, and
+  #     code-server integrated terminals are non-login (lesson 2026-07-13).
+  #     Lockstep with provisioning/host/setup-qol.sh (the canonical converge). ---
+  - |
+    grep -qF '/etc/profile.d/swordfish-qol.sh' /etc/bash.bashrc || cat >> /etc/bash.bashrc <<'EOF'
+
+    # swordfish: profile.d only reaches login shells; code-server terminals are
+    # interactive non-login (2026-07-13). QoL stays in one file, hooked in here.
+    [ -f /etc/profile.d/swordfish-qol.sh ] && . /etc/profile.d/swordfish-qol.sh
+    EOF
+
   # --- swapfile (converge, don't duplicate: Vultr's 24.04 image shipped an
   #     active 6.2G /swapfile on syd1) ---
   - swapon --show=NAME --noheadings | grep -qx /swapfile || { fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none; chmod 600 /swapfile; mkswap /swapfile; swapon /swapfile; }
@@ -215,7 +239,14 @@ runcmd:
   - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   - apt-get update
   - DEBIAN_FRONTEND=noninteractive apt-get install -y gh nodejs
-  - npm install -g @anthropic-ai/claude-code
+
+  # --- claude-code: native user-space build - root npm -g broke self-update
+  #     forever ("no write permission to npm prefix", founder-hit 2026-07-13).
+  #     The /usr/local/bin symlink keeps non-interactive SSH contexts
+  #     (assert-cockpit `command -v claude`) working without PATH games. ---
+  - curl -fsSL --retry 5 --retry-all-errors -o /tmp/claude-install.sh https://claude.ai/install.sh
+  - sudo -u deploy -H bash /tmp/claude-install.sh
+  - ln -sf /home/deploy/.local/bin/claude /usr/local/bin/claude
 
   # --- PowerShell 7: the repo's operational scripts (grep guard, DNS, box
   #     create/firewall) are .ps1 by design ("runs on pwsh 7+") - a cockpit

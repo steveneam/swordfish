@@ -55,6 +55,7 @@ packages:
   - unattended-upgrades
   - ca-certificates
   - curl
+  - tmux
 
 write_files:
   # key-only, no-root sshd. First-value-wins + lexical include order = this file
@@ -127,6 +128,31 @@ write_files:
       [sshd]
       enabled = true
 
+  # quality-of-life (fleet-wide since 2026-07-13): one-word workspace + backup
+  # one-liners for whoever lands here during incident response. Lockstep with
+  # provisioning/host/setup-qol.sh (the canonical converge - live boxes get
+  # updates via the qol-apply workflow)
+  - path: /etc/profile.d/swordfish-qol.sh
+    permissions: "0644"
+    content: |
+      # swordfish fleet quality-of-life. CANONICAL: provisioning/host/setup-qol.sh
+      # (cloud-init carries a lockstep copy for first boot). Non-login shells get
+      # this file via the /etc/bash.bashrc hook the same script installs.
+      # self-updating user-space tools (claude native build) live in ~/.local/bin
+      case ":$PATH:" in
+        *":$HOME/.local/bin:"*) ;;
+        *) [ -d "$HOME/.local/bin" ] && PATH="$HOME/.local/bin:$PATH" ;;
+      esac
+      # protocol: sessions launch inside the swordfish repo (the memory slug
+      # attaches to the launch dir - a $HOME launch comes up empty)
+      work() {
+        local d="$HOME/work/swordfish"; [ -d "$d" ] || d="$HOME"
+        tmux new -A -s main -c "$d"
+      }
+      qr() { qrencode -t ANSIUTF8 "$1"; }
+      alias snapshots='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" snapshots'
+      alias backup-now='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" backup'
+
 runcmd:
   # --- Docker + compose plugin, official apt repo (playbook Phase 3 prereq;
   #     installed now so the edge/control-plane converge lands on a ready
@@ -155,6 +181,17 @@ runcmd:
   # --- jail + patching services on ---
   - systemctl enable --now fail2ban
   - systemctl enable --now unattended-upgrades
+
+  # --- QoL for NON-login shells: profile.d only reaches login shells, and
+  #     code-server integrated terminals are non-login (lesson 2026-07-13).
+  #     Lockstep with provisioning/host/setup-qol.sh (the canonical converge). ---
+  - |
+    grep -qF '/etc/profile.d/swordfish-qol.sh' /etc/bash.bashrc || cat >> /etc/bash.bashrc <<'EOF'
+
+    # swordfish: profile.d only reaches login shells; code-server terminals are
+    # interactive non-login (2026-07-13). QoL stays in one file, hooked in here.
+    [ -f /etc/profile.d/swordfish-qol.sh ] && . /etc/profile.d/swordfish-qol.sh
+    EOF
 
   # --- Bucket-2 pre-steps: swapfile (mirror of phase2-host.sh). Converge, don't
   #     duplicate: creates 2G swap only if /swapfile is not already active
