@@ -15,9 +15,12 @@
 > decision below). If the box state and this file disagree, the box wins —
 > say so, then fix the file.
 
-_Stamped: 2026-07-13 23:05 +10:00 (**THE CUTOVER IS DONE** — executed this
+_Stamped: 2026-07-13 23:59 +10:00 (**THE CUTOVER IS DONE** — executed this
 session on the founder's relay-verified `cutover go`; syd2 is THE box; syd1
-is in 72 h soak as the untouched rollback target.)_
+is in 72 h soak as the untouched rollback target. Also this session: a guard
+breach was made AND fixed + ratcheted (see State) · portfolio-wide `gogogo`
+BOOT blocks placed · relay cold-start proven · **next session starts by
+building `!map`** — founder-directed.)_
 
 ## State
 
@@ -125,6 +128,27 @@ armed but isn't). Flagged, deliberately NOT fixed — activating another team's 
 unannounced could block their commits.
 
 ## Next
+
+0. **BUILD `!map <project>` — founder call 2026-07-13 ("more durable and
+   sustainable... build it next session"). Top of the queue.** Today, binding a
+   Telegram topic to a project means the AGENT hand-edits the untracked
+   `inventory/secrets/relay-map` — so the founder cannot onboard a project when
+   the agent is wedged. `!map` makes it self-serve in one short line.
+   Build it in `provisioning/workstation/relay/swordfish-relay.sh` beside the
+   existing `!status` / `!stop` / `!kill` handlers, with these constraints
+   (reasoned at the founder call — do not skip them):
+   - **Allowlist only.** Resolve `<project>` against a fixed set of known dirs
+     (`~/work/<slug>` + `~/vault`); never accept an arbitrary path from a
+     Telegram message. Sender is already founder-verified, but a typo must not
+     cold-start an agent in `/etc`.
+   - **Hot-reload the map.** `MAP_FILE` is currently `.`-sourced ONCE at startup,
+     so a map edit needs a relay restart today. `!map` must write the entry AND
+     re-source (or re-read per cycle) so the binding takes effect immediately.
+   - **Confirm in-topic** ("bound topic N → thalon") and ledger it, so a silent
+     write can't masquerade as success (delivery-green ≠ content-true).
+   - Idempotent: re-mapping an existing topic updates, never duplicates.
+   Then the full phone-only flow is: create topic → `!map <project>` → `gogogo`
+   → the relay cold-starts the agent and it resumes from its BOOT block.
 
 1. **Soak watch until ≈2026-07-16 23:00 AEST** (72 h from cutover): monitors
    stay green + ≥1 natural verify-deadman pass vs syd2 + morning briefings
