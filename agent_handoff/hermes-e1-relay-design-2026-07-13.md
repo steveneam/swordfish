@@ -179,3 +179,43 @@ deterministic even if the hook never fires at all.
 (The kill switch stopped being a decision: `!kill` in the topic, handled by
 the poller — decision 10. A poller-down backstop stays documented in
 NEEDS-STEVEN as the one-line systemctl stop.)
+
+## Finding-e resolution: the relay speaks with the alerts bot (2026-07-13 late, swordfish)
+
+The queued follow-up ("config-silence hermes's group dispatch via
+`allowed_chats`") is **refuted by the adapter source** (hermes-agent v0.18.2,
+which IS the latest upstream — PyPI checked):
+
+- Dispatch triggers in a group with `require_mention=true` are @mention,
+  `/cmd@bot`, and **reply-to-bot** — none has a config toggle
+  (`plugins/platforms/telegram/adapter.py`, `_should_process_message`).
+- Dropping the group from `TELEGRAM_ALLOWED_CHATS` silences dispatch but
+  ALSO kills observation: the observe allowlist is
+  `group_allowed_chats ∩ allowed_chats`
+  (`_telegram_observe_allowed_chats`), and state.db has **no pre-gate
+  inbox** — a message neither dispatched nor observed lands nowhere, so the
+  poller (which reads hermes's `messages` table) would never see it. That
+  trade re-creates the eaten-message bug finding (e) fixed.
+- The current env (GROUP_ALLOWED_CHATS + REQUIRE_MENTION +
+  OBSERVE_UNMENTIONED) is already the maximum silence config can buy.
+
+**The ratchet is identity, not config: `relay-send.sh`.** All relay outbound
+(Stop-hook replies, poller notices, `!cmd` responses, fallback sweep) now
+rides the send-only ALERTS bot via the Bot API. `_is_reply_to_bot` compares
+the replied-to author against *hermes's own bot id*, so a founder reply to
+any relayed message can no longer wake hermes — deterministically, with
+hermes's config untouched (its observe wiring stays exactly as decision 7
+set it). Alerts-bot messages are themselves invisible to hermes: the
+user-auth gate drops non-founder senders before observe/dispatch, so they
+pollute nothing. Hermes then has no messages of its own in mapped topics, and
+its residual group dispatch surface = an intentional @mention — which is
+addressing, not noise. Its assistant surface stays the DM.
+
+Until the founder adds `@Swordfish_alerts_bot` to the ops group (one tap,
+queued in NEEDS-STEVEN), the Bot API answers "chat not found" and
+relay-send falls back to `hermes send` with a loud stderr line — delivery
+never depends on the migration. Verified live 2026-07-13 ~21:45: fallback
+path exercised end-to-end (expected 400 → fallback logged → delivered to the
+Swordfish topic). Corollary kept for later: wrap-protocol closing summaries
+(decision 8) should call `relay-send.sh`, not `hermes send`, once that
+protocol lands — same reply-bait argument.

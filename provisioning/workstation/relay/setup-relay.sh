@@ -83,6 +83,10 @@ json.dump(s, open(tmp, "w"), indent=2)
 os.replace(tmp, p)
 PY
 
+# outbound voice: warn (not fail - relay-send falls back to hermes send)
+grep -q '^ALERTS_BOT_TOKEN=..*' "$HOME/work/swordfish/inventory/secrets/telegram.env" 2>/dev/null \
+  || echo "WARN: no ALERTS_BOT_TOKEN in inventory/secrets/telegram.env - relay speaks with the hermes bot (reply-bait; see relay-send.sh)"
+
 # --- verify ------------------------------------------------------------------
 sleep 2
 systemctl is-active --quiet swordfish-relay.service \

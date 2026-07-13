@@ -43,7 +43,10 @@ ledger() { # $1 dir(in|out|cmd) $2 project $3 thread $4 msgid $5 head
 }
 
 send() { # $1 thread, stdin body
-  ssh_syd3_stdin "sudo -n -u hermes /home/hermes/.local/bin/hermes send --to telegram:${GROUP_ID}:$1 -q -f -"
+  # alerts-bot voice with hermes-send fallback (finding-e resolution): a
+  # founder reply to an alerts-bot message never trips hermes's reply-to-bot
+  # dispatch, so hermes stays silent in topics without config we don't have.
+  "$DIR/relay-send.sh" "$GROUP_ID" "$1"
 }
 
 prime_master() {
@@ -57,7 +60,8 @@ fetch_rows() { # rows since watermark as JSON lines: {id, thread, content}
   # as reply-to-bot/mention and dispatches its own agent on rules we do not
   # control (topic-starter replies, replies to relay notices...). The relay
   # takes EVERY founder user-row in the group - a message can never be
-  # eaten; worst case hermes ALSO chats (config-silencing is a follow-up).
+  # eaten. The companion ratchet is relay-send.sh: outbound rides the
+  # ALERTS bot, so replies to relayed messages never look reply-to-hermes.
   ssh_syd3_stdin 'sudo -n python3 -' <<PY
 import json, sqlite3
 db = sqlite3.connect("file:/home/hermes/.hermes/state.db?mode=ro", uri=True)

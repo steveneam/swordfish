@@ -73,9 +73,10 @@ PY
 [ -n "$reply" ] || exit 0
 rm -f "$marker"   # consume before sending: a send failure must not re-fire every turn
 
-SSH_CM=(-o ControlMaster=auto -o ControlPath="$HOME/.ssh/cm-%r@%h-%p" -o ControlPersist=1800)
-printf '%s\n' "$reply" | ssh "${SSH_CM[@]}" -o ConnectTimeout=8 -o BatchMode=yes syd3 \
-  "sudo -n -u hermes /home/hermes/.local/bin/hermes send --to telegram:${chat}:${thread} -q -f -" \
+# alerts-bot voice with hermes-send fallback (finding-e resolution): replies
+# sent by the alerts bot never bait hermes's reply-to-bot dispatch trigger.
+printf '%s\n' "$reply" \
+  | "$(dirname "$(readlink -f "$0")")/relay-send.sh" "$chat" "$thread" \
   || exit 0   # never block the session over a send failure
 
 jq -cn --arg p "$(basename "$dir")" --arg t "$thread" --arg m "$msg_id" \
