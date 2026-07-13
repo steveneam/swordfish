@@ -66,10 +66,62 @@ syd1:
     schedule-lock-wait: 15m
 
 # syd2 (Bucket 5, Stage-2 shared box): same policy, its own bucket
-# (per-box bucket + bucket-scoped key = blast-radius isolation, decision 6)
+# (per-box bucket + bucket-scoped key = blast-radius isolation, decision 6).
+# STANDALONE since thalon-data joined the source list - resticprofile
+# inheritance merges lists POSITIONALLY (see the syd3 comment below), so any
+# structural list change = write the profile out in full. Policy values
+# hand-copied from syd1 - keep in lockstep when either changes.
+# thalon-web (first dogfood tenant, 2026-07-13): its volume is in the set but
+# the live PGlite dir pg/** stays OUT - file-level backup of a live DB is not
+# consistent; the pre-backup dump (pre-backup.d/30-thalon-pglite-dump) is what
+# restores. objects/ (immutable once written) + pointer bundles (small atomic
+# JSON writes) are snapshot-safe as-is, per the thalon ask-backs note.
 syd2:
-  inherit: syd1
   repository: "b2:swordfish-syd2-backups:restic"
+  password-file: /etc/resticprofile/password.txt
+  env-file: /etc/resticprofile/b2.env
+  initialize: true
+
+  backup:
+    source:
+      - /etc/dokploy                          # control plane + Traefik dynamic + acme.json
+      - /opt/swordfish                        # edge compose + backup layer as-deployed
+      - /var/backups/swordfish                # pre-backup dumps land here
+      - /var/lib/docker/volumes/dokploy/_data # dokploy's /root/.docker (registry creds)
+      - /var/lib/docker/volumes/thalon-data/_data # thalon tenant volume (/data)
+    exclude:
+      # the raw live PGlite dir - 30-thalon-pglite-dump's artifact
+      # (backups/pglite-dump.tar.gz, inside the volume) is what restores
+      - /var/lib/docker/volumes/thalon-data/_data/pg/**
+    exclude-caches: true
+    # stateful-workload pattern: every executable in pre-backup.d runs before the
+    # snapshot (dump-before-snapshot); add a file there, not a line here
+    run-before: "run-parts --exit-on-error /etc/resticprofile/pre-backup.d"
+    run-after: "/etc/resticprofile/hc-ping.sh success"
+    run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
+    schedule: "*-*-* 15:00:00"
+    schedule-permission: system
+    schedule-lock-wait: 15m
+
+  retention:
+    after-backup: true
+    keep-daily: 7
+    keep-weekly: 4
+    keep-monthly: 6
+    prune: false
+
+  check:
+    read-data-subset: "10%"
+    run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
+    schedule: "Sun *-*-* 17:00:00"
+    schedule-permission: system
+    schedule-lock-wait: 15m
+
+  prune:
+    run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
+    schedule: "Sat *-*-* 17:00:00"
+    schedule-permission: system
+    schedule-lock-wait: 15m
 
 # syd3 (machine-migration amendment 2026-07-10): the agent cockpit - STANDALONE
 # profile, deliberately NOT `inherit: syd1`. resticprofile inheritance merges
