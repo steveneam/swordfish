@@ -73,8 +73,16 @@ done
 # --- verify ------------------------------------------------------------------
 sudo systemctl start swordfish-dashboard-regen.service
 sleep 1
-curl -fsS http://127.0.0.1:8090/ | grep -q 'class="btn"' \
+page=$(curl -fsS http://127.0.0.1:8090/)
+grep -q 'class="btn"' <<<"$page" \
   || { echo "FAIL: dashboard not served on 8090"; exit 1; }
+# v3 cockpit sections (dashboard-cockpit-plan-2026-07-13.md) all present
+for sid in needs-steven fleet security money calendar hermes; do
+  grep -q "section id=\"$sid\"" <<<"$page" \
+    || { echo "FAIL: cockpit section '$sid' missing from the page"; exit 1; }
+done
+grep -qE '(swordfish-ops|token|password)=' <<<"$page" \
+  && { echo "FAIL: the page leaks something credential-shaped"; exit 1; }
 ss -ltn | grep -q '127.0.0.1:8090' \
   || { echo "FAIL: 8090 not bound to localhost only"; exit 1; }
 
