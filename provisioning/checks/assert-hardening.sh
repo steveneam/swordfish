@@ -120,6 +120,7 @@ check "dogfood: beszel agent running"    "docker ps --filter name=agent-1 --form
 # container holding the socket = a box compromise waiting for an app CVE
 check "sockets: proxies+dokploy only"    "! docker ps -q | xargs -r -n1 docker inspect -f '{{.Name}} {{range .Mounts}}{{.Source}} {{end}}' | grep docker.sock | grep -vE 'socket-proxy|^/dokploy\.'"
 check "backups: dogfood dump hook"       "sudo test -x /etc/resticprofile/pre-backup.d/20-dogfood-sqlite-dumps"
+check "backups: thalon dump hook"        "sudo test -x /etc/resticprofile/pre-backup.d/30-thalon-pglite-dump"
 check "backups: sqlite3 for dump hook"   "command -v sqlite3"
 check "backups: kuma-url 0600 root"      "sudo stat -c '%a %U' /etc/resticprofile/kuma-url | grep -qx '600 root'"
 check "dogfood: hello running"           "docker ps --filter name=swordfish-hello --format '{{.Status}}' | grep -q '^Up'"

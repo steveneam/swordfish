@@ -49,6 +49,30 @@ Their state is in the nightly backup set as SQLite dumps (`20-dogfood-sqlite-dum
   redeploy to take effect; Traefik sees the labels via the edge socket-proxy.
 - Create domains **before** the first deploy and the cert lands with it
   (TLS-ALPN takes a minute or two; `sniStrict` resets the handshake until then).
+- `application.saveEnvironment` requires `buildArgs` + `buildSecrets` +
+  `createEnvFile` in the body even when unchanged — fetch first, send back
+  (learned thalon wiring 2026-07-13; same session: `registry.create` requires
+  `imagePrefix`, `saveDockerProvider` takes inline username/password).
+- **Image bumps for CI: use `application.update` `{applicationId, dockerImage}`**,
+  not `saveDockerProvider` — update leaves the stored pull credential
+  untouched, so a tenant CI never needs to hold the GHCR PAT.
+- `user.assignPermissions` keys on the **user id**, NOT the member-row id —
+  and it answers **200 silently for an unknown id**. Always read the member
+  back after assigning (tenant-credential.sh does).
+- API keys minted via `user.createApiKey` default to better-auth's
+  **rateLimitEnabled: 10 requests per DAY**. A rate-limited key fails session
+  validation, so every call returns a bare `{"message":"Unauthorized"}` that
+  reads exactly like a permission bug. Pass `rateLimitEnabled: false`.
+- Member write authz is statement-based (`packages/server/src/lib/access-control.ts`):
+  `application.update` gates on `service:create` (the `canCreateServices`
+  flag); `application.deploy` rides the base member role. The full scoped-
+  credential recipe is `provisioning/dokploy/tenant-credential.sh`.
+- Dokploy's per-app basicauth middleware is generated with
+  **`removeHeader: true`** (app never sees the Authorization header). Staging
+  needs `false` (one pair, two gates — thalon staging-verify finding 2).
+  The flag survives deploy/redeploy but **security CRUD regenerates it** —
+  `provisioning/thalon/staging-assert.sh` converges it back and asserts the
+  whole staging posture.
 
 ## Rate limiting (public routers only — never the control plane)
 
