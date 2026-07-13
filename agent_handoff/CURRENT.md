@@ -91,10 +91,12 @@ live.)_
    api_base flips deploy2→deploy (they keep it a repo variable — already
    told), `staging-assert.sh` + `~/.claude.json` dokploy MCP DOKPLOY_URL
    defaults follow.
-2. **Morning-noise consolidation:** adopt hermes's daily-briefing cron
-   pattern — one 07:30 digest instead of scattered pings (design notes in
-   the hermes-cloud research, wrap of 2026-07-12; hermes approvals are
-   manual + cron_mode deny — work within that).
+2. **Morning-noise consolidation — v0 briefing is LIVE** (founder call
+   this session): hermes cron `morning-briefing` (d8e6bb992d5e) resumed,
+   fires 21:00 UTC = 07:00 AEST daily, checks hello + status endpoints,
+   ONE short DM. Remaining consolidation work stays queued: fold the
+   scattered pings (kuma/ntfy/healthchecks) into that 07:30-ish slot and
+   grow real metrics post-cutover (prompt already written for it).
 3. **Wrap-protocol closing summaries should ride `relay-send.sh`, not
    `hermes send`** (same reply-bait argument — noted in the design doc);
    fold in when the closing-summary protocol lands.
