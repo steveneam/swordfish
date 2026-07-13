@@ -164,8 +164,18 @@ LIVE with the founder** · next session = START THALON on the VPS.)_
    (`collectors/lib.sh` host lists) + drop its api_box call; re-point the *2
    hostnames there too.
 6. **At drive retirement:** delete collect-migration.sh + its card.
-7. Unchanged: morning-noise consolidation (adopt hermes's daily-briefing
-   cron pattern — see State) · Renovate PR #4 · traefik 3.7.7
+7. **Seamless-UX ladder (founder ask 2026-07-13 late):** (a) Notification
+   hook → topic ping whenever ANY agent waits on founder input or ends a
+   long turn (push, don't poll — the one community pattern we haven't
+   adopted; build like the Stop hook, same send path) · (b) wrap = closing
+   summary to the project topic · (c) silence hermes dispatch in the ops
+   group (read adapter allowed_chats semantics first) · (d) morning digest
+   from dashboard JSON via hermes cron · (e) test voice notes → relay
+   (hermes transcribes; the relay may already just work). Topology ruling:
+   ONE session per project in tmux; the legacy tab retired at this wrap —
+   never run two agents for one project again.
+8. Unchanged: morning-noise consolidation (folded into 7d) · Renovate PR
+   #4 · traefik 3.7.7
    post-cutover · healthchecks→Telegram · ntfy retirement audit · Dokploy
    notifications post-cutover · port-map call.
 
