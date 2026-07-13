@@ -15,6 +15,11 @@
 # rsync is incremental and resumable - if it dies, just run the line again and
 # it picks up where it stopped. ssh -n on control calls (see mac-import.sh).
 #
+# The Mac's rsync is Apple's OLD one (2.6.9/openrsync) - flags must stay in
+# that dialect. --info=progress2 is rsync 3.x-only and errored out the first
+# run (2026-07-13); -P (--partial --progress) is the portable spelling, and
+# --partial is what makes a killed multi-GB transfer resume instead of restart.
+#
 # node_modules never crosses the wire: it regenerates from lockfiles on the
 # box, and the census showed the design folder's copy is ORPHANED anyway
 # (4,370 of its 4,385 files, with no package.json outside it to reinstall
@@ -35,7 +40,7 @@ for vol in /Volumes/*/; do
     src="$vol/$p-data"
     [ -d "$src" ] || continue
     echo "== $(basename "$src")  =>  box (big - progress below, safe to re-run)"
-    rsync -a --info=progress2 --exclude .git --exclude node_modules "$src" "$BOX:migration/incoming/" && staged=1
+    rsync -aP --exclude .git --exclude node_modules "$src" "$BOX:migration/incoming/" && staged=1
   done
 
   # generic top-level folders the census flagged as unclaimed
@@ -43,7 +48,7 @@ for vol in /Volumes/*/; do
     src="$vol/$name"
     [ -d "$src" ] || continue
     echo "== $name  =>  box"
-    rsync -a --info=progress2 --exclude .git --exclude node_modules "$src" "$BOX:migration/incoming/" && staged=1
+    rsync -aP --exclude .git --exclude node_modules "$src" "$BOX:migration/incoming/" && staged=1
   done
 done
 
