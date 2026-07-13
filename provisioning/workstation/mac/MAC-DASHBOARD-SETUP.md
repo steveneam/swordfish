@@ -13,7 +13,20 @@ the start page is there → click a project → VS Code opens it. No terminal, n
 Expected: `wrote /home/deploy/dashboard/index.html (N buttons)` — one button
 per project plus the vault.
 
-## Part 2 — on the Mac (Terminal.app; paste ONE line, wait for the prompt to return)
+## Part 2, the short way — ONE line (preferred; easy to type by hand)
+
+Type this in Terminal, then press Return (the character before `bash` is a
+vertical bar - Shift-backslash):
+
+    ssh deploy@syd4.swordfish.cfd cat mac-setup.sh | bash
+
+It pulls both files, loads the tunnel service, verifies port 8080, and opens
+the dashboard in the browser - then continue at Part 3 step 2 (bookmark).
+The script lives at `~deploy/mac-setup.sh` on syd4 (canonical copy:
+`mac-setup.sh` in this directory). The long way below does the same steps
+one line at a time.
+
+## Part 2, the long way — on the Mac (Terminal.app; paste ONE line, wait for the prompt to return)
 
 Open Terminal: ⌘-Space, type `terminal`, press Return.
 
