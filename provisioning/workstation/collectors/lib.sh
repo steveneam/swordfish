@@ -62,7 +62,8 @@ SSH_CM=(-o ControlMaster=auto -o ControlPath="$HOME/.ssh/cm-%r@%h-%p" -o Control
 ssh_syd3() { ssh -n "${SSH_CM[@]}" -o ConnectTimeout=8 -o BatchMode=yes syd3 "$@"; }
 ssh_syd3_stdin() { ssh "${SSH_CM[@]}" -o ConnectTimeout=8 -o BatchMode=yes syd3 "$@"; }
 
-# public TLS surfaces per box - cutover renames the *2 hosts, edit ONCE here
+# public TLS surfaces per box - edit ONCE here (cutover 2026-07-13: real names
+# moved to syd2, syd1 left the board at the same gate; the *2 temp names retire
+# at soak end and are deliberately NOT probed)
 # (cross-refs: kuma/bootstrap.py HTTP_MONITORS, beszel/bootstrap.py BASE)
-SYD1_HOSTS=(deploy.swordfish.cfd status.swordfish.cfd metrics.swordfish.cfd hello.swordfish.cfd)
-SYD2_HOSTS=(deploy2.swordfish.cfd status2.swordfish.cfd metrics2.swordfish.cfd)
+SYD2_HOSTS=(deploy.swordfish.cfd status.swordfish.cfd metrics.swordfish.cfd hello.swordfish.cfd)

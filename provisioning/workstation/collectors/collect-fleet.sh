@@ -4,11 +4,11 @@ set -uo pipefail
 # collect-fleet.sh - one row per box (plan §3).
 #   syd4: local reads.
 #   syd3: one ssh call (cockpit peer; break-glass rides 443, see ~/.ssh/config).
-#   syd2 + syd1: Beszel hub + Uptime Kuma read APIs ONLY - syd2's inbound 22
+#   syd2: Beszel hub + Uptime Kuma read APIs ONLY - syd2's inbound 22
 #     answers CI runners alone and the cockpit never weakens that. A metric the
 #     APIs can't provide stays null - a blank is honest, a guess is not.
-# syd1 stays on the board until the cutover gate retires it (drop it from
-# BOXES below at that session).
+# syd1 left the board at the cutover gate (2026-07-13); it stays live off-board
+# through the 72 h soak, then its destroy decision presents separately.
 
 . "$(dirname "$0")/lib.sh"
 
@@ -132,16 +132,14 @@ api_box() { # $1=name $2=beszel-base $3=kuma-base $4=deadman-monitor $5...=probe
 }
 
 main() {
-  local b4 b3 b2 b1
+  local b4 b3 b2
   b4=$(local_box syd4 ssh fail2ban code-server swordfish-dashboard-web)
   b3=$(syd3_box)
-  b2=$(api_box syd2 https://metrics2.swordfish.cfd https://status2.swordfish.cfd \
+  b2=$(api_box syd2 https://metrics.swordfish.cfd https://status.swordfish.cfd \
        swordfish-syd2-backup "${SYD2_HOSTS[@]}")
-  b1=$(api_box syd1 https://metrics.swordfish.cfd https://status.swordfish.cfd \
-       swordfish-syd1-backup "${SYD1_HOSTS[@]}")
   jq -n --argjson t "$(date +%s)" \
-        --argjson b4 "$b4" --argjson b3 "$b3" --argjson b2 "$b2" --argjson b1 "$b1" \
-    '{generated_at: $t, boxes: [$b4, $b3, $b2, $b1]}' \
+        --argjson b4 "$b4" --argjson b3 "$b3" --argjson b2 "$b2" \
+    '{generated_at: $t, boxes: [$b4, $b3, $b2]}' \
     | emit fleet
 }
 

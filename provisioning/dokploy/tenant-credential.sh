@@ -6,7 +6,7 @@
 # scoped key is how that never widens into host-level authority).
 #
 #   usage: tenant-credential.sh <tenant-slug> <dokploy-project-name>
-#     env: DOKPLOY_URL      (default https://deploy2.swordfish.cfd)
+#     env: DOKPLOY_URL      (default https://deploy.swordfish.cfd; cutover 2026-07-13)
 #          DOKPLOY_KEY_NAME (.env var holding the ADMIN key; default
 #                            DOKPLOY_SYD2_API_KEY)
 #
@@ -33,7 +33,7 @@ cd "$(dirname "$0")/../.."
 
 SLUG=${1:?usage: tenant-credential.sh <tenant-slug> <dokploy-project-name>}
 PROJECT=${2:?usage: tenant-credential.sh <tenant-slug> <dokploy-project-name>}
-DOKPLOY_URL=${DOKPLOY_URL:-https://deploy2.swordfish.cfd}
+DOKPLOY_URL=${DOKPLOY_URL:-https://deploy.swordfish.cfd}
 DOKPLOY_KEY_NAME=${DOKPLOY_KEY_NAME:-DOKPLOY_SYD2_API_KEY}
 SECFILE="inventory/secrets/dokploy-tenant-$SLUG.env"
 EMAIL="dokploy-$SLUG-ci@swordfish.cfd"

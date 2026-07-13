@@ -6,6 +6,6 @@
 > file verbatim and never invents or retires state on its own.
 > ⛔ Guarded project names never go here (tracked file — Project 1/2 only).
 
-- [2026-07-13] **CUTOVER GO**: everything is pre-flight green — reply `cutover go` (chat or Swordfish topic) and the agent executes `provisioning/cutover-step-card.md`; your only other change is the Dokploy bookmark moving to deploy.swordfish.cfd.
+- [2026-07-13] Dokploy bookmark: the control plane now lives at **https://deploy.swordfish.cfd** (same login you registered at deploy2 — that name now 404s by design).
 - [2026-07-13] subscriptions.yml FILL fields (edit the file or tell any agent): Claude → which card; GitHub → next_charge date + which card (from the receipt).
 - [2026-07-13] thalon staging: /blog is FIXED and there is now ONE login for everything (site + workspace) — creds refreshed in `~/COPY-ME.txt`; the old second (steven:…) workspace password is retired.

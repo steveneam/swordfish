@@ -9,15 +9,16 @@ portability proof for the integration-surface ruling).
 
 ## Source of truth + apply channel
 
-syd2 IDs (current box; syd1 rows below it retire at cutover):
+syd2 IDs (THE box since the 2026-07-13 cutover; control plane = deploy.swordfish.cfd):
 
 | service | tracked file | Dokploy id (syd2) | live at |
 |---|---|---|---|
-| status (Uptime Kuma 2.4.0-rootless) | `compose/status/compose.yaml` | composeId `LozRPFJ8LCLK88hvc7ke5` | status.swordfish.cfd (pre-cutover: status2.) |
-| metrics (Beszel 0.18.7 hub+agent+socket-proxy) | `compose/metrics/compose.yaml` | composeId `1PiSAb1dg6TiRGw9X1C4Q` | metrics.swordfish.cfd (pre-cutover: metrics2.) |
+| status (Uptime Kuma 2.4.0-rootless) | `compose/status/compose.yaml` | composeId `LozRPFJ8LCLK88hvc7ke5` | status.swordfish.cfd (temp status2. retires at soak end) |
+| metrics (Beszel 0.18.7 hub+agent+socket-proxy) | `compose/metrics/compose.yaml` | composeId `1PiSAb1dg6TiRGw9X1C4Q` | metrics.swordfish.cfd (temp metrics2. retires at soak end) |
 | hello (deploy receipt, `apps/hello/`) | Dokploy application, applicationId `-a2FMiW1gq30KstVf37w6` (appName `swordfish-hello-ksv6id`) | — | hello.swordfish.cfd |
 
-syd1 (frozen, retires at cutover): status `5h4OEMKIBVnmSqzMy_TtH` · metrics
+syd1 (soak rollback target until ≈2026-07-16, then its own destroy gate — do
+NOT deploy to it): status `5h4OEMKIBVnmSqzMy_TtH` · metrics
 `koQq7S1xUJgfR7yQEZ4ij` · hello `wtPRsmmiQ_yJRVKTjCXuq` (`swordfish-hello-vfvt10`).
 
 Change protocol: edit the tracked compose → `compose-update` (composeFile) →

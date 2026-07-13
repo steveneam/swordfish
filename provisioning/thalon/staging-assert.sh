@@ -14,7 +14,7 @@
 # finding 2, resolved option 1). Verified live: the flag survives
 # application.deploy/redeploy; only security CRUD rewrites it.
 #
-#   usage: staging-assert.sh          env: DOKPLOY_URL (default deploy2)
+#   usage: staging-assert.sh          env: DOKPLOY_URL (default deploy; cutover 2026-07-13)
 #
 # At launch this whole posture changes (thalon.org domains, edge auth drops,
 # monitor swaps) - retire or rewrite this script at the launch call.
@@ -22,7 +22,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-DOKPLOY_URL=${DOKPLOY_URL:-https://deploy2.swordfish.cfd}
+DOKPLOY_URL=${DOKPLOY_URL:-https://deploy.swordfish.cfd}
 APP=jh_UI2lErDwykJG6FcFBD
 HOSTNAME_STAGING=preview.swordfish.cfd
 
