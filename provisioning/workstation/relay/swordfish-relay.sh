@@ -140,6 +140,7 @@ process_row() { # $1 id $2 thread $3 content
 
 log "relay up: group $GROUP_ID, $(( ${#map[@]} )) mapped topics, watermark $(cat "$wm_file")"
 while :; do
+  . "$MAP_FILE"   # hot-reload: a new topic mapping needs no service restart
   if prime_master; then
     rows=$(fetch_rows 2>/dev/null || true)
     while IFS= read -r row; do

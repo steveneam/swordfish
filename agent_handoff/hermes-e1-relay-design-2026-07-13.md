@@ -125,7 +125,14 @@ non-empty-text check both already exclude these rows, keep both. (b) hermes
 currently HAS terminal access on syd3 (it ran `nslookup` when the founder
 posted "ping-e1") — drifts from the E0 "terminal disabled" posture; flagged
 in NEEDS-STEVEN. (c) Telegram tags observed rows `[name|user_id]` — the
-poller matches on the embedded user_id, not display name.
+poller matches on the embedded user_id, not display name. (d) **Topics must
+be created by the FOUNDER, never the bot** (found live at first E2E): in a
+forum group every message implicitly replies to the topic-starter message,
+so a bot-created topic makes every founder message look like a
+reply-to-bot — hermes's mention trigger fires and its agent eats the
+message before it can be observed. The bot-created thalon topic was deleted;
+the poller hot-reloads relay-map each cycle so mapping a founder-created
+topic needs no restart.
 
 ## Build list (after design sign-off)
 
