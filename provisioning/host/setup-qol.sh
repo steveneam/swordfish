@@ -49,9 +49,48 @@ work() {
   tmux new -A -s "$(basename "$d")" -c "$d"
 }
 qr() { qrencode -t ANSIUTF8 "$1"; }
+# copy: put a file's (or piped) content into the FOUNDER'S MAC CLIPBOARD
+# through the browser terminal (OSC52; code-server forwards it, tmux needs
+# the passthrough wrap + allow-passthrough in tmux.conf). Box->Mac copy via
+# text selection is unreliable in a live TUI (redraws drop the selection) -
+# this is the mechanical path. Big content (>~50KB) still goes via a file
+# opened in the editor. `copytest` = 3-second founder verification.
+copy() {
+  local data
+  if [ $# -ge 1 ]; then data=$(base64 -w0 < "$1") || return 1
+  else data=$(base64 -w0); fi
+  if [ -n "${TMUX:-}" ]; then
+    printf '\033Ptmux;\033\033]52;c;%s\007\033\\' "$data"
+  else
+    printf '\033]52;c;%s\007' "$data"
+  fi
+}
+copytest() {
+  printf 'clipboard works: %s' "$(date '+%H:%M:%S')" | copy
+  echo "sent - now paste (Cmd+V) into any Mac app; you should get 'clipboard works: <time>'"
+}
 alias snapshots='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" snapshots'
 alias backup-now='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" backup'
 QOL
+
+# tmux.conf: mouse policy + clipboard passthrough. Canonical HERE (cloud-init
+# lockstep). allow-passthrough + set-clipboard are what let `copy` (OSC52)
+# reach the founder's Mac clipboard from inside the agent-term sessions.
+install_if_changed 0644 /etc/tmux.conf <<'TMUXCONF'
+# mouse OFF by default: tmux mouse mode captures the terminal's mouse,
+# which kills native macOS Terminal selection/copy (rehearsal lesson
+# 2026-07-11 - an OAuth URL could not be copied). prefix+m toggles it
+# for wheel scrolling; native selection is the primary copy path.
+set -g mouse off
+bind m set -g mouse \; display 'tmux mouse: #{?mouse,ON (wheel scroll; selection captured),off (native selection works)}'
+set -g history-limit 50000
+set -g status-interval 5
+set -g status-right "#H | %H:%M UTC"
+# clipboard: let OSC52 escape from inside tmux to the outer terminal, so the
+# `copy` QoL command lands content in the founder's Mac clipboard (2026-07-13)
+set -g allow-passthrough on
+set -s set-clipboard external
+TMUXCONF
 
 # agent-term: code-server's DEFAULT terminal profile (wired in the box's
 # code-server settings.json - see cloud-init). Every integrated terminal lands

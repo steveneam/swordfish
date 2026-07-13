@@ -184,6 +184,26 @@ write_files:
         tmux new -A -s "$(basename "$d")" -c "$d"
       }
       qr() { qrencode -t ANSIUTF8 "$1"; }
+      # copy: put a file's (or piped) content into the FOUNDER'S MAC CLIPBOARD
+      # through the browser terminal (OSC52; code-server forwards it, tmux needs
+      # the passthrough wrap + allow-passthrough in tmux.conf). Box->Mac copy via
+      # text selection is unreliable in a live TUI (redraws drop the selection) -
+      # this is the mechanical path. Big content (>~50KB) still goes via a file
+      # opened in the editor. `copytest` = 3-second founder verification.
+      copy() {
+        local data
+        if [ $# -ge 1 ]; then data=$(base64 -w0 < "$1") || return 1
+        else data=$(base64 -w0); fi
+        if [ -n "${TMUX:-}" ]; then
+          printf '\033Ptmux;\033\033]52;c;%s\007\033\\' "$data"
+        else
+          printf '\033]52;c;%s\007' "$data"
+        fi
+      }
+      copytest() {
+        printf 'clipboard works: %s' "$(date '+%H:%M:%S')" | copy
+        echo "sent - now paste (Cmd+V) into any Mac app; you should get 'clipboard works: <time>'"
+      }
       alias snapshots='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" snapshots'
       alias backup-now='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" backup'
 
@@ -203,6 +223,7 @@ write_files:
       exec tmux new-session -A -s "$s" -c "$d" \
         'claude; echo; echo "[claude exited - type claude to relaunch, or claude --continue to resume the last conversation]"; exec bash'
 
+  # CANONICAL: provisioning/host/setup-qol.sh (this is the lockstep copy)
   - path: /etc/tmux.conf
     permissions: "0644"
     content: |
@@ -215,6 +236,10 @@ write_files:
       set -g history-limit 50000
       set -g status-interval 5
       set -g status-right "#H | %H:%M UTC"
+      # clipboard: let OSC52 escape from inside tmux to the outer terminal, so the
+      # `copy` QoL command lands content in the founder's Mac clipboard (2026-07-13)
+      set -g allow-passthrough on
+      set -s set-clipboard external
       # founder request 2026-07-11: black background everywhere (matches VS Code)
       set -g window-style 'fg=colour252,bg=black'
       set -g window-active-style 'fg=colour252,bg=black'
