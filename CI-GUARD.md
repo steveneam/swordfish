@@ -20,6 +20,27 @@ pwsh -File scripts/ci-grep-guard.ps1        # PowerShell 7+
 powershell -ExecutionPolicy Bypass -File scripts/ci-grep-guard.ps1
 ```
 
+## Two lines of defence: the hook PREVENTS, CI DETECTS
+
+`scripts/hooks/pre-commit` (enabled with `git config core.hooksPath scripts/hooks`)
+runs the guard and **refuses to create the commit** if it fails. `ci-guard.yml`
+remains the required status check on the remote. Both, not either — CI catches a
+machine whose hook isn't wired; the hook stops the bad object ever existing.
+
+**A fresh clone does not inherit `core.hooksPath`** — re-run that one `git config`
+line after cloning (CI still covers you until you do).
+
+### Incident that bought this hook (2026-07-13)
+
+The guard was being invoked as `pwsh scripts/ci-grep-guard.ps1 | tail -1 && git commit …`.
+**A pipeline's exit status is its LAST command's** — `tail` exited 0, so the `&&`
+fired even though the guard had *failed*, and a guarded project name was committed
+and pushed to `main`. Remediation needed a history rewrite plus a temporary
+relaxation of branch protection (force-pushes are otherwise disabled). The lesson
+generalizes past this repo: **never pipe a verification command into `tail`/`head`/
+`grep` inside an `&&` chain** — capture its exit code directly, which is precisely
+what the hook now does on every commit, whether or not anyone remembers to.
+
 ## Why tracked-files-only is correct
 
 CI only ever sees **committed** files, so grepping the tracked set is the true guarantee that the *shipped* repo is clean. It also keeps the repo pristine while the local build agent still has full context:

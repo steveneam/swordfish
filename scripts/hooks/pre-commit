@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# pre-commit - the anonymity guard, enforced BEFORE the commit object exists.
+#
+# Why this hook exists (incident 2026-07-13): the guard was being run by hand as
+# `pwsh scripts/ci-grep-guard.ps1 | tail -1 && git commit ...`. A pipeline's exit
+# status is the LAST command's, so `tail` returned 0 and the `&&` fired even
+# though the guard had FAILED - a guarded project name was committed and pushed
+# to main. Purging it needed a history rewrite + a temporary relaxation of branch
+# protection. A human (or agent) remembering to check the guard's output is a
+# memory ratchet, and memory ratchets are the ones that rot: this hook makes the
+# check unskippable and exit-code-correct by construction.
+#
+# The CI workflow (ci-guard.yml) stays as the second line of defence - it is the
+# DETECTOR on the remote; this hook is the PREVENTER on the box. Both, not either.
+#
+# Escape hatch: `git commit --no-verify` (do not - if the guard fires, the fix is
+# to move the offending content into the gitignored .context/, never to bypass).
+
+set -uo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+guard="$repo_root/scripts/ci-grep-guard.ps1"
+
+if [ ! -f "$guard" ]; then
+    echo "pre-commit: FAIL - $guard is missing; refusing to commit blind." >&2
+    exit 1
+fi
+
+if ! command -v pwsh >/dev/null 2>&1; then
+    echo "pre-commit: FAIL - pwsh not found; the anonymity guard cannot run." >&2
+    echo "            install PowerShell, or run the guard's grep by hand before committing." >&2
+    exit 1
+fi
+
+# NO pipe here, deliberately: capture the guard's own exit status, never a
+# downstream command's. That misread is the exact bug this hook exists to stop.
+output="$(pwsh -NoProfile -File "$guard" 2>&1)"
+status=$?
+
+if [ $status -ne 0 ]; then
+    echo "$output" >&2
+    echo "" >&2
+    echo "pre-commit: BLOCKED - the anonymity guard failed (see hits above)." >&2
+    echo "            AGENTS.md: the two guarded project names may never appear in a" >&2
+    echo "            git-tracked file. Move the content to the gitignored .context/," >&2
+    echo "            or refer to the projects as Project 1 / Project 2." >&2
+    exit 1
+fi
+
+exit 0
