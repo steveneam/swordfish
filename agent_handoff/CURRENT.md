@@ -27,8 +27,14 @@ session; ops queue still parked on the rehearsal-pass confirmation.)_
   morning-noise consolidation is now a real work item (Next 3).
 - **Dashboard Part 1 re-run this session:** `/home/deploy/dashboard/index.html`
   fresh (5 buttons → code-server `?folder=` links, one per project + vault).
-- `work` alias on syd4 = `tmux new -A -s main` (attach-or-create; no cd — cd to
-  the project before launching claude).
+- **`work` was "command not found" in the founder's code-server terminal**
+  (2026-07-13): the QoL aliases live in `/etc/profile.d/swordfish-qol.sh`, which
+  only LOGIN shells source — code-server integrated terminals spawn non-login
+  shells and never see them. Fixed live on syd4: `work` is now also in
+  `~/.bashrc` (and upgraded: `tmux new -A -s main -c "$HOME/work/swordfish"` —
+  lands in the repo, so launch = `work` then `claude`). **Fleet ratchet still
+  open:** move/duplicate the QoL aliases so non-login shells get them on
+  syd2/syd3 + BOTH cloud-inits (profile.d alone is a login-shell trap).
 
 ## Next
 
