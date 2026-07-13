@@ -38,8 +38,11 @@ for vol in /Volumes/*/; do
   case "$(basename "$vol")" in "Macintosh HD"*) continue ;; esac
   echo "== scanning $vol"
 
-  # 1. per-project migration folders (the established hand-off convention)
-  for m in "$vol"/*-migration; do
+  # 1. per-project hand-off folders. BOTH suffixes: agents named them
+  #    "<p>-migration" AND "<p>-migration-staging" - the narrower glob silently
+  #    skipped a whole project's boot notes + secrets (found 2026-07-13 by the
+  #    file census, not by the import: an import can only miss things quietly).
+  for m in "$vol"/*-migration "$vol"/*-migration-staging; do
     [ -d "$m" ] || continue
     echo "   -> $(basename "$m")  =>  box:~/migration/"
     rsync -a "$m" "$BOX:migration/" && staged=1
