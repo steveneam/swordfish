@@ -28,7 +28,7 @@ set -u
 BOX=deploy@syd4.swordfish.cfd
 
 PROJECTS=$(ssh -n "$BOX" 'ls "$HOME/work"') || { echo "cannot reach the box"; exit 1; }
-ssh -n "$BOX" 'mkdir -p "$HOME/migration/incoming"'
+ssh -n "$BOX" 'mkdir -p "$HOME/migration/incoming/drive-notes"'
 
 staged=0
 for vol in /Volumes/*/; do
@@ -49,6 +49,14 @@ for vol in /Volumes/*/; do
     [ -d "$src" ] || continue
     echo "== $name  =>  box"
     rsync -aP --exclude .git --exclude node_modules "$src" "$BOX:migration/incoming/" && staged=1
+  done
+
+  # loose top-level .txt notes (the old machine's per-project resume prompts
+  # etc) - tiny, and a name-free glob keeps project names out of this file
+  for f in "$vol"/*.txt; do
+    [ -f "$f" ] || continue
+    echo "== note: $(basename "$f")  =>  box"
+    rsync -aP "$f" "$BOX:migration/incoming/drive-notes/" && staged=1
   done
 done
 
