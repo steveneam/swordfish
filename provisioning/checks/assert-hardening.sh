@@ -129,5 +129,14 @@ check "dogfood: status route live"       "curl -sk -o /dev/null -w '%{http_code}
 check "dogfood: metrics route live"      "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve metrics.swordfish.cfd:443:127.0.0.1 https://metrics.swordfish.cfd | grep -qE '^(200|30[1278])$'"
 check "edge: ratelimit middleware defined" "sudo grep -q 'swordfish-ratelimit' /etc/dokploy/traefik/dynamic/50-swordfish-hardening.yml"
 
+# tenant Postgres (shared service via provisioning/dokploy/tenant-pg.sh;
+# per-tenant DBs via tenant-db-apply.yml). No-published-ports is the standing
+# box-side counterpart of tenant-pg.sh's externalPort==null converge check:
+# the DB is reachable on the internal docker network ONLY, never 0.0.0.0.
+check "tenant-pg: container running"     "docker ps --filter name=tenant-pg --format '{{.Status}}' | grep -q '^Up'"
+check "tenant-pg: image at pin"          "docker ps --filter name=tenant-pg --format '{{.Image}}' | grep -q 'postgres:17.10'"
+check "tenant-pg: no published ports"    "! docker ps --filter name=tenant-pg --format '{{.Ports}}' | grep -E '(0\.0\.0\.0|\[::\]):'"
+check "backups: tenant-pg dump hook"     "sudo test -x /etc/resticprofile/pre-backup.d/15-tenant-pg-dump"
+
 echo "== $((total - fails))/$total assertions pass"
 [ "$fails" -eq 0 ]
