@@ -11,3 +11,4 @@
 - [2026-07-13] **Do NOT cancel Render yet** — cancel only after Project 1's agent re-seeds the assets onto the box and verifies checksums (nothing is at risk either way: the Render disk is a cache; the real source is that project's private Supabase source-asset bucket).
 - [2026-07-13] subscriptions.yml FILL fields (edit the file or tell any agent): Claude → which card; GitHub → next_charge date + which card (from the receipt).
 - [2026-07-13] thalon staging: /blog is FIXED and there is now ONE login for everything (site + workspace) — creds refreshed in `~/COPY-ME.txt`; the old second (steven:…) workspace password is retired.
+- [2026-07-13] Gmail MCP re-auth (token EXPIRED) — one click in claude.ai settings; unblocks receipt-driven subscriptions.yml fills.
