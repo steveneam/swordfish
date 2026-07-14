@@ -57,18 +57,34 @@ edge live-verified 72/72. Full findings + ranks + ratchet-per-gap:
   (syncookies + backlogs, in phase2 + cloud-init). +4 assertions.
 - Fleet unchanged: syd2 (prod) · syd3 (cockpit+hermes) · syd4 (workspace+relay,
   THIS box) · syd1 (SOAK, off-board, rollback until ≈07-16).
+- **THALON COORDINATION note left** (founder-directed, direct agent-to-agent):
+  `~/work/thalon/agent_handoff/FROM-SWORDFISH-SECURITY-2026-07-14.md` — heads-up
+  on the deploy-key over-grant + the coming coordinated key rotation (they
+  re-sync the new key; I won't rotate unannounced), and asks their render-worker
+  RAM need. **Awaiting their reply in `~/work/thalon/agent_handoff/
+  ASK-BACKS-FOR-SWORDFISH.md`.** Anything else Thalon-related = message them
+  there directly (founder call: coordinate agent-to-agent, don't relay via him).
 
 ## Next
 
 0. **STAGED edge pieces (finish the DDoS slice — founder said proceed via
-   edge-apply+smoke; these are the riskier/complex half I deliberately held):**
+   edge-apply+smoke; these are the riskier/complex half I deliberately held.
+   BOTH have a real prod-regression risk + a missing input — do NOT rush):**
    - **fail2ban Traefik-log jail** (finding 5: control-plane brute-force has no
      HTTP jail). Needs Traefik `accessLog.filePath` → host file + bind-mount +
-     fail2ban filter/jail + logrotate. Land via edge-apply, re-smoke.
+     fail2ban filter/jail + logrotate. **BLOCKER: needs the founder's egress
+     IP for `ignoreip`** — deploy. is rate-limit-exempt so brute-force there
+     shows as 401s, and banning on 401s at ufw could LOCK THE FOUNDER (or CI)
+     OUT of the box if he fumbles a login. Ask his egress IP first, or ban only
+     on sustained 429s (which won't protect deploy.). Land via edge-apply,
+     re-smoke.
    - **workload memory limits** (finding: one container OOMs the 8GB box → kernel
      may kill Traefik/control plane; matters before Thalon's render worker).
      Dokploy-deployed services → set deploy.resources.limits; assert no unbounded
      container. Edge compose (traefik) itself stays UNlimited on purpose.
+     **Need live per-container usage to size (Beszel metrics) so a too-low cap
+     doesn't OOM-loop a service; Thalon's render-worker cap awaits their
+     ASK-BACKS reply on RAM need.**
 1. **⛔ Tenant-key scope decision (founder — NEEDS-STEVEN):** resolve
    deploy-without-create → flip `STRICT_SCOPE=1` → rotate Thalon's key ONCE,
    properly scoped (rotating now alone breaks their CI twice for no blast-radius
