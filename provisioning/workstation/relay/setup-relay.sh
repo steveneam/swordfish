@@ -65,6 +65,43 @@ fi
 rm -f "$tmp"
 sudo systemctl enable --now swordfish-relay.service >/dev/null 2>&1 || true
 
+# tag-drift canary: a 6-hourly oneshot that alerts the founder if hermes's tag
+# format ever drifts so the relay would silently drop his messages (security
+# review 2026-07-14). --alert is edge-triggered, so a healthy run is silent.
+canary_svc=/etc/systemd/system/swordfish-relay-canary.service
+canary_tmr=/etc/systemd/system/swordfish-relay-canary.timer
+tmp_svc=$(mktemp); tmp_tmr=$(mktemp)
+cat > "$tmp_svc" <<UNIT
+[Unit]
+Description=swordfish: relay tag-format drift canary (founder-id parse vs hermes tag)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+ExecStart=/usr/bin/bash /home/deploy/work/swordfish/provisioning/workstation/relay/relay-tag-canary.sh --alert
+UNIT
+cat > "$tmp_tmr" <<UNIT
+[Unit]
+Description=swordfish: run the relay tag-format canary every 6h
+
+[Timer]
+OnCalendar=00/6:15
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+for pair in "$tmp_svc:$canary_svc" "$tmp_tmr:$canary_tmr"; do
+  src=${pair%%:*}; dst=${pair##*:}
+  if [ ! -f "$dst" ] || ! cmp -s "$src" "$dst"; then
+    sudo install -m 0644 -o root -g root "$src" "$dst"; changed=1
+  fi
+done
+rm -f "$tmp_svc" "$tmp_tmr"
+sudo systemctl daemon-reload
+sudo systemctl enable --now swordfish-relay-canary.timer >/dev/null 2>&1 || true
+
 # Stop hook: json-aware idempotent merge into user settings
 python3 - "$HOME/.claude/settings.json" <<'PY' && changed=1 || true
 import json, os, sys
@@ -94,5 +131,7 @@ systemctl is-active --quiet swordfish-relay.service \
 grep -q relay-stop-hook "$HOME/.claude/settings.json" \
   || { echo "FAIL: stop hook not in user settings"; exit 1; }
 [ -f "$STATE_DIR/watermark" ] || { echo "FAIL: no watermark"; exit 1; }
+systemctl is-enabled --quiet swordfish-relay-canary.timer \
+  || { echo "FAIL: relay tag-drift canary timer not enabled"; exit 1; }
 
 if [ "$changed" -eq 0 ]; then echo "== converged: no changes"; else echo "== converged: relay installed + running"; fi

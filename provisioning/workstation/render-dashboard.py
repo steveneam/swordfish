@@ -236,6 +236,20 @@ def security_html(s):
             f'<td>{a.get("bans_24h", "?")} bans / 24h</td></tr>')
     parts.append("<table>" + "".join(post) + "</table>")
 
+    rt = s.get("relay_tag") or {}
+    if rt:
+        st = rt.get("status", "unknown")
+        cls = {"ok": "ok", "drift": "bad"}.get(st, "warn")
+        label = {
+            "ok": f'relay founder-id gate OK ({rt.get("checked", "?")} msgs, no tag drift)',
+            "drift": f'relay founder-id gate DRIFT ({rt.get("drift", "?")}/{rt.get("checked", "?")} - founder may be unheard)',
+            "unreachable": "relay founder-id gate: hermes unreachable",
+            "unknown": "relay founder-id gate: unknown",
+        }.get(st, f"relay founder-id gate: {esc(st)}")
+        parts.append(f"<h3>relay {badge(label, cls)}</h3>")
+        if st == "drift" and rt.get("sample"):
+            parts.append(f'<p class="mono bad">{esc(rt["sample"])}</p>')
+
     logins = s.get("logins") or []
     def login_key(e):
         m = re.search(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2})Z", e.get("line", ""))

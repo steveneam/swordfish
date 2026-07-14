@@ -86,8 +86,17 @@ domains_json() {
   echo "$out"
 }
 
+relay_tag_json() { # relay founder-id gate: hermes tag-format drift canary
+  # (security review 2026-07-14). Read-only run (no --alert - the timer owns
+  # push); its last stdout line is the JSON summary. Makes a broken/unreachable
+  # canary visible instead of silently un-firing.
+  local out
+  out=$("$(dirname "$0")/../relay/relay-tag-canary.sh" 2>/dev/null | tail -1)
+  jq -e . >/dev/null 2>&1 <<<"$out" && echo "$out" || echo '{"status":"unknown"}'
+}
+
 main() {
-  local logins4 raw3 logins3 auth tls domains
+  local logins4 raw3 logins3 auth tls domains relay_tag
   logins4=$(sudo -n journalctl -t swordfish-alerts --since "7 days ago" -o cat --no-pager 2>/dev/null \
             | tail -15 | lines_to_logins)
   # capture SPLIT from fallback: `ssh | jq || echo []` under pipefail emitted
@@ -99,9 +108,12 @@ main() {
   auth=$(jq -n --argjson a "$(local_auth)" --argjson b "$(syd3_auth)" '[$a, $b]')
   tls=$(tls_json)
   domains=$(domains_json)
+  relay_tag=$(relay_tag_json)
   jq -n --argjson t "$(date +%s)" --argjson l4 "$logins4" --argjson l3 "$logins3" \
         --argjson auth "$auth" --argjson tls "$tls" --argjson dom "$domains" \
+        --argjson rt "$relay_tag" \
     '{generated_at: $t, logins: ($l4 + $l3), auth: $auth, tls: $tls, domains: $dom,
+      relay_tag: $rt,
       note: "syd1/syd2 login alerts go straight to Telegram; no cockpit-readable journal by design"}' \
     | emit security
 }

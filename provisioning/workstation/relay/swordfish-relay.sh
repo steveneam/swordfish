@@ -177,6 +177,13 @@ parse_sender() { # $1 raw message content -> founder-tag user id (empty = no val
   sed -n '1s/^\[[^][|]*|\([0-9]\{1,\}\)\]$/\1/p' <<<"$1"
 }
 
+is_tag_shaped() { # $1 line -> rc 0 if it LOOSELY looks like a hermes [name|id] tag
+  # Loose companion to parse_sender (bracketed, trailing |<digits>]). A line that
+  # is tag-shaped but parse_sender rejects = format drift, a founder display name
+  # that grew a | [ ], or a spoof attempt - relay-tag-canary.sh alerts on the gap.
+  printf '%s' "$1" | grep -qE '^\[.*\|[0-9]+\]$'
+}
+
 process_row() { # $1 id $2 thread $3 content
   local id="$1" thread="$2" content="$3" dir slug sender text cmd
   # first line is the gateway's "[Name|user_id]" tag; the rest is the message.

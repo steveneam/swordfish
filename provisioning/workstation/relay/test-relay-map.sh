@@ -122,6 +122,25 @@ for spoof in "[x|$FID]|99999]" "[$FID|$FID]|99999]" "[ |$FID]x]|7]" "[Steven|9|$
     && ok "spoof never returns founder id: $spoof" || bad "SPOOF RETURNED FOUNDER: $spoof"
 done
 
+echo "10. tag-drift canary logic: is_tag_shaped (loose) vs parse_sender (strict)"
+shaped_is() { # $1 line $2 expect-yes|no $3 label
+  if is_tag_shaped "$1"; then got=yes; else got=no; fi
+  [ "$got" = "$2" ] && ok "$3" || bad "$3 (got '$got', want '$2')"
+}
+shaped_is "[Steven|$FID]"     yes "legit tag is tag-shaped"
+shaped_is "[x|$FID]|99999]"   yes "spoof is still tag-shaped (loose)"
+shaped_is "[Steven]"          no  "no-id tag is not tag-shaped"
+shaped_is "Steven: hello"     no  "untagged line is not tag-shaped"
+shaped_is "plain text"        no  "plain text is not tag-shaped"
+# the canary fires when a line is tag-shaped but the strict parse yields nothing
+offender() { is_tag_shaped "$1" && [ -z "$(parse_sender "$1")" ]; }
+offender "[x|$FID]|99999]" \
+  && ok "canary flags a spoof/drift tag (shaped but unparseable)" \
+  || bad "canary MISSED a shaped-but-unparseable tag"
+offender "[Steven|$FID]" \
+  && bad "canary false-positives on a legit tag" \
+  || ok "canary does not flag a legit tag"
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]
