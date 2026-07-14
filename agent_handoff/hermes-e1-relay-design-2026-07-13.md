@@ -240,3 +240,30 @@ fixed with `hermes tools disable --platform telegram …`, verified through
 the gateway's own `_get_platform_tools()` resolution, gateway restarted.
 Executable ratchet: install-hermes-syd3.sh now converges the toolset list
 PER PLATFORM (cli + telegram).
+
+**Addendum 3 (2026-07-14): `!map <project>` — self-serve topic binding
+(founder call 2026-07-13, built next session as directed).** Decision 11's
+"add to relay-map on syd4" notice left the founder unable to onboard a
+project when the agent was wedged — the exact failure class the `!`
+commands exist for. `!map` closes it: it is the one `!` command consumed
+BEFORE the map lookup (binding an unmapped topic is its job; all other
+commands and plain messages still require a mapping). Constraints as
+reasoned at the founder call, all implemented and unit-tested
+(`test-relay-map.sh`, 25 assertions):
+- **Allowlist only** — `<project>` resolves against dirs directly under
+  `~/work` plus `walter`/`vault` → `~/vault`, derived at RUNTIME (dir names
+  can be guarded, so the tracked script carries no literals). Path-shaped,
+  traversal, and hostile args never touch the filesystem; a typo cannot
+  cold-start an agent in /etc.
+- **Idempotent write + read-back** — re-mapping replaces the topic's line,
+  never duplicates; the reply ("bound topic N -> slug") is sent only after
+  the written line greps back verbatim (delivery-green != content-true),
+  and a re-bind names the previous project. Every use is ledgered.
+- **Effective immediately** — the in-memory map entry is set in the same
+  cycle; the daemon loop was already re-sourcing the map file every poll
+  (the "needs a relay restart" note in the 07-13 wrap was stale).
+- **Founder check hardened as a side effect** — sender verification now
+  precedes ALL replies, so the unmapped-topic notice (which now teaches
+  `!map`) can only be triggered by the founder, not by any group member.
+The full phone-only flow is now: create topic → `!map <project>` →
+`gogogo` → relay cold-starts the agent, which resumes from its BOOT block.
