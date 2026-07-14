@@ -15,17 +15,25 @@
 #      generated once into inventory/secrets/dokploy-tenant-<slug>.env)
 #   2. permissions pinned to exactly the named project's id + its
 #      environment ids + its application ids; canAccessToAPI true;
-#      every create/delete/docker/traefik/ssh/git capability FALSE
-#      (re-asserted on every run - permission drift converges back)
+#      docker/traefik/ssh/git + project + environment create/delete all FALSE.
+#      BUT canCreateServices=True (step 3 grant): Dokploy gates the CI
+#      image-bump (application.update) behind service:create, which ALSO
+#      permits CREATING services - re-asserted on every run.
 #   3. an API key minted AS that member (better-auth session sign-in ->
 #      user.createApiKey) into the same secrets file
 #   4. verification: the key reads its own app; sees ONLY its project;
-#      docker.getContainers is rejected (member has no docker access)
+#      docker.getContainers is rejected; the member's canCreateServices flag
+#      is read back and flagged (WARN, or FAIL under STRICT_SCOPE=1)
 #
-# The key's blast radius: update + deploy services inside the one project.
-# It cannot create/delete anything, cannot read other projects, cannot
-# reach docker or Traefik files. Worst case a leaked key deploys an image
-# from the tenant's own (CI-gated) GHCR to their own staging app.
+# The key's blast radius (HONEST - security review 2026-07-14): update + deploy
+# AND create services inside the one project. Because service:create also
+# permits compose.create/application.create, a leaked key can deploy an
+# ARBITRARY image or compose (host bind-mount => container escape) on the
+# SHARED box - not merely bump the tenant's own CI-gated image. It still cannot
+# delete anything, read other projects, or reach docker/Traefik files.
+# Narrowing this (deploy-without-create) is an OPEN founder decision; until then
+# a leaked tenant key is box-level exposure. Knobs: STRICT_SCOPE=1 hard-fails the
+# create-capability check; PROBE_CREATE=1 actively tests create against prod.
 # Secrets ride env vars and files, never argv (house rule).
 
 set -euo pipefail
@@ -33,6 +41,10 @@ cd "$(dirname "$0")/../.."
 
 SLUG=${1:?usage: tenant-credential.sh <tenant-slug> <dokploy-project-name>}
 PROJECT=${2:?usage: tenant-credential.sh <tenant-slug> <dokploy-project-name>}
+# slug lands in an email, a secrets-file path, and a JSON name - gate it like
+# the sibling tenant-db scripts do (security review 2026-07-14; was missing here)
+[[ "$SLUG" =~ ^[a-z][a-z0-9_-]{1,30}$ ]] \
+  || { echo "FAIL: bad slug '$SLUG' (want ^[a-z][a-z0-9_-]{1,30}$)"; exit 1; }
 DOKPLOY_URL=${DOKPLOY_URL:-https://deploy.swordfish.cfd}
 DOKPLOY_KEY_NAME=${DOKPLOY_KEY_NAME:-DOKPLOY_SYD2_API_KEY}
 SECFILE="inventory/secrets/dokploy-tenant-$SLUG.env"
@@ -128,7 +140,7 @@ for m in json.load(sys.stdin):
 ' "$EMAIL")
 [ "$persisted" = "True $PID" ] \
     || { echo "FAIL: permissions did not persist (read back: '$persisted') - assignPermissions no-ops silently on a wrong id"; exit 1; }
-echo "OK: permissions pinned to project $PID (api-only member, no create/delete/docker; read-back verified)"
+echo "OK: permissions pinned to project $PID (api member; project/env create+delete + docker/traefik/ssh OFF; canCreateServices=True is a known over-grant, checked in step 5)"
 
 # --- 4. API key minted AS the member (skip if the stored one still works) ----------
 TENANT_KEY=$(grep '^DOKPLOY_TENANT_API_KEY=' "$SECFILE" 2>/dev/null | cut -d= -f2- || true)
@@ -167,6 +179,48 @@ docker_code=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' \
     -K <(printf 'header = "x-api-key: %s"\n' "$TENANT_KEY") "$DOKPLOY_URL/api/docker.getContainers")
 case "$docker_code" in 401|403) echo "OK: docker surface rejected ($docker_code)";;
     *) echo "FAIL: docker.getContainers returned $docker_code for the scoped key"; exit 1;; esac
+
+# negative scope check (security review 2026-07-14): a scoped member must ideally
+# NOT create services - service:create widens to compose.create/application.create
+# => arbitrary image/compose (host bind-mount => container escape) on the shared
+# box. Non-destructive: read the member's canCreateServices flag back. WARN by
+# default (the grant is deliberate today so application.update works); FAIL under
+# STRICT_SCOPE=1 once a deploy-without-create path exists.
+can_create=$(admin GET user.all | python3 -c '
+import json, sys
+for m in json.load(sys.stdin):
+    if (m.get("user") or {}).get("email") == sys.argv[1]:
+        print(m.get("canCreateServices")); break
+' "$EMAIL")
+if [ "$can_create" = True ]; then
+    over="scoped key CAN create services (canCreateServices=True) - a leak deploys an arbitrary image/compose (host bind-mount => escape) on the SHARED box, not just the tenant's own image"
+    if [ "${STRICT_SCOPE:-0}" = 1 ]; then echo "FAIL: $over"; exit 1; fi
+    echo "WARN: $over [known over-grant; set STRICT_SCOPE=1 once deploy-without-create is resolved]"
+else
+    echo "OK: scoped key cannot create services (canCreateServices=$can_create)"
+fi
+
+# opt-in live proof (the deferred prod probe): actually attempt compose.create
+# with the scoped key and clean up. Gated off by default - PROBE_CREATE=1 to run.
+if [ "${PROBE_CREATE:-0}" = 1 ]; then
+    probe_env=${ENVS%%,*}
+    presp=$(curl -sS -m 20 \
+        -K <(printf 'header = "x-api-key: %s"\nheader = "Content-Type: application/json"\n' "$TENANT_KEY") \
+        -X POST --data-binary "$(printf '{"name":"scope-probe-DELETEME","composeType":"docker-compose","environmentId":"%s"}' "$probe_env")" \
+        "$DOKPLOY_URL/api/compose.create")
+    pid=$(python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("composeId") or "")
+except Exception: print("")' <<<"$presp")
+    if [ -n "$pid" ]; then
+        printf '{"composeId":"%s"}' "$pid" | admin POST compose.delete >/dev/null 2>&1 \
+            && echo "CONFIRMED VULN: scoped key created compose $pid (auto-deleted) - blast radius exceeds doc" \
+            || echo "CONFIRMED VULN: scoped key created compose $pid - AUTO-DELETE FAILED, remove 'scope-probe-DELETEME' in Dokploy NOW"
+        [ "${STRICT_SCOPE:-0}" = 1 ] && exit 1
+    else
+        echo "OK: live probe - scoped key could not create a compose (rejected)"
+    fi
+fi
+
 first_app=${APPS%%,*}
 if [ -n "$first_app" ]; then
     app_code=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' \
