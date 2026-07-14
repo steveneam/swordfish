@@ -83,6 +83,42 @@ jobs:
           cmp drill-restore/opt/swordfish/edge/compose.yaml compose/edge/compose.yaml
           echo "PASS: restored content verified (format + repo cross-check)"
 
+      - name: Functional restore - tenant Postgres (dump -> live PG -> canary row)
+        run: |
+          # A dump that gunzips is not yet a dump that RESTORES. Load the
+          # tenant-pg pg_dumpall into a real Postgres at the box's pinned
+          # image and prove the canary row (tenant-db-apply.sh seeds it on
+          # the box) came through the dump->snapshot->restore chain intact.
+          dump=drill-restore/var/backups/swordfish/tenant-pg.dumpall.sql.gz
+          if [ ! -e "$dump" ]; then
+            echo "SKIP: no tenant-pg dump in this snapshot (service not on this box; box-side rot guard = pre-backup.d/15-tenant-pg-dump)"
+            exit 0
+          fi
+          gunzip -t "$dump"
+          zcat "$dump" | head -5 | grep -q 'PostgreSQL database cluster dump'
+          # one source of truth for the image pin: the converge script
+          img=$(grep -m1 '^IMAGE=' provisioning/dokploy/tenant-pg.sh | cut -d= -f2 | awk '{print $1}')
+          docker run -d --name drill-pg -e POSTGRES_PASSWORD=drill "$img"
+          for i in $(seq 1 30); do
+            if docker exec drill-pg pg_isready -U postgres -q; then break; fi
+            [ "$i" = 30 ] && { echo "FAIL: drill postgres never became ready"; exit 1; }
+            sleep 2
+          done
+          # pg_dumpall replays CREATE ROLE/DATABASE; pre-existing-object noise
+          # is expected, the assertions below are what must hold
+          zcat "$dump" | docker exec -i drill-pg psql -U postgres -q >/dev/null
+          marker=$(docker exec drill-pg psql -U postgres -d drill_canary -qtAX \
+                   -c "SELECT k FROM drill_marker WHERE k='swordfish-restore-drill-canary'")
+          [ "$marker" = swordfish-restore-drill-canary ] \
+            || { echo "FAIL: canary marker missing after functional restore"; exit 1; }
+          docker exec drill-pg psql -U postgres -qtAX \
+              -c "SELECT 1 FROM pg_roles WHERE rolname='swordfish'" | grep -qx 1 \
+            || { echo "FAIL: swordfish superuser role missing from restored cluster"; exit 1; }
+          echo "PASS: tenant-pg dump restored into live $img; canary marker + roles verified" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Cleanup restored data
         if: always()
-        run: rm -rf drill-restore
+        run: |
+          docker rm -f drill-pg 2>/dev/null || true
+          rm -rf drill-restore

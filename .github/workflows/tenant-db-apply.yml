@@ -1,0 +1,105 @@
+name: tenant-db-apply
+
+# CI-as-hands apply channel for the shared tenant Postgres on syd2
+# (provisioning/dokploy/tenant-pg.sh created the service; this converges what
+# lives INSIDE it): always the baseline (admin DBs closed to PUBLIC + the
+# restore-drill canary), plus one tenant database/role when a slug is given.
+# Slugs are runtime args by design - guarded project names never enter
+# tracked files. The tenant password rides the TENANT_DB_PASSWORD repo
+# secret (set by provisioning/dokploy/tenant-db.sh immediately before
+# dispatch) and reaches the box on stdin, never argv.
+# Dispatch-only - a human (or the syd4 driver) decides when a live box changes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: Box FQDN or IP
+        required: false
+        default: syd2.swordfish.cfd
+      slug:
+        description: Tenant slug to (re)provision (empty = baseline/canary only)
+        required: false
+        default: ""
+
+# this job holds the box SSH key - keep its GITHUB_TOKEN read-only so a
+# compromised step can't also write to the repo (Bucket 1.5 posture)
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    name: converge tenant DBs via SSH
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ inputs.host || 'syd2.swordfish.cfd' }}
+      SLUG: ${{ inputs.slug }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install CI deploy key
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+        run: |
+          [ -n "$SSH_DEPLOY_KEY" ] || { echo "SSH_DEPLOY_KEY secret is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          # strip CRs defensively: a secret pasted/piped from Windows once arrived
+          # CR-tainted and openssh fails it with "error in libcrypto" (2026-07-07)
+          printf '%s\n' "$SSH_DEPLOY_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null || { echo "secret does not parse as a private key"; exit 1; }
+
+      - name: Wait for SSH
+        run: |
+          for i in $(seq 1 10); do
+            if ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o BatchMode=yes "deploy@$HOST" true; then
+              echo "SSH reachable"; exit 0
+            fi
+            echo "attempt $i/10 - not reachable yet, retrying in 30s"; sleep 30
+          done
+          echo "SSH unreachable after 5 minutes"; exit 1
+
+      - name: Ship provisioning/dokploy to /opt/swordfish/dokploy
+        run: |
+          # tar pipe instead of rsync/scp: rsync is not on the box image and this
+          # stays one idempotent overwrite with no partial-sync states
+          tar -C provisioning -czf - dokploy | \
+            ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                "deploy@$HOST" 'sudo install -d -o deploy -g deploy /opt/swordfish && tar -C /opt/swordfish -xzf -'
+
+      - name: Converge (baseline + optional tenant; password on stdin)
+        env:
+          TENANT_DB_PASSWORD: ${{ secrets.TENANT_DB_PASSWORD }}
+        run: |
+          # slug is interpolated into the remote command below - reject anything
+          # outside the identifier charset HERE, not only box-side
+          if [ -n "$SLUG" ] && ! [[ "$SLUG" =~ ^[a-z][a-z0-9_]{1,30}$ ]]; then
+            echo "FAIL: slug '$SLUG' must match ^[a-z][a-z0-9_]{1,30}\$"; exit 1
+          fi
+          if [ -n "$SLUG" ] && [ -z "$TENANT_DB_PASSWORD" ]; then
+            echo "FAIL: slug given but TENANT_DB_PASSWORD secret is empty - run tenant-db.sh from syd4, it sets the secret before dispatching"
+            exit 1
+          fi
+          printf '%s\n' "$TENANT_DB_PASSWORD" | tr -d '\r' | \
+            ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                "deploy@$HOST" "sudo TENANT_SLUG='$SLUG' bash /opt/swordfish/dokploy/tenant-db-apply.sh"
+
+      - name: Idempotency proof - second run must converge clean
+        env:
+          TENANT_DB_PASSWORD: ${{ secrets.TENANT_DB_PASSWORD }}
+        run: |
+          out=$(printf '%s\n' "$TENANT_DB_PASSWORD" | tr -d '\r' | \
+            ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                "deploy@$HOST" "sudo TENANT_SLUG='$SLUG' bash /opt/swordfish/dokploy/tenant-db-apply.sh")
+          echo "$out"
+          echo "$out" | grep -q '^CHANGED:' \
+            && { echo "FAIL: second run still reported CHANGED lines - script is not idempotent"; exit 1; }
+          echo "$out" | grep -q '^== converged:' \
+            || { echo "FAIL: second run did not report convergence"; exit 1; }
+
+      - name: Exercise the pre-backup dump hook (dump must succeed once installed)
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" 'h=/etc/resticprofile/pre-backup.d/15-tenant-pg-dump; if sudo test -e "$h"; then sudo bash "$h"; else echo "SKIP: hook not installed yet - backups-apply ships it and its real backup exercises it"; fi'
