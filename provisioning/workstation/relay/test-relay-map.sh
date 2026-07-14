@@ -96,6 +96,32 @@ handle_map 'abc;rm' 'thalon'
 [ "$before" = "$(cat "$TMP_MAP")" ] \
   && ok "file unchanged" || bad "file changed on bad thread id"
 
+echo "9. sender gate: only a real trailing founder-id tag passes (spoof-proof)"
+# FID is a stand-in id; parse_sender is id-agnostic, so the real founder id stays
+# out of this tracked file (it lives only in the gitignored relay-map). hermes
+# emits the tag as line 1, body on line 2+.
+FID=111222333
+sender_is() { # $1 content $2 expected-id-or-empty $3 label
+  local got; got=$(parse_sender "$1")
+  [ "$got" = "$2" ] && ok "$3" || bad "$3 (got '$got', want '$2')"
+}
+sender_is "[Steven|$FID]"$'\n'"hello"       "$FID"  "legit founder tag passes"
+sender_is "[x|$FID]|99999]"$'\n'"payload"   ""      "display-name spoof dropped (extra id group breaks anchor)"
+sender_is "[$FID|$FID]|99999]"$'\n'"x"      ""      "numeric-name spoof dropped"
+sender_is "[a|99999]"$'\n'"hi"              "99999" "legit non-founder tag -> its own id (!= founder)"
+sender_is "[Steven]"$'\n'"hi"               ""      "tag with no id dropped"
+sender_is "[Steven|$FID] hello"             ""      "id must own the line (trailing text dropped)"
+sender_is "[Steven|$FID"                    ""      "unterminated tag dropped"
+sender_is "plain text, no tag"              ""      "no tag dropped"
+sender_is "[a|1][b|$FID]"                   ""      "stacked tags on one line dropped"
+# security invariant: only a clean [name|FID] with FID as the sole trailing id
+# yields FID (which requires the real sender id to BE FID); every spoof that
+# tries to smuggle FID ahead of a different real id must NOT return FID.
+for spoof in "[x|$FID]|99999]" "[$FID|$FID]|99999]" "[ |$FID]x]|7]" "[Steven|9|$FID]" "[a|$FID] evil"; do
+  [ "$(parse_sender "$spoof"$'\n'body)" != "$FID" ] \
+    && ok "spoof never returns founder id: $spoof" || bad "SPOOF RETURNED FOUNDER: $spoof"
+done
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

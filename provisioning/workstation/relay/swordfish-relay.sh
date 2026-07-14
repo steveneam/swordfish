@@ -167,12 +167,22 @@ handle_map() { # $1 thread $2 raw argument ('!map' already stripped)
   fi
 }
 
+parse_sender() { # $1 raw message content -> founder-tag user id (empty = no valid tag)
+  # The id is the trailing |<digits>] hermes appends AFTER the display name.
+  # Anchored to end-of-line with a name charset that excludes | [ ] so an
+  # attacker-controlled display name (which may itself contain | and ]) cannot
+  # forge a leading founder-id group and pass the check (security review
+  # 2026-07-14; hostile inputs asserted in test-relay-map.sh). hermes always
+  # emits the tag as its own line 1, body on line 2+ (verified against state.db).
+  sed -n '1s/^\[[^][|]*|\([0-9]\{1,\}\)\]$/\1/p' <<<"$1"
+}
+
 process_row() { # $1 id $2 thread $3 content
   local id="$1" thread="$2" content="$3" dir slug sender text cmd
   # first line is the gateway's "[Name|user_id]" tag; the rest is the message.
   # Founder check comes FIRST (before any reply, mapped or not): only his
   # messages may trigger relay behaviour, including the unmapped notice.
-  sender=$(sed -n '1s/^\[[^|]*|\([0-9]*\)\].*$/\1/p' <<<"$content")
+  sender=$(parse_sender "$content")
   text=$(sed '1d' <<<"$content")
   [ "$sender" = "$FOUNDER_ID" ] || { log "drop msg $id: sender '$sender' != founder"; return; }
   [ -n "$(tr -d '[:space:]' <<<"$text")" ] || { log "drop msg $id: empty (restart auto-resume artifact)"; return; }
@@ -206,10 +216,15 @@ process_row() { # $1 id $2 thread $3 content
   fi
   jq -cn --arg c "$GROUP_ID" --arg t "$thread" --arg m "$id" --arg d "$dir" --argjson ts "$(date +%s)" \
     '{chat:$c,thread:$t,msg_id:$m,dir:$d,injected_at:$ts}' > "$MARKER_DIR/$slug.json"
-  tmux send-keys -t "$slug" "[Steven via hermes-relay] $text"
+  # inject as ONE literal line: -l -- keeps key-name tokens (Enter, C-c) in the
+  # body as characters, and collapsing newlines stops a multi-line body from
+  # submitting extra turns that could carry a forged provenance prefix (security
+  # review 2026-07-14). The single Enter below is the only turn submit.
+  local oneline; oneline=$(printf '%s' "$text" | tr '\n\r' '  ')
+  tmux send-keys -t "$slug" -l -- "[Steven via hermes-relay] $oneline"
   sleep 1
   tmux send-keys -t "$slug" Enter
-  ledger in "$slug" "$thread" "$id" "${text:0:80}"
+  ledger in "$slug" "$thread" "$id" "${oneline:0:80}"
   log "injected msg $id -> $slug"
 }
 
