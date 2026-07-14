@@ -44,9 +44,10 @@ doc: `research/security-review-2026-07-14.md` (see the 07-14 addendum)._
   one attacker could hold it to 503 everyone. Now `ipStrategy` per-IP + a
   smoke assertion ("edge: inflight is per-IP") so it can't silently regress.
 - **MEMORY CAPS — LIVE, all 7 workload containers verified** (Dokploy
-  reads-back confirmed Memory>0): thalon-web **1 GiB** (6-day peak ~502 MB),
-  kuma+tenant-pg **512 MiB**, beszel hub **256 MiB**, agent+hello **128 MiB**,
-  metrics socket-proxy **64 MiB**. Edge pair + Dokploy control-plane trio stay
+  reads-back confirmed Memory>0): thalon-web **3 GiB** (founder call — it's a
+  web-design + video-editing tool, renders in-process; 6-day peak was ~502 MB
+  but spikes need room), kuma+tenant-pg **512 MiB**, beszel hub **256 MiB**,
+  agent+hello **128 MiB**, metrics socket-proxy **64 MiB**. Edge pair + Dokploy control-plane trio stay
   UNcapped by design. Smoke asserts "workloads: all memory-capped" forever.
   Compose files carry the caps (status/metrics); tenant-pg.sh converges its
   cap. **Dokploy quirk (proven live): postgres.reload does NOT apply resource
