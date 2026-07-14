@@ -136,10 +136,12 @@ TLS-ALPN→DNS-01, and `forwardedHeaders.trustedIPs`=CF. Gated behind the soak.
   exempt). Filters verified with fail2ban-regex against synthetic Traefik JSON
   before landing. Ratchet: executable (converge + smoke assertions), opinion.
 - **Memory limits executed (blast containment):** caps sized from 6 days of
-  Beszel history (>=2x observed peak): thalon-web **3 GiB** (founder call
-  2026-07-14 — it is a web-design + video-editing tool, renders in-process,
-  so the cap allows spikes well past the ~502 MB observed peak; worst-case
-  cap-sum still leaves ~2 GB headroom on the 8 GB box), kuma 512 MiB
+  Beszel history (>=2x observed peak): thalon-web **4 GiB** (founder call
+  2026-07-14, raised twice from the metrics-derived 1 GiB — it is a
+  web-design + video-editing tool, renders in-process, so the cap allows
+  spikes well past the ~502 MB observed peak; worst-case cap-sum ~7.2 GB on
+  the 8 GB box is acceptable because caps are limits, not reservations, and
+  steady state is ~2.6 GB), kuma 512 MiB
   (~218 MB), tenant-pg 512 MiB (~55 MB), beszel hub 256 MiB,
   agent 128 MiB, socket-proxies 64 MiB, hello 128 MiB. Deliberately uncapped:
   the edge pair + Dokploy control-plane trio (protecting them is the point).

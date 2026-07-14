@@ -44,20 +44,28 @@ doc: `research/security-review-2026-07-14.md` (see the 07-14 addendum)._
   one attacker could hold it to 503 everyone. Now `ipStrategy` per-IP + a
   smoke assertion ("edge: inflight is per-IP") so it can't silently regress.
 - **MEMORY CAPS — LIVE, all 7 workload containers verified** (Dokploy
-  reads-back confirmed Memory>0): thalon-web **3 GiB** (founder call — it's a
-  web-design + video-editing tool, renders in-process; 6-day peak was ~502 MB
-  but spikes need room), kuma+tenant-pg **512 MiB**, beszel hub **256 MiB**,
-  agent+hello **128 MiB**, metrics socket-proxy **64 MiB**. Edge pair + Dokploy control-plane trio stay
+  reads-back confirmed Memory>0): thalon-web **4 GiB** (founder call, raised
+  twice from the metrics-derived 1 GiB — it's a web-design + video-editing
+  tool, renders in-process; size Thalon by workload NATURE, not telemetry),
+  kuma+tenant-pg **512 MiB**, beszel hub **256 MiB**, agent+hello **128 MiB**,
+  metrics socket-proxy **64 MiB**. Edge pair + Dokploy control-plane trio stay
   UNcapped by design. Smoke asserts "workloads: all memory-capped" forever.
   Compose files carry the caps (status/metrics); tenant-pg.sh converges its
   cap. **Dokploy quirk (proven live): postgres.reload does NOT apply resource
   changes — only postgres.deploy rebuilds the spec; application.reload DOES.**
   Thalon got a dated heads-up (their app rolled once, healthy); their
   render-worker cap still waits on their RAM ask-back reply.
-- **Thalon coordination:** no reply yet in `~/work/thalon/agent_handoff/
-  ASK-BACKS-FOR-SWORDFISH.md` to the security note (deploy-key over-grant +
-  key-rotation heads-up + render RAM ask). They deployed twice today
-  (autodeploy working). Message them there directly, not via the founder.
+- **Thalon REPLIED (session 29, in ASK-BACKS-FOR-SWORDFISH.md):** (1) key
+  hygiene confirmed — deploy key only in their GH Actions secret; (2)
+  **rotation handshake agreed**: we signal via FROM-SWORDFISH note, they swap
+  the CI secret + confirm-deploy same day; check their board for an in-flight
+  push before signalling; still gated on the founder's scope decision. (3)
+  **Render worker = headless-Chromium + FFmpeg, provisional 3-4 GB**, they
+  measure real peaks in its first syd2 session. **Coordination math:** with
+  web@4G a 3-4G worker does NOT fit worst-case on the 8 GB box → worker rides
+  on the syd2 resize gate, OR lands queue-of-one at ~2 GB (their fallback
+  offer; they pick via ASK-BACKS when ready). Acked in the FROM-SWORDFISH
+  security note. Message them directly, not via the founder.
 - Fleet unchanged: syd2 (prod) · syd3 (cockpit+hermes) · syd4 (workspace+relay,
   THIS box) · syd1 (SOAK, off-board, rollback until ≈07-16).
 
@@ -84,6 +92,9 @@ doc: `research/security-review-2026-07-14.md` (see the 07-14 addendum)._
 4. **⛔ SPEND GATE: resize syd2 → std-6vcpu** (AUD 78.40, +39.20/mo; nets
    ≈US$14 cheaper by cancelling Project 1's Render post re-seed).
    `research/capacity-and-data-plan-2026-07-13.md`. In NEEDS-STEVEN.
+   **Now also gates Thalon's render worker at its full 3-4 GB cap** (with
+   web@4G both don't fit worst-case in 8 GB; queue-of-one @ ~2 GB is the
+   fits-today fallback).
 5. **Cloudflare bucket (Next-4, founder acct) — AFTER the soak gate:** the ONLY
    real fix for volumetric/distributed DDoS. MUST include: rotate origin IP,
    firewall 80/443 to CF ranges, ACME TLS-ALPN→DNS-01,
