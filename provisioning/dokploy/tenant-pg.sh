@@ -127,9 +127,10 @@ echo "OK: no external port (internal docker network only)"
 # Dokploy stores resource limits as bytes-in-a-string and applies them to the
 # swarm service spec. 512 MiB = >=9x the observed 6-day peak (~55 MB) with
 # headroom for the Project 2 tenant; a runaway query OOMs this container, not
-# the box. The setting lands on the NEXT reload/deploy - hardening-smoke's
-# "workloads: all memory-capped" assertion is what verifies the running
-# container, so reload after changing this.
+# the box. The setting lands on the next postgres.DEPLOY - proven live
+# 2026-07-14: postgres.reload restarts the task WITHOUT rebuilding the spec
+# (unlike application.reload, which does). hardening-smoke's "workloads: all
+# memory-capped" assertion verifies the running container.
 MEM_LIMIT=536870912
 cur=$(admin GET "postgres.one?postgresId=$PG_ID" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("memoryLimit") or "")')
 if [ "$cur" = "$MEM_LIMIT" ]; then
