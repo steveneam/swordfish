@@ -115,6 +115,18 @@ write_files:
     content: |
       vm.swappiness=10
 
+  # Network stack flood hardening (security review 2026-07-14, DDoS lens):
+  # syncookies on + raised accept/SYN/device backlogs. Defense-in-depth only -
+  # real volumetric DDoS needs the upstream Cloudflare edge. Kept in lockstep
+  # with provisioning/host/phase2-host.sh (the live-box converge path).
+  - path: /etc/sysctl.d/99-swordfish-net.conf
+    permissions: "0644"
+    content: |
+      net.ipv4.tcp_syncookies=1
+      net.core.somaxconn=8192
+      net.ipv4.tcp_max_syn_backlog=4096
+      net.core.netdev_max_backlog=5000
+
   # sshd jail; systemd journal backend (no rsyslog on 24.04 cloud images).
   - path: /etc/fail2ban/jail.local
     permissions: "0644"
@@ -200,6 +212,7 @@ runcmd:
   - swapon --show=NAME --noheadings | grep -qx /swapfile || { fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none; chmod 600 /swapfile; mkswap /swapfile; swapon /swapfile; }
   - grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
   - sysctl -q vm.swappiness=10
+  - sysctl -q -p /etc/sysctl.d/99-swordfish-net.conf
 
   # --- POST-BOOT (not cloud-init-reproducible): SSH-login alerts via the
   #     alerts-apply workflow - its secrets env file can't be pinned here.

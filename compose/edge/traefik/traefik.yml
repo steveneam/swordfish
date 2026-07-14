@@ -53,10 +53,20 @@ entryPoints:
           permanent: true
   websecure:
     address: ":443"
+    # slowloris/connection-hold bound: cap how long a client may take to send a
+    # whole request. 60s kills byte-drip attacks while Dokploy's sub-second API
+    # calls, websocket upgrades, and SSE GETs (whose RESPONSE streams, governed
+    # by idleTimeout, not readTimeout) are untouched. writeTimeout deliberately
+    # left default so log/terminal streaming is never cut (security review
+    # 2026-07-14, DDoS lens).
+    transport:
+      respondingTimeouts:
+        readTimeout: "60s"
     http:
       tls:
         certResolver: letsencrypt
       middlewares:
+        - swordfish-inflight@file
         - swordfish-security-headers@file
 
 certificatesResolvers:

@@ -116,6 +116,25 @@ else
     changed=1
 fi
 
+# --- 3b. network stack flood hardening ----------------------------------------
+# syncookies is on by Ubuntu default; assert it and raise the accept/SYN/device
+# backlogs so a connection flood degrades gracefully instead of dropping legit
+# SYNs before syncookies compensate (security review 2026-07-14, DDoS lens).
+# Defense-in-depth only - real volumetric DDoS needs the upstream Cloudflare edge.
+net_conf=/etc/sysctl.d/99-swordfish-net.conf
+desired_net_conf='net.ipv4.tcp_syncookies=1
+net.core.somaxconn=8192
+net.ipv4.tcp_max_syn_backlog=4096
+net.core.netdev_max_backlog=5000'
+if [ -f "$net_conf" ] && echo "$desired_net_conf" | sudo cmp -s "$net_conf" -; then
+    note "OK: network sysctls already converged"
+else
+    echo "$desired_net_conf" | sudo tee "$net_conf" >/dev/null
+    sudo sysctl -q -p "$net_conf"
+    note "CHANGED: network flood sysctls applied ($net_conf)"
+    changed=1
+fi
+
 # --- 4. sshd crypto restriction (ssh-audit [fail]-clean) -----------------------
 # curve25519/sntrup kex + ed25519/rsa-sha2 host keys + AEAD/etm only. Every real
 # client (GitHub runners, founder laptop + phone, Vultr-adjacent tooling) speaks

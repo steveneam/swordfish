@@ -70,6 +70,8 @@ check "docker: swarm active"           "docker info --format '{{.Swarm.LocalNode
 check "swap: /swapfile active"         "sudo swapon --show=NAME --noheadings | grep -qx /swapfile"
 check "swap: fstab entry"              "grep -q '^/swapfile ' /etc/fstab"
 check "swap: swappiness=10"            "sysctl -n vm.swappiness | grep -qx 10"
+check "net: syncookies on"             "sysctl -n net.ipv4.tcp_syncookies | grep -qx 1"
+check "net: flood sysctl drop-in"      "test -f /etc/sysctl.d/99-swordfish-net.conf"
 check "unattended-upgrades: reboot on" "apt-config dump Unattended-Upgrade::Automatic-Reboot | grep -q '\"true\"'"
 check "unattended-upgrades: 18:30 UTC" "apt-config dump Unattended-Upgrade::Automatic-Reboot-Time | grep -q '\"18:30\"'"
 
@@ -128,6 +130,8 @@ check "dogfood: hello route live"        "curl -sk -o /dev/null -w '%{http_code}
 check "dogfood: status route live"       "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve status.swordfish.cfd:443:127.0.0.1 https://status.swordfish.cfd | grep -qE '^(200|30[1278])$'"
 check "dogfood: metrics route live"      "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve metrics.swordfish.cfd:443:127.0.0.1 https://metrics.swordfish.cfd | grep -qE '^(200|30[1278])$'"
 check "edge: ratelimit middleware defined" "sudo grep -q 'swordfish-ratelimit' /etc/dokploy/traefik/dynamic/50-swordfish-hardening.yml"
+check "edge: inflight middleware defined"  "sudo grep -q 'swordfish-inflight' /etc/dokploy/traefik/dynamic/50-swordfish-hardening.yml"
+check "edge: entrypoint read timeout set"  "sudo grep -q 'readTimeout' /etc/dokploy/traefik/traefik.yml"
 
 # tenant Postgres (shared service via provisioning/dokploy/tenant-pg.sh;
 # per-tenant DBs via tenant-db-apply.yml). No-published-ports is the standing

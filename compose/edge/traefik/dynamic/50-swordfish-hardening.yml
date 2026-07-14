@@ -21,6 +21,16 @@ http:
       rateLimit:
         average: 25
         burst: 50
+    # Attached at the websecure ENTRYPOINT (traefik.yml), so EVERY router incl.
+    # deploy. gets it - unlike the rate limit, inFlightReq is safe on the control
+    # plane: it degrades to a 503 only ABOVE the per-source-IP concurrency cap
+    # (no 429 storm that could lock the founder out of the recovery path). Caps
+    # the connections a single-IP slowloris/flood can hold open at once; a
+    # distributed botnet still needs the Cloudflare edge (security review
+    # 2026-07-14, DDoS lens).
+    swordfish-inflight:
+      inFlightReq:
+        amount: 100
     swordfish-security-headers:
       headers:
         stsSeconds: 31536000
