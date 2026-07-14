@@ -27,8 +27,13 @@ log:
   level: INFO
   format: json
 
+# JSON access log to a bind-mounted host file (not stdout): fail2ban's
+# swordfish-traefik-* jails watch it for auth/flood abuse (security review
+# 2026-07-14 finding 5). Host side: /var/log/swordfish-traefik (created +
+# logrotated by phase3-edge.sh); the compose file mounts it at /var/log/traefik.
 accessLog:
   format: json
+  filePath: /var/log/traefik/access.log
 
 ping: {}
 

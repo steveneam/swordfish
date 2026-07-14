@@ -114,3 +114,32 @@ TLS-ALPN→DNS-01, and `forwardedHeaders.trustedIPs`=CF. Gated behind the soak.
 3. **Cloudflare bucket (Next-4):** after the soak gate.
 4. Low-severity cleanups: pin CI known_hosts, gh-secret stdin, dispatch-input
    validation, IPv6 firewall rules.
+
+## Addendum 2026-07-14 (staged-edge slice executed)
+
+- **inFlightReq was per-HOST, not per-IP (HIGH, self-inflicted, fixed same
+  day).** The middleware landed in the morning slice with no `sourceCriterion`
+  — and Traefik's documented default for inFlightReq groups by REQUEST HOST
+  (unlike rateLimit, which defaults to client IP). Net effect: a 100-concurrent
+  cap on each hostname that one attacker could exhaust with slow requests to
+  503 every other client — a DoS amplifier posing as a mitigation. Fixed:
+  `sourceCriterion.ipStrategy` (depth 0 = TCP remote address) + a
+  `hardening-smoke` assertion so it can never silently regress. Lesson routed
+  to the CF bucket note: middleware defaults are per-middleware, verify each
+  against docs, not by analogy.
+- **Finding 5 executed:** Traefik JSON access log → host file
+  (`/var/log/swordfish-traefik`, logrotated) + two fail2ban jails banning in
+  `DOCKER-USER` (INPUT never sees docker-published traffic), port-scoped 80,443
+  so a ban can never touch 22. Flood jail (429s) armed; auth jail (401/403)
+  ships DISARMED until the founder's egress IP lands in the `FOUNDER_EGRESS_IP`
+  repo secret (his call from the review plan: no 401-bans before his IP is
+  exempt). Filters verified with fail2ban-regex against synthetic Traefik JSON
+  before landing. Ratchet: executable (converge + smoke assertions), opinion.
+- **Memory limits executed (blast containment):** caps sized from 6 days of
+  Beszel history (>=2x observed peak): thalon-web 1 GiB (peak ~502 MB),
+  kuma 512 MiB (~218 MB), tenant-pg 512 MiB (~55 MB), beszel hub 256 MiB,
+  agent 128 MiB, socket-proxies 64 MiB, hello 128 MiB. Deliberately uncapped:
+  the edge pair + Dokploy control-plane trio (protecting them is the point).
+  Enforced by the "workloads: all memory-capped" smoke assertion. Thalon's
+  render worker gets sized when they answer the RAM ask-back. Ratchet:
+  executable, opinion (sizes) / invariant (no unbounded workload).

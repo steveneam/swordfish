@@ -28,9 +28,20 @@ http:
     # the connections a single-IP slowloris/flood can hold open at once; a
     # distributed botnet still needs the Cloudflare edge (security review
     # 2026-07-14, DDoS lens).
+    #
+    # sourceCriterion is NOT optional here: unlike rateLimit (defaults to the
+    # client IP), inFlightReq with no sourceCriterion groups by REQUEST HOST -
+    # i.e. 100 concurrent for the whole hostname, which an attacker can hold
+    # open to 503 everyone else (found + fixed 2026-07-14; the first cut of
+    # this middleware shipped without it). ipStrategy depth 0 = the TCP remote
+    # address; when Cloudflare fronts the edge (Next-5) this keeps working
+    # only alongside forwardedHeaders.trustedIPs - revisit in that bucket.
     swordfish-inflight:
       inFlightReq:
         amount: 100
+        sourceCriterion:
+          ipStrategy:
+            depth: 0
     swordfish-security-headers:
       headers:
         stsSeconds: 31536000

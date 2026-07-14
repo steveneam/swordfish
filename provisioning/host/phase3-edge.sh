@@ -100,6 +100,44 @@ sync_file() { # src dst  (644; sets changed + traefik_restart flags on drift)
 sync_file "$EDGE_DIR/traefik/traefik.yml" /etc/dokploy/traefik/traefik.yml
 sync_file "$EDGE_DIR/traefik/dynamic/50-swordfish-hardening.yml" "$DYN/50-swordfish-hardening.yml"
 
+# --- 3b. traefik access-log landing zone (must exist before compose up mounts it)
+# The JSON access log is fail2ban's input (section 8) - it lives on the host at
+# /var/log/swordfish-traefik, bind-mounted to /var/log/traefik in the container.
+sudo install -d -m 755 /var/log/swordfish-traefik
+sudo touch /var/log/swordfish-traefik/access.log   # jail logpath must exist even before traefik's first write
+
+sync_content() { # dest label  (desired content on stdin; 644 root; converges on drift)
+    local tmp
+    tmp=$(mktemp)
+    cat > "$tmp"
+    if [ -f "$1" ] && sudo cmp -s "$tmp" "$1"; then
+        note "OK: $2 converged"
+        rm -f "$tmp"
+        return 1
+    fi
+    sudo install -m 644 "$tmp" "$1"
+    rm -f "$tmp"
+    note "CHANGED: $2 updated"
+    changed=1
+    return 0
+}
+
+# copytruncate: no signal into the container needed; the seconds-wide copy
+# window can drop a few lines - acceptable for an access log. maxsize backs
+# the daily cadence so a request flood can't fill the disk between runs.
+sync_content /etc/logrotate.d/swordfish-traefik "logrotate config" <<'EOF' || true
+/var/log/swordfish-traefik/*.log {
+    daily
+    rotate 7
+    maxsize 500M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+}
+EOF
+
 # middlewares.yml: dokploy's routers reference redirect-to-https by name; dokploy
 # creates this file only-if-missing at boot - pre-seeding it (same content as
 # upstream createDefaultMiddlewares) keeps the bootstrap router below valid
@@ -255,6 +293,97 @@ if [ -f "$DYN/acme.json" ] && [ "$(sudo stat -c %a "$DYN/acme.json")" != "600" ]
     sudo chmod 600 "$DYN/acme.json"
     note "CHANGED: acme.json tightened to 0600"
     changed=1
+fi
+
+# --- 9. edge abuse jails: fail2ban over traefik's access log --------------------
+# Security review 2026-07-14 finding 5: HTTP brute force / ratelimit floods had
+# no firewall consequence (fail2ban watched sshd only). Design constraints:
+#   - bans land in DOCKER-USER, not INPUT: traffic to docker-published 80/443 is
+#     DNAT'd + FORWARDed and never traverses INPUT - an INPUT ban would be
+#     cosmetic. DOCKER-USER is the chain docker guarantees for admin rules.
+#   - port-scoped 80,443: a ban - even a false positive - can never touch 22,
+#     so the founder/CI SSH path onto the box is structurally out of blast radius.
+#   - ignoreip: loopback + RFC1918/CGN (kuma on this box probes our own public
+#     hostnames - the box must never ban itself or its overlay networks), the
+#     box's own public IP, the cockpit/workspace boxes (syd3/syd4: MCP calls +
+#     staging asserts), and the founder's egress IP when provided.
+#   - the auth (401/403) jail arms ONLY when FOUNDER_EGRESS_IP is set (shipped
+#     by edge-apply from the FOUNDER_EGRESS_IP repo secret): founder-agreed
+#     plan - no 401-bans before his IP is exempt, a fumbled login must not cost
+#     him the web UI. The flood (429) jail arms now: deploy. is ratelimit-exempt
+#     so he cannot generate 429s there, and sustained 429s elsewhere are
+#     self-inflicted by definition (the rate limit is per-client-IP).
+#   - backend = polling (the fleet baseline jail.local sets systemd, which
+#     cannot read files); Cloudflare bucket note: once CF fronts the edge,
+#     ClientHost becomes a CF address - these jails must move to the
+#     X-Forwarded-For strategy in that bucket or they will ban CF's edge.
+box_ip=$(ip -4 route get 1.1.1.1 | awk '{for(i=1;i<=NF;i++) if ($i=="src") {print $(i+1); exit}}')
+fleet_ips=""
+for h in syd3.swordfish.cfd syd4.swordfish.cfd; do
+    hip=""
+    hip=$(getent ahostsv4 "$h" 2>/dev/null | awk 'NR==1{print $1}') || hip=""
+    if [ -n "$hip" ]; then fleet_ips="$fleet_ips $hip"; fi
+done
+ignoreip="127.0.0.1/8 ::1 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 ${box_ip}${fleet_ips}"
+if [ -n "${FOUNDER_EGRESS_IP:-}" ]; then
+    ignoreip="$ignoreip $FOUNDER_EGRESS_IP"
+    auth_enabled=true
+else
+    auth_enabled=false
+fi
+
+fail2ban_reload=0
+# lookahead regex: JSON key order is alphabetical today but the filter must not
+# depend on it. Status anchored with the trailing comma (3-digit codes only).
+if sync_content /etc/fail2ban/filter.d/swordfish-traefik-auth.conf "fail2ban auth filter" <<'EOF'
+[Definition]
+failregex = ^(?=.*"DownstreamStatus":40[13],).*"ClientHost":"<HOST>"
+datepattern = "time":"%%Y-%%m-%%dT%%H:%%M:%%S
+EOF
+then fail2ban_reload=1; fi
+
+if sync_content /etc/fail2ban/filter.d/swordfish-traefik-flood.conf "fail2ban flood filter" <<'EOF'
+[Definition]
+failregex = ^(?=.*"DownstreamStatus":429,).*"ClientHost":"<HOST>"
+datepattern = "time":"%%Y-%%m-%%dT%%H:%%M:%%S
+EOF
+then fail2ban_reload=1; fi
+
+if sync_content /etc/fail2ban/jail.d/swordfish-traefik.local "fail2ban traefik jails" <<EOF
+# generated by phase3-edge.sh - do not hand-edit (converge overwrites)
+[swordfish-traefik-auth]
+enabled = $auth_enabled
+backend = polling
+filter = swordfish-traefik-auth
+logpath = /var/log/swordfish-traefik/access.log
+chain = DOCKER-USER
+port = 80,443
+banaction = iptables-multiport
+maxretry = 12
+findtime = 10m
+bantime = 1h
+ignoreip = $ignoreip
+
+[swordfish-traefik-flood]
+enabled = true
+backend = polling
+filter = swordfish-traefik-flood
+logpath = /var/log/swordfish-traefik/access.log
+chain = DOCKER-USER
+port = 80,443
+banaction = iptables-multiport
+maxretry = 60
+findtime = 5m
+bantime = 1h
+ignoreip = $ignoreip
+EOF
+then fail2ban_reload=1; fi
+
+if [ "$fail2ban_reload" -eq 1 ]; then
+    sudo fail2ban-client reload >/dev/null
+    note "CHANGED: fail2ban reloaded (traefik jails: flood armed, auth $( [ "$auth_enabled" = true ] && echo armed || echo 'DISARMED pending FOUNDER_EGRESS_IP'))"
+else
+    note "OK: fail2ban traefik jails converged"
 fi
 
 # --------------------------------------------------------------------------------

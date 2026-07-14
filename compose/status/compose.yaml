@@ -1,9 +1,9 @@
 # compose/status - Bucket 4 (Stage 1d): Uptime Kuma at status.swordfish.cfd.
 # Apply channel: the Dokploy MCP (NOT edge-apply) - this file is the tracked
 # source of truth; changes here are pushed into the Dokploy compose service
-# via compose-update + compose-deploy. Dokploy service: composeId
-# 5h4OEMKIBVnmSqzMy_TtH, appName swordfish-status-3cv6il (suffix is
-# Dokploy-generated), project swordfish. Kuma was pinned at Checkpoint 1; its
+# via compose-update + compose-deploy. Dokploy service on syd2: composeId
+# LozRPFJ8LCLK88hvc7ke5, appName compose-connect-virtual-sensor-4jplne
+# (Dokploy-generated), project swordfish. Kuma was pinned at Checkpoint 1; its
 # push monitor is the on-infra half of the backup dead-man switch (Bucket 3);
 # Gatus stays the documented config-as-code swap path.
 #
@@ -20,6 +20,13 @@ services:
     restart: always
     security_opt:
       - no-new-privileges:true
+    # blast containment (security review 2026-07-14): observed 6-day peak
+    # ~218 MB; a runaway must OOM itself, not the box. hardening-smoke
+    # asserts every workload container is capped.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     volumes:
       - kuma-data:/app/data
     networks:

@@ -123,6 +123,22 @@ echo "OK: service status=$STATUS image=$IMG"
     || { echo "FAIL: externalPort=$EXT - tenant-pg must NEVER publish a port"; exit 1; }
 echo "OK: no external port (internal docker network only)"
 
+# --- 3b. memory cap (blast containment, security review 2026-07-14) --------------
+# Dokploy stores resource limits as bytes-in-a-string and applies them to the
+# swarm service spec. 512 MiB = >=9x the observed 6-day peak (~55 MB) with
+# headroom for the Project 2 tenant; a runaway query OOMs this container, not
+# the box. The setting lands on the NEXT reload/deploy - hardening-smoke's
+# "workloads: all memory-capped" assertion is what verifies the running
+# container, so reload after changing this.
+MEM_LIMIT=536870912
+cur=$(admin GET "postgres.one?postgresId=$PG_ID" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("memoryLimit") or "")')
+if [ "$cur" = "$MEM_LIMIT" ]; then
+    echo "OK: memoryLimit=$MEM_LIMIT"
+else
+    printf '{"postgresId":"%s","memoryLimit":"%s"}' "$PG_ID" "$MEM_LIMIT" | admin POST postgres.update >/dev/null
+    echo "CHANGED: memoryLimit -> $MEM_LIMIT (applies on next reload/deploy)"
+fi
+
 # --- 4. record the real in-network host - appName gets a random suffix at ---------
 # create and is immutable after (dogfood quirk ledger), so tenants must use
 # THIS, not the service name

@@ -31,6 +31,11 @@ jobs:
     env:
       HOST: ${{ inputs.host || 'syd1.swordfish.cfd' }}
       DEPLOY_FQDN: ${{ inputs.deploy_fqdn || 'deploy.swordfish.cfd' }}
+      # optional: founder's egress IP(s), space-separated. When set, phase3 adds
+      # them to the traefik-jail ignoreip AND arms the 401/403 auth jail (it
+      # stays disarmed without this - a fumbled founder login must never cost
+      # him the web UI). Kept a secret so it stays out of run logs.
+      FOUNDER_EGRESS_IP: ${{ secrets.FOUNDER_EGRESS_IP }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -76,12 +81,12 @@ jobs:
       - name: Converge edge + control plane (phase3-edge.sh)
         run: |
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
-              "deploy@$HOST" "DEPLOY_FQDN=$DEPLOY_FQDN bash -s" < provisioning/host/phase3-edge.sh
+              "deploy@$HOST" "DEPLOY_FQDN=$DEPLOY_FQDN FOUNDER_EGRESS_IP='$FOUNDER_EGRESS_IP' bash -s" < provisioning/host/phase3-edge.sh
 
       - name: Idempotency proof - second run must be a no-op
         run: |
           out=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
-                    "deploy@$HOST" "DEPLOY_FQDN=$DEPLOY_FQDN bash -s" < provisioning/host/phase3-edge.sh)
+                    "deploy@$HOST" "DEPLOY_FQDN=$DEPLOY_FQDN FOUNDER_EGRESS_IP='$FOUNDER_EGRESS_IP' bash -s" < provisioning/host/phase3-edge.sh)
           echo "$out"
           echo "$out" | grep -q '== converged: no changes' \
             || { echo "FAIL: second run still reported changes - script is not idempotent"; exit 1; }

@@ -131,7 +131,29 @@ check "dogfood: status route live"       "curl -sk -o /dev/null -w '%{http_code}
 check "dogfood: metrics route live"      "curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve metrics.swordfish.cfd:443:127.0.0.1 https://metrics.swordfish.cfd | grep -qE '^(200|30[1278])$'"
 check "edge: ratelimit middleware defined" "sudo grep -q 'swordfish-ratelimit' /etc/dokploy/traefik/dynamic/50-swordfish-hardening.yml"
 check "edge: inflight middleware defined"  "sudo grep -q 'swordfish-inflight' /etc/dokploy/traefik/dynamic/50-swordfish-hardening.yml"
+# per-IP is load-bearing: inFlightReq with no sourceCriterion groups by request
+# HOST - a 100-concurrent cap an attacker can exhaust to 503 the whole hostname
+# (shipped that way 2026-07-14 morning, caught same day)
+check "edge: inflight is per-IP"           "sudo grep -A6 'inFlightReq' /etc/dokploy/traefik/dynamic/50-swordfish-hardening.yml | grep -q ipStrategy"
 check "edge: entrypoint read timeout set"  "sudo grep -q 'readTimeout' /etc/dokploy/traefik/traefik.yml"
+
+# edge abuse jails (security review 2026-07-14 finding 5): traefik's JSON
+# access log on the host + fail2ban banning in DOCKER-USER (INPUT never sees
+# docker-published traffic), port-scoped 80,443 so a ban can never touch 22.
+# The route-live probes above guarantee the log has fresh lines by now.
+check "edge: access log on host"           "sudo test -s /var/log/swordfish-traefik/access.log"
+check "edge: access log rotation"          "test -f /etc/logrotate.d/swordfish-traefik"
+check "fail2ban: traefik flood jail up"    "sudo fail2ban-client status swordfish-traefik-flood"
+# auth jail is valid in either state: armed (founder egress IP shipped) or
+# explicitly disarmed awaiting it - what may NOT happen is the jail going missing
+check "fail2ban: traefik auth jail armed-or-pending" "sudo fail2ban-client status swordfish-traefik-auth || sudo grep -A1 -F '[swordfish-traefik-auth]' /etc/fail2ban/jail.d/swordfish-traefik.local | grep -q 'enabled = false'"
+check "net: DOCKER-USER chain present"     "sudo iptables -n -L DOCKER-USER"
+
+# blast containment (security review 2026-07-14): every workload container is
+# memory-capped so one runaway cannot OOM the box into killing traefik or the
+# control plane. Deliberately UNcapped allowlist: the edge itself
+# (swordfish-traefik + its socket-proxy) and the Dokploy control-plane trio.
+check "workloads: all memory-capped"       "! docker ps --format '{{.Names}}' | grep -vxE '(swordfish-traefik|swordfish-socket-proxy)' | grep -vE '^(dokploy|dokploy-postgres|dokploy-redis)\.[0-9]+\.' | xargs -r docker inspect -f '{{.HostConfig.Memory}}' | grep -qx 0"
 
 # tenant Postgres (shared service via provisioning/dokploy/tenant-pg.sh;
 # per-tenant DBs via tenant-db-apply.yml). No-published-ports is the standing

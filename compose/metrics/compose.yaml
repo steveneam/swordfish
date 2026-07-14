@@ -2,8 +2,9 @@
 # metrics.swordfish.cfd. Apply channel: the Dokploy MCP (NOT edge-apply) -
 # this file is the tracked source of truth; changes here are pushed into the
 # Dokploy compose service via compose-update + compose-deploy. Dokploy
-# service: composeId koQq7S1xUJgfR7yQEZ4ij, appName swordfish-metrics-5t0pke
-# (suffix is Dokploy-generated), project swordfish.
+# service on syd2: composeId 1PiSAb1dg6TiRGw9X1C4Q, appName
+# compose-hack-open-source-hard-drive-kdj8h2 (Dokploy-generated), project
+# swordfish.
 #
 # Hardening deltas from Beszel's stock compose (documented trade-offs):
 # - The agent does NOT get the raw docker socket: it talks to its own
@@ -22,12 +23,21 @@
 # public key. First deploy leaves the agent restart-looping until the key is
 # saved + redeployed - expected, not an incident.
 
+# Memory limits (security review 2026-07-14, blast containment): observed
+# 6-day peaks hub ~37 MB / agent ~15 MB / proxy ~15 MB - caps are >=2x peak so
+# a runaway OOMs itself, never the box. hardening-smoke asserts every workload
+# container is capped.
+
 services:
   beszel:
     image: henrygd/beszel:0.18.7@sha256:a849ad80814b6a1a3be665304dcace5d4854b3bed7bde4dd1227e8ce1b82d477
     restart: always
     security_opt:
       - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     volumes:
       - beszel-data:/beszel_data
     networks:
@@ -39,6 +49,10 @@ services:
     restart: always
     security_opt:
       - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     environment:
       LISTEN: "45876"
       KEY: ${BESZEL_AGENT_KEY:-}
@@ -52,6 +66,10 @@ services:
     restart: always
     security_opt:
       - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 64M
     environment:
       # same allow-list shape as compose/edge: read-only container surface
       CONTAINERS: 1

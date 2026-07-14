@@ -54,6 +54,9 @@ services:
     volumes:
       - /etc/dokploy/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - /etc/dokploy/traefik/dynamic:/etc/dokploy/traefik/dynamic
+      # access log lands on the host so fail2ban (host service) can watch it;
+      # dir + logrotate + jails are converged by phase3-edge.sh
+      - /var/log/swordfish-traefik:/var/log/traefik
     networks:
       - socket
       - dokploy-network
