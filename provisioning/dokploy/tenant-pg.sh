@@ -51,23 +51,29 @@ admin() { # method path [json-stdin]
 }
 
 # --- 1. resolve the project's single environment + any existing service ----------
-# (project.all nests postgres services under each environment)
+# QUIRK (found live 2026-07-14, the hard way - a re-run duplicated the
+# service): project.all lists postgres services as BARE {postgresId} entries,
+# no name field. Existence must be resolved by postgres.one per id.
 state=$(admin GET project.all | python3 -c '
 import json, sys
-name, svc = sys.argv[1], sys.argv[2]
+name = sys.argv[1]
 hits = [p for p in json.load(sys.stdin) if p["name"] == name]
 if len(hits) != 1:
     sys.exit(f"FAIL: {len(hits)} projects named {name!r}")
 envs = hits[0].get("environments", [])
 if len(envs) != 1:
     sys.exit(f"FAIL: expected exactly 1 environment, found {len(envs)} - pick explicitly")
-env = envs[0]
-pgs = [g for g in env.get("postgres", []) if g.get("name") == svc]
-print(env["environmentId"])
-print(pgs[0]["postgresId"] if pgs else "")
-' "$PROJECT" "$SERVICE")
-ENV_ID=$(sed -n 1p <<<"$state"); PG_ID=$(sed -n 2p <<<"$state")
+print(envs[0]["environmentId"])
+print(",".join(g["postgresId"] for g in envs[0].get("postgres", [])))
+' "$PROJECT")
+ENV_ID=$(sed -n 1p <<<"$state"); CANDIDATES=$(sed -n 2p <<<"$state")
 echo "OK: project $PROJECT environment $ENV_ID"
+PG_ID=""
+for id in ${CANDIDATES//,/ }; do
+    name=$(admin GET "postgres.one?postgresId=$id" \
+        | python3 -c 'import json,sys; print(json.load(sys.stdin).get("name",""))')
+    if [ "$name" = "$SERVICE" ]; then PG_ID=$id; break; fi
+done
 
 # --- 2. create once (password persisted first, so a crash never strands it) ------
 if [ -n "$PG_ID" ]; then
@@ -97,19 +103,34 @@ print(json.dumps({"name": sys.argv[1], "appName": sys.argv[1],
 fi
 
 # --- 3. poll until running, then verify the no-public-port invariant --------------
+STATUS="" EXT="" HOST="" IMG=""
 for _ in $(seq 1 24); do
-    read -r STATUS EXT IMG < <(admin GET "postgres.one?postgresId=$PG_ID" | python3 -c '
+    read -r STATUS EXT HOST IMG < <(admin GET "postgres.one?postgresId=$PG_ID" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
-print(d.get("applicationStatus", "?"), json.dumps(d.get("externalPort")), d.get("dockerImage", "?"))')
-    [ "$STATUS" = done ] || [ "$STATUS" = running ] && break
-    [ "$STATUS" = error ] && { echo "FAIL: service status=error - read Dokploy logs"; exit 1; }
+print(d.get("applicationStatus", "?"), json.dumps(d.get("externalPort")),
+      d.get("appName", "?"), d.get("dockerImage", "?"))')
+    case "$STATUS" in
+        done|running) break ;;
+        error) echo "FAIL: service status=error - read Dokploy logs"; exit 1 ;;
+    esac
     sleep 5
 done
-[ "$STATUS" = done ] || [ "$STATUS" = running ] \
-    || { echo "FAIL: service never reached done/running (last: $STATUS)"; exit 1; }
+case "$STATUS" in done|running) ;; *)
+    echo "FAIL: service never reached done/running (last: $STATUS)"; exit 1 ;; esac
 echo "OK: service status=$STATUS image=$IMG"
 [ "$EXT" = null ] \
     || { echo "FAIL: externalPort=$EXT - tenant-pg must NEVER publish a port"; exit 1; }
 echo "OK: no external port (internal docker network only)"
-echo "== converged: $SERVICE on syd2 (id $PG_ID; in-network host '$SERVICE', port 5432)"
+
+# --- 4. record the real in-network host - appName gets a random suffix at ---------
+# create and is immutable after (dogfood quirk ledger), so tenants must use
+# THIS, not the service name
+if ! grep -qx "PG_HOST=$HOST" "$SECFILE" 2>/dev/null; then
+    umask 077
+    { grep -v '^PG_HOST=' "$SECFILE" 2>/dev/null || true
+      echo "PG_HOST=$HOST"; } > "$SECFILE.tmp"
+    mv "$SECFILE.tmp" "$SECFILE"
+    echo "CHANGED: PG_HOST=$HOST -> $SECFILE"
+fi
+echo "== converged: $SERVICE on syd2 (id $PG_ID; in-network host '$HOST', port 5432)"

@@ -48,6 +48,16 @@ Their state is in the nightly backup set as SQLite dumps (`20-dogfood-sqlite-dum
 - Compose domains are implemented as **injected Traefik labels** (see
   `compose-getConvertedCompose`), not dynamic files — a domain change needs a
   redeploy to take effect; Traefik sees the labels via the edge socket-proxy.
+- `project.all` lists database services as **bare `{postgresId}` entries — no
+  name field** (learned 2026-07-14 the hard way: a name-match against that
+  list never hits, so a "create if absent" re-run DUPLICATED tenant-pg).
+  Existence checks must follow up with `postgres.one` per id. Same lesson
+  class as assignPermissions: the API answers cleanly for questions it is
+  not actually answering.
+- Database services get the same immutable appName suffix as apps —
+  `tenant-pg` runs as `tenant-pg-o7ijjh`, and THAT is the in-network DNS
+  host tenants connect to (recorded as `PG_HOST` in
+  `inventory/secrets/pg-syd2.env` by `tenant-pg.sh`).
 - Create domains **before** the first deploy and the cert lands with it
   (TLS-ALPN takes a minute or two; `sniStrict` resets the handshake until then).
 - `application.saveEnvironment` requires `buildArgs` + `buildSecrets` +
