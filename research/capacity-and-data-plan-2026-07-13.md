@@ -199,3 +199,19 @@ re-seed verifies sha256-green on the box.
    next 6–12 months? (Decides 180 GB vs 300–400 GB class.)
 5. Budget appetite: comfortable lifting infra cash to **~US$78 (option A)**
    or **~US$104 (option B)** when the workloads land?
+
+## Addendum 2026-07-14 — Render cancel safety (founder Q&A)
+
+Cancelling Render **deletes its persistent disk** (no export path exists), but
+the disk is a **derived cache** — the authoritative assets live in Project 1's
+private Supabase source-asset bucket. Cancel is therefore a pure cost cut IF
+the sequence holds: **resize → re-seed box from Supabase (Project 1's agent,
+over 443) → checksum-verify vs source → only then cancel.**
+
+**Mandatory re-seed runbook step (founder-directed 2026-07-14):** before
+anyone cancels, Project 1's agent must **confirm nothing exists ONLY on the
+Render disk** — e.g. locally-generated derivatives that were never uploaded
+back to the source bucket. "The disk is a cache" is the design claim; the
+re-seed is the moment to prove it against the live disk (listing/manifest
+diff vs bucket), not assume it. Also: the syd2 landing zone joins the restic
+set BEFORE assets land (backups-before-workloads, invariant).

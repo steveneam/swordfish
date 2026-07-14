@@ -15,12 +15,16 @@
 > decision below, incl. AGENTS.md rule-10 founder-gate list). If the box state
 > and this file disagree, the box wins — say so, then fix the file.
 
-_Stamped: 2026-07-14 11:05 UTC (21:05 AEST). Session = **staged DDoS slice
+_Stamped: 2026-07-14 11:50 UTC (21:50 AEST). Session = **staged DDoS slice
 executed** (the riskier half held back yesterday): fail2ban traefik jails +
 workload memory caps landed via edge-apply run 29327181205 (idempotent,
 **smoke 79/79**, was 72) — plus a same-day catch: yesterday's inFlightReq
-middleware was accidentally per-HOST (a DoS amplifier), now per-IP. Findings
-doc: `research/security-review-2026-07-14.md` (see the 07-14 addendum)._
+middleware was accidentally per-HOST (a DoS amplifier), now per-IP. Late
+founder calls: thalon-web cap → **4 GiB** (twice-raised; live+verified),
+Thalon's ask-back reply processed (rotation handshake agreed; render worker
+3-4 GB rides the resize gate), Render-cancel safety recorded (cache-verify
+step added to the re-seed runbook). Findings doc:
+`research/security-review-2026-07-14.md` (see the 07-14 addendum)._
 
 ## State
 
@@ -94,7 +98,10 @@ doc: `research/security-review-2026-07-14.md` (see the 07-14 addendum)._
    `research/capacity-and-data-plan-2026-07-13.md`. In NEEDS-STEVEN.
    **Now also gates Thalon's render worker at its full 3-4 GB cap** (with
    web@4G both don't fit worst-case in 8 GB; queue-of-one @ ~2 GB is the
-   fits-today fallback).
+   fits-today fallback). **Post-resize re-seed protocol (see the plan doc's
+   07-14 addendum):** landing zone into restic FIRST → Project 1's agent
+   re-seeds from Supabase + checksums + **proves nothing lives ONLY on the
+   Render disk** → only then the founder cancels Render.
 5. **Cloudflare bucket (Next-4, founder acct) — AFTER the soak gate:** the ONLY
    real fix for volumetric/distributed DDoS. MUST include: rotate origin IP,
    firewall 80/443 to CF ranges, ACME TLS-ALPN→DNS-01,
