@@ -115,3 +115,31 @@ deploy receipt.
 - **UptimeRobot** (`provisioning/uptimerobot/bootstrap.py`, idempotent):
   5-min HTTP checks on `status.` + `deploy.` → email. Second off-infra
   witness; healthchecks.io remains the dead-man witness for backups.
+
+## Tenant Postgres — `tenant-pg` (Next-3 bucket, built 2026-07-14)
+
+The shared per-tenant database service on syd2 (founder call 2026-07-13:
+Thalon + Project 2 tenant DBs on the existing box, zero new spend; Project
+1's clinical DB stays on managed Supabase — keep-managed invariant).
+
+- **Service:** Dokploy postgres `tenant-pg` (id `X_o87Ks269ysGvOj1MUSw`,
+  appName **`tenant-pg-o7ijjh`** = the in-network DNS host), image pinned
+  `postgres:17.10`, **no external port ever** (converge check + posture
+  assertion + provider firewall all say so). Superuser `swordfish`,
+  credential in `inventory/secrets/pg-syd2.env`.
+- **Converge the service:** `provisioning/dokploy/tenant-pg.sh` (syd4,
+  Dokploy API, idempotent).
+- **Provision/re-assert a tenant:** `provisioning/dokploy/tenant-db.sh
+  <slug>` (syd4) — generates the credential into
+  `inventory/secrets/pg-tenant-<slug>.env` (DATABASE_URL ready for the
+  tenant agent's handoff pack), stages it as the `TENANT_DB_PASSWORD` repo
+  secret (transport only), dispatches `tenant-db-apply.yml` which converges
+  role+DB and verifies isolation both ways from the tenant role's own
+  point of view. Slugs are runtime args — guarded names never enter
+  tracked files.
+- **Backups:** `pre-backup.d/15-tenant-pg-dump` (pg_dumpall: roles + all
+  DBs, self-arming rot guard). The restore drill does a FUNCTIONAL restore:
+  dump → live postgres on the runner → `drill_canary.drill_marker` row must
+  read back. Raw service volume stays out of the backup set by design.
+- **Graduation trigger:** move from pg_dumpall to wal-g/pgBackRest when
+  size or RPO demands it (founder call 2026-07-13).
