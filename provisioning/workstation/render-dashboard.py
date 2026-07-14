@@ -183,6 +183,15 @@ def uptime_h(s):
     d = int(s) // 86400
     return f"{d}d {(int(s) % 86400) // 3600}h" if d else f"{int(s) // 3600}h"
 
+# founder-facing role, one phrase per box (founder ask 2026-07-14: the card
+# showed health but assumed he remembers what each box is FOR)
+BOX_ROLES = {
+    "syd1": "old prod · soak/rollback only",
+    "syd2": "production · public edge + workloads",
+    "syd3": "cockpit · hermes + founder terminal",
+    "syd4": "workspace · repos, vault, agents",
+}
+
 def fleet_html(f):
     if f.get("error"):
         return f"<p>{esc(f['error'])}</p>"
@@ -195,7 +204,9 @@ def fleet_html(f):
             f'<td>load {esc(b["load1"])}</td>' if b.get("load1") is not None else "<td>—</td>")
         rr = ' <span class="chip warn">reboot pending</span>' if b.get("reboot_required") else ""
         rows.append(
-            f'<tr><td><b>{esc(b["name"])}</b>{rr}<br><span class="dim">{esc(b.get("source", ""))}</span></td>'
+            f'<tr><td><b>{esc(b["name"])}</b>{rr}<br><span class="dim">'
+            f'{esc(BOX_ROLES.get(b["name"], ""))}'
+            f'<br>via {esc(b.get("source", ""))}</span></td>'
             f"<td>{upb}</td>{cpu_c}{pct_cell(b.get('mem_pct'))}{pct_cell(b.get('disk_pct'))}"
             f"<td>{uptime_h(b.get('uptime_s'))}</td>{backup_cell(b.get('backup'))}"
             f"{services_cell(b.get('services'))}</tr>")
