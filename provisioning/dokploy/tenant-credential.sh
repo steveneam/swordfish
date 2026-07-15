@@ -39,7 +39,9 @@
 # A CREATE_SCOPE=1 legacy key additionally updates AND creates services inside
 # the project - compose.create accepts host bind-mounts, so on the SHARED box
 # a leaked legacy key is box-level exposure (security review 2026-07-14
-# finding 2). Knobs: STRICT_SCOPE=1 hard-fails the create-capability check;
+# finding 2). Knobs: STRICT_SCOPE (default 1 since the 2026-07-15 cutover)
+# hard-fails the create-capability check - minting a legacy key requires an
+# explicit STRICT_SCOPE=0 CREATE_SCOPE=1, a deliberate two-knob override;
 # PROBE_CREATE=1 actively tests create against prod.
 # Secrets ride env vars and files, never argv (house rule).
 
@@ -203,8 +205,8 @@ for m in json.load(sys.stdin):
 ' "$EMAIL")
 if [ "$can_create" = True ]; then
     over="scoped key CAN create services (canCreateServices=True) - a leak deploys an arbitrary image/compose (host bind-mount => escape) on the SHARED box, not just the tenant's own image"
-    if [ "${STRICT_SCOPE:-0}" = 1 ]; then echo "FAIL: $over"; exit 1; fi
-    echo "WARN: $over [known over-grant; set STRICT_SCOPE=1 once deploy-without-create is resolved]"
+    if [ "${STRICT_SCOPE:-1}" = 1 ]; then echo "FAIL: $over [deploy-only is the standard since 2026-07-15; legacy needs explicit STRICT_SCOPE=0 CREATE_SCOPE=1]"; exit 1; fi
+    echo "WARN: $over [legacy shape minted with STRICT_SCOPE=0 - coordinated cutover only]"
 else
     echo "OK: scoped key cannot create services (canCreateServices=$can_create)"
 fi
@@ -224,7 +226,7 @@ except Exception: print("")' <<<"$presp")
         printf '{"composeId":"%s"}' "$pid" | admin POST compose.delete >/dev/null 2>&1 \
             && echo "CONFIRMED VULN: scoped key created compose $pid (auto-deleted) - blast radius exceeds doc" \
             || echo "CONFIRMED VULN: scoped key created compose $pid - AUTO-DELETE FAILED, remove 'scope-probe-DELETEME' in Dokploy NOW"
-        [ "${STRICT_SCOPE:-0}" = 1 ] && exit 1
+        [ "${STRICT_SCOPE:-1}" = 1 ] && exit 1
     else
         echo "OK: live probe - scoped key could not create a compose (rejected)"
     fi
