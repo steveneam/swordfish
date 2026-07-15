@@ -66,10 +66,14 @@ readiness-first plan per his new sequencing directive._
    manifests covered) + deterministic sha256 manifest/diff harness + Project 1
    tenant pack. Sequencing nicety: the tenant-key scope decision (item 1)
    first, so their key is born scoped. Exit = ping founder to wake Project 1.
-1. **⛔ Tenant-key scope decision (founder — NEEDS-STEVEN):** deploy-without-
-   create → `STRICT_SCOPE=1` → rotate Thalon's key ONCE, properly scoped.
-   `research/security-review-2026-07-14.md` finding 2. Now also feeds
-   Project 1's tenant pack (Phase 0).
+1. **⛔ Tenant-key scope decision (founder — NEEDS-STEVEN, now a concrete
+   A/B):** verified 2026-07-15 that Dokploy has NO `service:update` statement —
+   deploy-without-create requires Thalon to move the image pin into a GHCR
+   re-tag (Option B, key drops to deploy-only) vs keep-shape + audit alerting
+   (Option A). Thalon asked to pick (`FROM-SWORDFISH-KEYSCOPE-2026-07-15.md`
+   in their handoff; their board idle, deploys dormant — good window). On
+   their answer: founder call → candidate-key trial → zero-outage rotation →
+   `STRICT_SCOPE=1` if B. Outcome shapes Project 1's tenant pack (Phase 0).
 2. **Alerting hygiene remainder:** relay failed-poll alarm (soft finding
    above) · low-sev cleanups: pin CI `known_hosts` (drop accept-new TOFU) ·
    validate `workflow_dispatch` inputs · IPv6 provider-firewall rules
