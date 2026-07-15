@@ -84,6 +84,28 @@ if [ -n "$info" ]; then
   fi
 fi
 
+# classify the source so a phone alert is one-glance triage (founder ask
+# 2026-07-15: "was at work, couldn't tell if the login was expected").
+# Fleet + founder IPs mirror inventory/ssh-login-audit.md - update both
+# together. FOUNDER_IPS in alerts.env (space-separated) overrides the
+# founder defaults when his egress rotates.
+marker="" src=""
+case "$rhost" in
+  103.249.236.41) marker="🔁" src="fleet: syd2 prod" ;;
+  139.180.170.11) marker="🔁" src="fleet: syd3 cockpit+hermes" ;;
+  66.226.147.123) marker="🔁" src="fleet: syd4 workspace+relay" ;;
+  45.63.24.122)   marker="🔁" src="fleet: syd1 soak" ;;
+esac
+if [ -z "$src" ]; then
+  for ip in ${FOUNDER_IPS:-202.128.115.13 49.186.75.98}; do
+    if [ "$rhost" = "$ip" ]; then marker="🏠" src="founder egress IP"; break; fi
+  done
+fi
+if [ -z "$src" ]; then
+  case "$label" in *swordfish-ci*) marker="🤖" src="CI key (GitHub runner expected)" ;; esac
+fi
+if [ -z "$src" ]; then marker="⚠️" src="UNKNOWN SOURCE - check inventory/ssh-login-audit.md"; fi
+
 # throttle: CI workflows log in several times per run - one alert per
 # user|rhost|label per 2 minutes is signal, ten copies is noise.
 tdir=/run/swordfish-alerts
@@ -92,7 +114,7 @@ tkey="$tdir/$(printf '%s|%s|%s' "$user" "$rhost" "$label" | md5sum | cut -d' ' -
 if [ -f "$tkey" ] && [ -n "$(find "$tkey" -mmin -2 2>/dev/null)" ]; then exit 0; fi
 touch "$tkey"
 
-msg="[$(hostname -s)] ssh login: ${user} from ${rhost} key: ${label} $(date -u '+%F %H:%MZ')"
+msg="${marker} [$(hostname -s)] ssh login: ${user} from ${rhost} (${src}) key: ${label} $(date -u '+%F %H:%MZ')"
 logger -t swordfish-alerts "$msg"
 curl -fsS -m 10 "https://api.telegram.org/bot${ALERTS_BOT_TOKEN}/sendMessage" \
   -d chat_id="${ALERTS_CHAT_ID}" --data-urlencode text="$msg" >/dev/null 2>&1 &

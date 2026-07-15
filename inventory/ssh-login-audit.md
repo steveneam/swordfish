@@ -54,3 +54,8 @@ Every source must be explainable as: a fleet box, a GitHub Actions range
 (`swordfish-ci` key; check api.github.com/meta), or a founder consumer-ISP
 address (`swordfish-ops` key). Anything else — especially a business
 netblock — is an incident: treat per the alerts runbook, rotate the key it used.
+
+Since 2026-07-15 the live Telegram login alerts carry this classification
+inline (🔁 fleet / 🏠 founder / 🤖 CI / ⚠️ unknown) — the classifier in
+`provisioning/host/setup-login-alerts.sh` mirrors the fleet + founder IPs
+above, so **update both files together** when the fleet or his ISP changes.
