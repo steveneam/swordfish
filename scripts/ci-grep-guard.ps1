@@ -1,11 +1,11 @@
 #!/usr/bin/env pwsh
 # ci-grep-guard.ps1 — anonymity guard.
 #
-# Fails (exit 1) if any git-TRACKED file references either of the two guarded
-# portfolio project tokens. The tokens are assembled from fragments at runtime
-# (below) so THIS file never contains the literal strings and therefore never
-# trips its own check — the guard can scan itself and pass, and no path is
-# excluded from the grep.
+# Fails (exit 1) if any git-TRACKED file references the guarded portfolio
+# project token. The token is assembled from fragments at runtime (below) so
+# THIS file never contains the literal string and therefore never trips its
+# own check — the guard can scan itself and pass, and no path is excluded
+# from the grep.
 #
 # Runs on Windows PowerShell 5.1 and PowerShell 7+. See CI-GUARD.md for rationale.
 
@@ -16,12 +16,12 @@ $base = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
 $root = (& git -C $base rev-parse --show-toplevel 2>$null)
 if (-not $root) { Write-Error 'Not inside a git repository.'; exit 2 }
 
-# Assemble the guarded token alternation at runtime (never a literal on disk).
+# Assemble the guarded token at runtime (never a literal on disk).
 # Token C (Thalon = former Project 3) was unmasked by founder call 2026-07-08
-# and removed from the guard; tokens A and B remain guarded.
-$tokenA  = 'ea' + 'mos'
+# and removed; token A (Eamos = former Project 1) was unmasked by founder
+# call 2026-07-15 and removed. Token B (Project 2) remains guarded.
 $tokenB  = 'se' + 'lom'
-$pattern = "$tokenA|$tokenB"
+$pattern = "$tokenB"
 
 # Grep TRACKED files only — the correct CI semantics (CI only ever sees committed
 # files), and it keeps the gitignored .context/ vault pointer out of scope.

@@ -6,7 +6,7 @@ Swordfish is the portfolio's **infrastructure / DevOps ops engine** — it provi
 
 ## ⛔ The one hard constraint
 
-This repository must contain **zero references to the two guarded portfolio project names** — those migration targets are only ever **Project 1 / Project 2** — in any **git-tracked** file: no files, strings, config, or comments. (**Project 3 was unmasked as Thalon** by founder call 2026-07-08: guard token C removed, the name may now appear in tracked files. Tokens A and B stay guarded.)
+This repository must contain **zero references to the one remaining guarded portfolio project name** — that migration target is only ever **Project 2** — in any **git-tracked** file: no files, strings, config, or comments. (**Project 3 was unmasked as Thalon** by founder call 2026-07-08, and **Project 1 was unmasked as Eamos** by founder call 2026-07-15: their guard tokens are removed, those names may now appear in tracked files. Token B stays guarded. Eamos artifacts provisioned under the mask — `/srv/project1`, Dokploy project `project1`, `project1-apply.yml`, the tenant credential — deliberately keep the `project1` slug; it is burned into live box paths and minted permissions, and a rename is churn without safety value.)
 
 - The guarded tokens are defined as **fragments** inside `scripts/ci-grep-guard.ps1`, on purpose, so this protocol, that guard, and every other tracked file stay clean and never trip their own check.
 - Enforcement is `scripts/ci-grep-guard.ps1`: a case-insensitive grep over **git-tracked files only** (the correct CI semantics — CI only ever sees committed files). It must return **zero hits**; it exits non-zero on any hit. Run it before every commit. See `CI-GUARD.md`.

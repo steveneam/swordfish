@@ -1,5 +1,11 @@
 # Project 1 asset migration — Render → syd2, readiness-first plan (2026-07-15)
 
+> **2026-07-15 (later):** Project 1 **unmasked as Eamos** by founder call —
+> the name may appear in tracked files; provisioned `project1` slugs stay.
+> Phase 0 is COMPLETE (landing zone · verified restic exception · deploy-only
+> tenant pack · harness); Phase 1 handed to Eamos's agent via
+> `~/work/eamos/agent_handoff/FROM-SWORDFISH.md`.
+
 _Founder directive 2026-07-15: prove the VPS is ready BEFORE the resize spend,
 then wake Project 1's agent on the box and run the migration as a coordinated
 job. This doc is that plan. It reorders (does not change) the economics and

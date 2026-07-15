@@ -1,7 +1,10 @@
-# Project 1 landing zone + tenant pack (Phase 0 of the migration plan)
+# Project 1 (= Eamos) landing zone + tenant pack (Phase 0 of the migration plan)
 
-> "Project 1" is the guard mask (AGENTS.md hard constraint) — the real name
-> never appears in tracked files. Plan + sequencing:
+> **Unmasked by founder call 2026-07-15:** Project 1 = **Eamos** (repo
+> `~/work/eamos` on syd4); its guard token is removed. The `project1` slug
+> stays in every provisioned artifact (paths, workflow, Dokploy project,
+> credential) — it is burned into live box state and a rename is churn
+> without safety value. Plan + sequencing:
 > `research/project1-asset-migration-plan-2026-07-15.md`. Economics + safety:
 > `research/capacity-and-data-plan-2026-07-13.md`.
 
