@@ -16,24 +16,31 @@
 #   2. permissions pinned to exactly the named project's id + its
 #      environment ids + its application ids; canAccessToAPI true;
 #      docker/traefik/ssh/git + project + environment create/delete all FALSE.
-#      BUT canCreateServices=True (step 3 grant): Dokploy gates the CI
-#      image-bump (application.update) behind service:create, which ALSO
-#      permits CREATING services - re-asserted on every run.
+#      canCreateServices=False by DEFAULT (deploy-only, Option B of security
+#      review finding 2, resolved 2026-07-15): the key can application.deploy
+#      + read, but cannot application.update (Dokploy gates that behind
+#      service:create - there is no service:update statement) and cannot
+#      create anything. Tenants bump images by re-tagging a fixed GHCR tag in
+#      their own CI, then deploy. CREATE_SCOPE=1 mints the LEGACY
+#      create-capable shape for a tenant still on the update-path - and
+#      because permissions are RE-ASSERTED every run, re-running WITHOUT
+#      CREATE_SCOPE=1 against such a tenant drops create and breaks their
+#      update-path CI: coordinate the cutover first.
 #   3. an API key minted AS that member (better-auth session sign-in ->
 #      user.createApiKey) into the same secrets file
 #   4. verification: the key reads its own app; sees ONLY its project;
 #      docker.getContainers is rejected; the member's canCreateServices flag
 #      is read back and flagged (WARN, or FAIL under STRICT_SCOPE=1)
 #
-# The key's blast radius (HONEST - security review 2026-07-14): update + deploy
-# AND create services inside the one project. Because service:create also
-# permits compose.create/application.create, a leaked key can deploy an
-# ARBITRARY image or compose (host bind-mount => container escape) on the
-# SHARED box - not merely bump the tenant's own CI-gated image. It still cannot
-# delete anything, read other projects, or reach docker/Traefik files.
-# Narrowing this (deploy-without-create) is an OPEN founder decision; until then
-# a leaked tenant key is box-level exposure. Knobs: STRICT_SCOPE=1 hard-fails the
-# create-capability check; PROBE_CREATE=1 actively tests create against prod.
+# Blast radius of a DEPLOY-ONLY key (the default): redeploy the tenant's own
+# already-configured services + read its own project. A leak cannot point the
+# app at a new image, create services/composes (=> no host bind-mount escape
+# path), delete anything, read other projects, or reach docker/Traefik files.
+# A CREATE_SCOPE=1 legacy key additionally updates AND creates services inside
+# the project - compose.create accepts host bind-mounts, so on the SHARED box
+# a leaked legacy key is box-level exposure (security review 2026-07-14
+# finding 2). Knobs: STRICT_SCOPE=1 hard-fails the create-capability check;
+# PROBE_CREATE=1 actively tests create against prod.
 # Secrets ride env vars and files, never argv (house rule).
 
 set -euo pipefail
@@ -112,9 +119,9 @@ else
 fi
 
 # --- 3. permissions pinned to the project (re-asserted every run) ------------------
-python3 - "$MEMBER" "$PID" "$ENVS" "$APPS" <<'EOF' | admin POST user.assignPermissions >/dev/null
+python3 - "$MEMBER" "$PID" "$ENVS" "$APPS" "${CREATE_SCOPE:-0}" <<'EOF' | admin POST user.assignPermissions >/dev/null
 import json, sys
-member, pid, envs, apps = sys.argv[1:5]
+member, pid, envs, apps, create_scope = sys.argv[1:6]
 print(json.dumps({
     "id": member,
     "accessedProjects": [pid],
@@ -122,10 +129,11 @@ print(json.dumps({
     "accessedServices": [a for a in apps.split(",") if a],
     "accessedGitProviders": [], "accessedServers": [],
     "canCreateProjects": False, "canDeleteProjects": False,
-    # application.update (the CI image-bump call) gates on service:create in
-    # Dokploy's permission map - a read-only member cannot point its own app
-    # at a new image. Scope stays their project; delete stays false.
-    "canCreateServices": True, "canDeleteServices": False,
+    # deploy-only by default (Option B, 2026-07-15): application.update gates
+    # on service:create (no service:update statement exists), so the default
+    # member deploys pre-configured services but cannot repoint images or
+    # create anything. CREATE_SCOPE=1 = legacy update-path shape (see header).
+    "canCreateServices": create_scope == "1", "canDeleteServices": False,
     "canCreateEnvironments": False, "canDeleteEnvironments": False,
     "canAccessToDocker": False, "canAccessToTraefikFiles": False,
     "canAccessToSSHKeys": False, "canAccessToGitProviders": False,
@@ -140,7 +148,8 @@ for m in json.load(sys.stdin):
 ' "$EMAIL")
 [ "$persisted" = "True $PID" ] \
     || { echo "FAIL: permissions did not persist (read back: '$persisted') - assignPermissions no-ops silently on a wrong id"; exit 1; }
-echo "OK: permissions pinned to project $PID (api member; project/env create+delete + docker/traefik/ssh OFF; canCreateServices=True is a known over-grant, checked in step 5)"
+if [ "${CREATE_SCOPE:-0}" = 1 ]; then scope_note="canCreateServices=True LEGACY over-grant (CREATE_SCOPE=1), checked in step 5"; else scope_note="deploy-only (canCreateServices=False)"; fi
+echo "OK: permissions pinned to project $PID (api member; project/env create+delete + docker/traefik/ssh OFF; $scope_note)"
 
 # --- 4. API key minted AS the member (skip if the stored one still works) ----------
 TENANT_KEY=$(grep '^DOKPLOY_TENANT_API_KEY=' "$SECFILE" 2>/dev/null | cut -d= -f2- || true)

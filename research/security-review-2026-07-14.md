@@ -148,3 +148,29 @@ TLS-ALPN→DNS-01, and `forwardedHeaders.trustedIPs`=CF. Gated behind the soak.
   Enforced by the "workloads: all memory-capped" smoke assertion. Thalon's
   render worker gets sized when they answer the RAM ask-back. Ratchet:
   executable, opinion (sizes) / invariant (no unbounded workload).
+
+## Addendum 2026-07-15 — finding 2 RESOLVED: Option B (deploy-without-create), verified live
+
+The deferred deploy-without-create decision closed today, founder-directed:
+
+- **Permission-model fact (verified via customRole.getStatements):** Dokploy
+  has NO `service:update` statement — `application.update` gates on
+  `service:create`, so no narrower ROLE can carry the legacy image-bump call.
+  Deploy-without-create therefore required a pipeline-shape change, offered to
+  Thalon as Option B (fixed `:staging` GHCR tag re-tagged by digest in their
+  CI; key drops to deploy-only) vs Option A (keep shape, audit-log detection).
+- **Thalon chose B** (their reasoning: capability-removal > detection on a
+  shared box) and staged the CI path behind `DEPLOY_VIA_RETAG` same day.
+- **Candidate-key trial (live, prod, their written endorsement):** deploy-only
+  member (`canCreateServices=False`) → `application.update` 401 ·
+  `application.deploy` 200 (`running`→`done` ~20 s) · `application.one` 200 ·
+  live `compose.create` probe REJECTED · sees only its project · docker 401.
+  **The host-bind-mount container-escape class closes by capability removal.**
+- **Rotation state:** new deploy-only key swapped into their CI secret
+  (2026-07-15 08:57 UTC); old key stays live as rollback until their
+  confirm-deploy is green, then it is revoked + the legacy member retired and
+  `STRICT_SCOPE=1` becomes the standing check. `tenant-credential.sh` now
+  mints deploy-only BY DEFAULT (`CREATE_SCOPE=1` = legacy escape, documented
+  as a coordinated-cutover-only knob). Project 1's future tenant pack is born
+  deploy-only. Ratchet: executable, **invariant** (tenant keys carry no
+  create-class grant).

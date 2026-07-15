@@ -66,14 +66,18 @@ readiness-first plan per his new sequencing directive._
    manifests covered) + deterministic sha256 manifest/diff harness + Project 1
    tenant pack. Sequencing nicety: the tenant-key scope decision (item 1)
    first, so their key is born scoped. Exit = ping founder to wake Project 1.
-1. **⛔ Tenant-key scope decision (founder — NEEDS-STEVEN, now a concrete
-   A/B):** verified 2026-07-15 that Dokploy has NO `service:update` statement —
-   deploy-without-create requires Thalon to move the image pin into a GHCR
-   re-tag (Option B, key drops to deploy-only) vs keep-shape + audit alerting
-   (Option A). Thalon asked to pick (`FROM-SWORDFISH-KEYSCOPE-2026-07-15.md`
-   in their handoff; their board idle, deploys dormant — good window). On
-   their answer: founder call → candidate-key trial → zero-outage rotation →
-   `STRICT_SCOPE=1` if B. Outcome shapes Project 1's tenant pack (Phase 0).
+1. **Key-scope cutover remainder (decision CLOSED 2026-07-15 = Option B,
+   verified live):** deploy-only key trial green (update 401 / deploy 200 /
+   create-probe rejected), new key already in Thalon's CI secret (old key
+   live as rollback), `tenant-credential.sh` now mints deploy-only by default
+   (`CREATE_SCOPE=1` = legacy escape). REMAINING, in order: Thalon flips
+   `DEPLOY_VIA_RETAG=true` + pushes (their session; founder pinged in
+   NEEDS-STEVEN) → we pin app config to `:staging` (admin edit, coordinated
+   moment) → their confirm push green → revoke old key + retire legacy member
+   (`dokploy-thalon-ci@`) → make `STRICT_SCOPE=1` the standing default.
+   Watch their `ASK-BACKS-FOR-SWORDFISH.md` for the ping. Their channel
+   convention (2026-07-15): append to `FROM-SWORDFISH.md`, no standalone
+   note files. Project 1's tenant pack (Phase 0) is born deploy-only.
 2. **Alerting hygiene remainder:** relay failed-poll alarm (soft finding
    above) · low-sev cleanups: pin CI `known_hosts` (drop accept-new TOFU) ·
    validate `workflow_dispatch` inputs · IPv6 provider-firewall rules
