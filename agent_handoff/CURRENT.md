@@ -66,18 +66,25 @@ readiness-first plan per his new sequencing directive._
    manifests covered) + deterministic sha256 manifest/diff harness + Project 1
    tenant pack. Sequencing nicety: the tenant-key scope decision (item 1)
    first, so their key is born scoped. Exit = ping founder to wake Project 1.
-1. **Key-scope cutover remainder (decision CLOSED 2026-07-15 = Option B,
-   verified live):** deploy-only key trial green (update 401 / deploy 200 /
-   create-probe rejected), new key already in Thalon's CI secret (old key
-   live as rollback), `tenant-credential.sh` now mints deploy-only by default
-   (`CREATE_SCOPE=1` = legacy escape). REMAINING, in order: Thalon flips
-   `DEPLOY_VIA_RETAG=true` + pushes (their session; founder pinged in
-   NEEDS-STEVEN) → we pin app config to `:staging` (admin edit, coordinated
-   moment) → their confirm push green → revoke old key + retire legacy member
-   (`dokploy-thalon-ci@`) → make `STRICT_SCOPE=1` the standing default.
-   Watch their `ASK-BACKS-FOR-SWORDFISH.md` for the ping. Their channel
-   convention (2026-07-15): append to `FROM-SWORDFISH.md`, no standalone
-   note files. Project 1's tenant pack (Phase 0) is born deploy-only.
+1. **Key-scope cutover — steps 1–4 DONE, waiting only on Thalon's confirm
+   run:** Option B verified live (update 401 / deploy 200 / create-probe
+   rejected); new deploy-only key in their CI secret; they flipped
+   `DEPLOY_VIA_RETAG=true` + ran green (run 29402961291, 09:01Z); we pinned
+   the app config to `ghcr.io/steveneam/thalon-web:staging` at ~09:15Z (old
+   pin recorded in their `FROM-SWORDFISH.md` cutover note = config rollback).
+   **A box-side watcher now watches their next web-image run**
+   (`swordfish-thalon-cutover.timer`, 10-min; installed via
+   `provisioning/workstation/setup-thalon-cutover-watch.sh`): it alerts the
+   founder's Telegram once + writes
+   `/var/lib/swordfish/thalon-cutover-watch/done`. **At boot: read that file.**
+   If GREEN → close out: revoke old key + retire member `dokploy-thalon-ci@`
+   (keep `dokploy-thalon-deploy-ci@`), make `STRICT_SCOPE=1` the standing
+   default in `tenant-credential.sh`, REMOVE the watcher (lifecycle block in
+   its setup script), archive the thread with Thalon. If RED → rollback:
+   re-pin recorded image + re-swap old key (in
+   `inventory/secrets/dokploy-tenant-thalon.env`), then regroup. Their
+   channel convention: append to their `FROM-SWORDFISH.md`, no standalone
+   files. Project 1's tenant pack (Phase 0) is born deploy-only.
 2. **Alerting hygiene remainder:** relay failed-poll alarm (soft finding
    above) · low-sev cleanups: pin CI `known_hosts` (drop accept-new TOFU) ·
    validate `workflow_dispatch` inputs · IPv6 provider-firewall rules
