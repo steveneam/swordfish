@@ -15,100 +15,79 @@
 > decision below, incl. AGENTS.md rule-10 founder-gate list). If the box state
 > and this file disagree, the box wins — say so, then fix the file.
 
-_Stamped: 2026-07-14 11:50 UTC (21:50 AEST). Session = **staged DDoS slice
-executed** (the riskier half held back yesterday): fail2ban traefik jails +
-workload memory caps landed via edge-apply run 29327181205 (idempotent,
-**smoke 79/79**, was 72) — plus a same-day catch: yesterday's inFlightReq
-middleware was accidentally per-HOST (a DoS amplifier), now per-IP. Late
-founder calls: thalon-web cap → **4 GiB** (twice-raised; live+verified),
-Thalon's ask-back reply processed (rotation handshake agreed; render worker
-3-4 GB rides the resize gate), Render-cancel safety recorded (cache-verify
-step added to the re-seed runbook). Findings doc:
-`research/security-review-2026-07-14.md` (see the 07-14 addendum)._
+_Stamped: 2026-07-15 08:20 UTC (18:20 AEST). Session = **alert triage → alert
+legibility + auth jail armed + migration plan**. The founder's 4:55pm syd3
+alert was the hermes relay re-dialling its SSH master after unattended-upgrades
+restarted services on syd4 (code-server cgroup kill took the old connection);
+the 5:39pm syd4 alert was the founder himself (Leaptel IP). Both benign;
+hermes DB checked — zero founder messages missed. Shipped on the back of it:
+login alerts now classify their source inline fleet-wide, the web-UI auth
+jail is ARMED (founder call in-session), and the Render→VPS migration got a
+readiness-first plan per his new sequencing directive._
 
 ## State
 
-- **main @ HEAD (52406d3 + wrap commit), all pushed, guard green.**
-- **EDGE ABUSE JAILS — LIVE on syd2** (`52406d3`, edge-apply 29327181205):
-  traefik JSON access log → `/var/log/swordfish-traefik/access.log` (host bind
-  mount, logrotate 7d/500M) + two fail2ban jails banning in **DOCKER-USER**
-  (INPUT never sees docker-published traffic), **port-scoped 80,443 so a ban
-  can never touch SSH/CI**. Flood jail (429s, 60-in-5m→1h) **ARMED**; auth
-  jail (401/403, 12-in-10m→1h) **DISARMED until the founder confirms his
-  egress IPs** (his call from the review plan). ignoreip = loopback + RFC1918
-  + box's own IP + syd3/syd4 (resolved at converge) — kuma self-probes can
-  never self-ban the box. Filters fail2ban-regex-verified before landing.
-  **Arming flow:** founder confirms → set repo secret `FOUNDER_EGRESS_IP`
-  (space-separated IPs; use gh secret set via STDIN, not --body) → re-run
-  edge-apply → converge arms the jail + adds his IPs to ignoreip.
-- **INFLIGHT MIDDLEWARE FIXED (HIGH, self-inflicted 07-14 morning, fixed same
-  day):** `swordfish-inflight` shipped with no sourceCriterion — traefik's
-  inFlightReq default groups by request HOST (rateLimit defaults to client IP;
-  per-middleware defaults differ), so the "per-IP" 100-cap was host-wide and
-  one attacker could hold it to 503 everyone. Now `ipStrategy` per-IP + a
-  smoke assertion ("edge: inflight is per-IP") so it can't silently regress.
-- **MEMORY CAPS — LIVE, all 7 workload containers verified** (Dokploy
-  reads-back confirmed Memory>0): thalon-web **4 GiB** (founder call, raised
-  twice from the metrics-derived 1 GiB — it's a web-design + video-editing
-  tool, renders in-process; size Thalon by workload NATURE, not telemetry),
-  kuma+tenant-pg **512 MiB**, beszel hub **256 MiB**, agent+hello **128 MiB**,
-  metrics socket-proxy **64 MiB**. Edge pair + Dokploy control-plane trio stay
-  UNcapped by design. Smoke asserts "workloads: all memory-capped" forever.
-  Compose files carry the caps (status/metrics); tenant-pg.sh converges its
-  cap. **Dokploy quirk (proven live): postgres.reload does NOT apply resource
-  changes — only postgres.deploy rebuilds the spec; application.reload DOES.**
-  Thalon got a dated heads-up (their app rolled once, healthy); their
-  render-worker cap still waits on their RAM ask-back reply.
-- **Thalon REPLIED (session 29, in ASK-BACKS-FOR-SWORDFISH.md):** (1) key
-  hygiene confirmed — deploy key only in their GH Actions secret; (2)
-  **rotation handshake agreed**: we signal via FROM-SWORDFISH note, they swap
-  the CI secret + confirm-deploy same day; check their board for an in-flight
-  push before signalling; still gated on the founder's scope decision. (3)
-  **Render worker = headless-Chromium + FFmpeg, provisional 3-4 GB**, they
-  measure real peaks in its first syd2 session. **Coordination math:** with
-  web@4G a 3-4G worker does NOT fit worst-case on the 8 GB box → worker rides
-  on the syd2 resize gate, OR lands queue-of-one at ~2 GB (their fallback
-  offer; they pick via ASK-BACKS when ready). Acked in the FROM-SWORDFISH
-  security note. Message them directly, not via the founder.
+- **main @ HEAD (9e71a99 + this wrap), all pushed, guard green.**
+- **LOGIN ALERTS CLASSIFY INLINE (new, fleet-wide):** every ssh-login Telegram
+  alert now opens with 🔁 fleet-box / 🏠 founder-egress / 🤖 CI-key /
+  ⚠️ UNKNOWN + a human label, so the founder can triage on his phone
+  (his ask 2026-07-15 after the relay reconnect buzzed him at work).
+  Classifier lives in the pam hook (`provisioning/host/setup-login-alerts.sh`);
+  classes mirror `inventory/ssh-login-audit.md` — **update both together**.
+  `FOUNDER_IPS` in alerts.env overrides the founder-IP defaults on rotation.
+  Converged: syd4 + syd3 direct (idempotency-proven, journald read-back),
+  syd2 via alerts-apply 29399593183 (live-fire green).
+- **AUTH JAIL ARMED on syd2** (finishes security-review finding 5): founder
+  confirmed his egress IPs in-session → `FOUNDER_EGRESS_IP` secret set via
+  stdin (2 IPs; today's 5:39pm login itself validated the dominant one) →
+  edge-apply 29399703157 → converge note "flood armed, auth armed",
+  hardening posture **79/79**. Both traefik jails now live; founder IPs in
+  ignoreip.
+- **MIGRATION PLAN WRITTEN — readiness before spend (founder directive
+  2026-07-15):** `research/project1-asset-migration-plan-2026-07-15.md`.
+  Sequence: Phase 0 pre-stage (zero spend: landing zone, restic exclusion
+  drill, verification harness, tenant pack) → Phase 1 founder wakes
+  Project 1's agent + small-asset dry-run + **nothing-only-on-Render manifest
+  diff while Render is alive** → Phase 2 ⛔ resize gate ("resize go") →
+  Phase 3 coordinated re-seed (their agent drives) → Phase 4 ⛔ Render
+  cancel. NEEDS-STEVEN re-sequenced to match.
+- **Relay soft finding (open, LOW):** swordfish-relay swallows syd3-path
+  failures silently (`prime_master` skip + `fetch_rows 2>/dev/null || true`);
+  the 6-hourly canary checks tag drift, not live connectivity. Nothing was
+  missed this time (hermes DB vs watermark = 0 rows) — but add an alarm after
+  N consecutive failed polls, or a live-fetch leg on the canary.
 - Fleet unchanged: syd2 (prod) · syd3 (cockpit+hermes) · syd4 (workspace+relay,
   THIS box) · syd1 (SOAK, off-board, rollback until ≈07-16).
 
 ## Next
 
-0. **Arm the auth jail when the founder answers NEEDS-STEVEN:** he confirms
-   egress IPs (candidates pre-collected in
-   `inventory/secrets/founder-egress-ip.txt` — 202.128.115.13 dominant +
-   49.186.75.98 Telstra-mobile; the rotating Azure corp IPs can't be pinned) →
-   set `FOUNDER_EGRESS_IP` repo secret **via stdin** → re-run edge-apply vs
-   syd2 → verify "auth armed" in the converge note + smoke stays 79/79.
-1. **⛔ Tenant-key scope decision (founder — NEEDS-STEVEN):** resolve
-   deploy-without-create → flip `STRICT_SCOPE=1` → rotate Thalon's key ONCE,
-   properly scoped. `research/security-review-2026-07-14.md` finding 2.
-2. **Low-sev security cleanups (staged):** pin CI `known_hosts` (drop
-   accept-new TOFU) · `gh secret set` via stdin not `--body` argv · validate
-   `workflow_dispatch` inputs · IPv6 provider-firewall rules (no AAAA today;
-   also silences fail2ban's cosmetic allowipv6 warning).
+0. **Phase 0 of the migration plan (agent work, zero spend):** landing zone on
+   syd2 + restic exclusion drill (corpus excluded AS A RECORDED EXCEPTION,
+   manifests covered) + deterministic sha256 manifest/diff harness + Project 1
+   tenant pack. Sequencing nicety: the tenant-key scope decision (item 1)
+   first, so their key is born scoped. Exit = ping founder to wake Project 1.
+1. **⛔ Tenant-key scope decision (founder — NEEDS-STEVEN):** deploy-without-
+   create → `STRICT_SCOPE=1` → rotate Thalon's key ONCE, properly scoped.
+   `research/security-review-2026-07-14.md` finding 2. Now also feeds
+   Project 1's tenant pack (Phase 0).
+2. **Alerting hygiene remainder:** relay failed-poll alarm (soft finding
+   above) · low-sev cleanups: pin CI `known_hosts` (drop accept-new TOFU) ·
+   validate `workflow_dispatch` inputs · IPv6 provider-firewall rules
+   (also silences fail2ban's cosmetic allowipv6 warning).
 3. **Soak watch until ≈2026-07-16 23:00 AEST:** monitors green + ≥1 natural
    verify-deadman pass vs syd2 + clean briefings. **At soak end:** retire `*2`
    A-records, prune deploy2 note in `inventory/boxes.md`, then **present the
    syd1 destroy-vs-warm-fallback gate** (founder; also retires syd1
    healthchecks / UptimeRobot / B2 bucket).
 4. **⛔ SPEND GATE: resize syd2 → std-6vcpu** (AUD 78.40, +39.20/mo; nets
-   ≈US$14 cheaper by cancelling Project 1's Render post re-seed).
-   `research/capacity-and-data-plan-2026-07-13.md`. In NEEDS-STEVEN.
-   **Now also gates Thalon's render worker at its full 3-4 GB cap** (with
-   web@4G both don't fit worst-case in 8 GB; queue-of-one @ ~2 GB is the
-   fits-today fallback). **Post-resize re-seed protocol (see the plan doc's
-   07-14 addendum):** landing zone into restic FIRST → Project 1's agent
-   re-seeds from Supabase + checksums + **proves nothing lives ONLY on the
-   Render disk** → only then the founder cancels Render.
-5. **Cloudflare bucket (Next-4, founder acct) — AFTER the soak gate:** the ONLY
-   real fix for volumetric/distributed DDoS. MUST include: rotate origin IP,
-   firewall 80/443 to CF ranges, ACME TLS-ALPN→DNS-01,
-   `forwardedHeaders.trustedIPs`=CF (else the per-IP ratelimit AND the new
-   per-IP inflight collapse), **and move the fail2ban jails to an
-   X-Forwarded-For strategy (ClientHost becomes a CF address — today's jails
-   would ban CF's edge)**. No NS move before soak end.
+   ≈US$14 cheaper post Render cancel) — **now Phase 2 of the migration plan;
+   fires only after Phase 0+1 exit criteria.** Also gates Thalon's render
+   worker at full 3-4 GB (queue-of-one @ ~2G stays the fits-today fallback).
+5. **Cloudflare bucket (founder acct) — AFTER the soak gate:** rotate origin
+   IP, firewall 80/443 to CF ranges, ACME DNS-01,
+   `forwardedHeaders.trustedIPs`=CF (else per-IP ratelimit + inflight
+   collapse), move fail2ban jails to X-Forwarded-For strategy. No NS move
+   before soak end.
 6. **Postgres follow-ups:** Project 2 tenant on landing (`tenant-db.sh <slug>`)
    · thalon PGlite→Postgres = THEIR call · wal-g graduation when size demands.
 7. **Post-cutover queue:** syd3+syd4 Kuma push dead-man legs · traefik 3.7.7
@@ -129,6 +108,8 @@ step added to the re-seed runbook). Findings doc:
 - Edge changes land via `gh workflow run edge-apply.yml -f host=syd2.swordfish.cfd`
   (proves idempotency + waits for control plane + re-asserts hardening); it
   reruns phase2+phase3 and needs the commit PUSHED first (CI checks out main).
+- Login-alert changes land via `alerts-apply.yml` per host (syd3/syd4 may also
+  be converged direct: `ssh <box> "bash -s" < provisioning/host/setup-login-alerts.sh`).
 - Dogfood compose changes (status/metrics): edit the repo file → compose.update
   (full file) → compose.deploy via Dokploy MCP. App/db resource changes:
   application.update+**reload** works; postgres.update needs **deploy**.
