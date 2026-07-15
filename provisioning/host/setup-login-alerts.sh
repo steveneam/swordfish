@@ -168,6 +168,24 @@ if ! sudo grep -qF "$PAMLINE" /etc/pam.d/sshd; then
   changed=1
 fi
 
+# --- let sshd hand the auth key to PAM (founder fix 2026-07-15) --------------
+# Without ExposeAuthInfo the hook's SSH_AUTH_INFO_0 is always empty, every
+# alert says no-key-info, and the dashboard paints EVERY login red - alarm
+# fatigue instead of one-glance triage. This is informational plumbing, not an
+# auth-surface change: it only exposes the ALREADY-VERIFIED key to PAM so the
+# label can resolve against authorized_keys comments. Drop-in wins: no other
+# file sets the directive (verified fleet-wide before shipping) and the
+# compiled-in default is the only competitor.
+EXPOSE_CONF=/etc/ssh/sshd_config.d/20-swordfish-expose-auth-info.conf
+if ! sudo grep -qsxF 'ExposeAuthInfo yes' "$EXPOSE_CONF"; then
+  printf '# swordfish login alerts: expose the verified key to PAM so alerts can label it\nExposeAuthInfo yes\n' \
+    | sudo tee "$EXPOSE_CONF" >/dev/null
+  sudo chmod 644 "$EXPOSE_CONF"
+  sudo sshd -t || { echo "FAIL: sshd config invalid after ExposeAuthInfo drop-in - removing it"; sudo rm -f "$EXPOSE_CONF"; exit 1; }
+  sudo systemctl reload ssh
+  changed=1
+fi
+
 if [ "$changed" -eq 1 ]; then
   sudo systemctl daemon-reload
 fi
@@ -179,6 +197,8 @@ fi
 # --- verify ------------------------------------------------------------------
 sudo grep -qF "$PAMLINE" /etc/pam.d/sshd || { echo "FAIL: pam line missing"; exit 1; }
 [ -x /usr/local/bin/swordfish-pam-notify.sh ] || { echo "FAIL: hook missing"; exit 1; }
+sudo sshd -T 2>/dev/null | grep -qix 'exposeauthinfo yes' \
+  || { echo "FAIL: effective sshd config does not carry ExposeAuthInfo yes (an earlier directive wins?)"; exit 1; }
 systemctl is-active --quiet swordfish-auth-digest.timer || { echo "FAIL: digest timer inactive"; exit 1; }
 if command -v fail2ban-client >/dev/null 2>&1; then
   systemctl is-active --quiet fail2ban || { echo "FAIL: fail2ban inactive after logtarget change"; exit 1; }
