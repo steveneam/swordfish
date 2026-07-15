@@ -89,10 +89,18 @@ syd2:
       - /var/backups/swordfish                # pre-backup dumps land here
       - /var/lib/docker/volumes/dokploy/_data # dokploy's /root/.docker (registry creds)
       - /var/lib/docker/volumes/thalon-data/_data # thalon tenant volume (/data)
+      - /srv/project1                         # Project 1 landing zone (manifests; assets excluded below)
     exclude:
       # the raw live PGlite dir - 30-thalon-pglite-dump's artifact
       # (backups/pglite-dump.tar.gz, inside the volume) is what restores
       - /var/lib/docker/volumes/thalon-data/_data/pg/**
+      # RECORDED EXCEPTION (migration plan Phase 0.2, 2026-07-15): the ~41 GB
+      # Project 1 reference corpus is reproducible public data whose restore
+      # path IS the re-seed from its managed source bucket - only the
+      # manifests/checksums (small, restic-covered above) are the record.
+      # backup-restore-drill.yml asserts both directions via the canaries
+      # setup-landing-zone.sh seeds (manifest restores, canary must not).
+      - /srv/project1/assets/**
     exclude-caches: true
     # stateful-workload pattern: every executable in pre-backup.d runs before the
     # snapshot (dump-before-snapshot); add a file there, not a line here

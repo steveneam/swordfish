@@ -83,6 +83,32 @@ jobs:
           cmp drill-restore/opt/swordfish/edge/compose.yaml compose/edge/compose.yaml
           echo "PASS: restored content verified (format + repo cross-check)"
 
+      - name: Verify landing-zone exclusion (recorded exception, both directions)
+        run: |
+          # profiles.yaml syd2 covers /srv/project1 but excludes assets/** (the
+          # reproducible Project 1 corpus - its restore path is the re-seed).
+          # A recorded exception must stay VERIFIED: the covered manifest must
+          # come back, the excluded canary must not (seeded by
+          # provisioning/project1/setup-landing-zone.sh).
+          if [ ! -d drill-restore/srv/project1 ]; then
+            echo "SKIP: no /srv/project1 in this snapshot (landing zone not on this box)"
+            exit 0
+          fi
+          [ -f drill-restore/srv/project1/manifests/landing-drill.manifest ] \
+            || { echo "FAIL: manifests/landing-drill.manifest missing - the COVERED half of the exception broke"; exit 1; }
+          grep -q 'exclusion-canary.bin' drill-restore/srv/project1/manifests/landing-drill.manifest \
+            || { echo "FAIL: restored manifest does not describe the canary - seed drifted"; exit 1; }
+          leaked=""
+          [ -d drill-restore/srv/project1/assets ] \
+            && leaked=$(find drill-restore/srv/project1/assets -type f)
+          if [ -n "$leaked" ]; then
+            echo "FAIL: corpus exclusion broke - files under assets/ were restored:"
+            echo "$leaked"
+            exit 1
+          fi
+          echo "PASS: landing-zone exception verified (manifest restored; 0 files under assets/)" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Functional restore - tenant Postgres (dump -> live PG -> canary row)
         run: |
           # A dump that gunzips is not yet a dump that RESTORES. Load the

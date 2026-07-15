@@ -1,0 +1,79 @@
+name: project1-apply
+
+# CI-as-hands apply channel for the Project 1 landing zone on syd2
+# (migration plan Phase 0, research/project1-asset-migration-plan-2026-07-15.md):
+# ships provisioning/project1 to the box, converges the asset landing tree +
+# verification harness + restic drill canaries, and proves idempotency.
+# ZERO spend, no workload - the corpus itself only lands at Phase 3, behind
+# the resize gate. "project1" is the guard mask; the real name never enters
+# tracked files. Dispatch-only - a human (or the syd4 driver) decides when a
+# live box changes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: Box FQDN or IP
+        required: false
+        default: syd2.swordfish.cfd
+
+# this job holds the box SSH key - keep its GITHUB_TOKEN read-only so a
+# compromised step can't also write to the repo (Bucket 1.5 posture)
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    name: converge landing zone via SSH
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ inputs.host || 'syd2.swordfish.cfd' }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install CI deploy key
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+        run: |
+          [ -n "$SSH_DEPLOY_KEY" ] || { echo "SSH_DEPLOY_KEY secret is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          # strip CRs defensively: a secret pasted/piped from Windows once arrived
+          # CR-tainted and openssh fails it with "error in libcrypto" (2026-07-07)
+          printf '%s\n' "$SSH_DEPLOY_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null || { echo "secret does not parse as a private key"; exit 1; }
+
+      - name: Wait for SSH
+        run: |
+          for i in $(seq 1 10); do
+            if ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o BatchMode=yes "deploy@$HOST" true; then
+              echo "SSH reachable"; exit 0
+            fi
+            echo "attempt $i/10 - not reachable yet, retrying in 30s"; sleep 30
+          done
+          echo "SSH unreachable after 5 minutes"; exit 1
+
+      - name: Ship provisioning/project1 to /opt/swordfish/project1
+        run: |
+          # tar pipe instead of rsync/scp: rsync is not on the box image and this
+          # stays one idempotent overwrite with no partial-sync states
+          tar -C provisioning -czf - project1 | \
+            ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                "deploy@$HOST" 'sudo install -d -o deploy -g deploy /opt/swordfish && tar -C /opt/swordfish -xzf -'
+
+      - name: Converge landing zone
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "deploy@$HOST" 'sudo bash /opt/swordfish/project1/setup-landing-zone.sh'
+
+      - name: Idempotency proof - second run must converge clean
+        run: |
+          out=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+                "deploy@$HOST" 'sudo bash /opt/swordfish/project1/setup-landing-zone.sh')
+          echo "$out"
+          echo "$out" | grep -q '^CHANGED:' \
+            && { echo "FAIL: second run still reported CHANGED lines - script is not idempotent"; exit 1; }
+          echo "$out" | grep -q '^== converged:' \
+            || { echo "FAIL: second run did not report convergence"; exit 1; }
