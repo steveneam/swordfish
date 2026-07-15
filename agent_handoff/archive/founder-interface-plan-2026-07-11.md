@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-07-15** — all three legs BUILT + LIVE: dashboard (v3 collectors, `provisioning/workstation/`) · fleet login alerts (`provisioning/host/setup-login-alerts.sh`) · hermes E1 relay (`provisioning/workstation/relay/`). Leg-3 sketch superseded by `research/hermes-e1-relay-design-2026-07-13.md`.
+
 # Founder interface plan — dashboard · fleet alerts · Hermes E0/E1 (2026-07-11)
 
 One plan, three legs, all serving the same goal: the founder drives the fleet from a

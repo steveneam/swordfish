@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-07-15** — BUILT as planned: v3 collectors→renderer live (`provisioning/workstation/collectors/collect-*.sh`, all seven cards). Last open item (subscriptions.yml FILLs) tracks in NEEDS-STEVEN, not here.
+
 # Cockpit dashboard — plan (founder ask, 2026-07-13)
 
 _Status: PLAN ONLY — nothing below is built yet. Founder said "plan these first,

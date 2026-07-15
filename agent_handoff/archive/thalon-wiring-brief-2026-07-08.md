@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-07-15** — wiring COMPLETED 2026-07-13 (thalon staging live on syd2). The live tenant channel is thalon-repo-side: their `ASK-BACKS-FOR-SWORDFISH.md` / `FROM-SWORDFISH.md`.
+
 # Wiring brief → Thalon (from the Swordfish session, via the founder)
 
 _Stamped 2026-07-08 03:55 +10:00. Reply to your tenant note of 2026-07-08 — all six of

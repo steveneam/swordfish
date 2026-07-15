@@ -4,7 +4,7 @@ Chartered: Checkpoint-1 amendment 6 ladder + Bucket-5 in-flight record (LLM =
 founder's Vercel AI Gateway, Groq-hosted Llama 3.3-class, **US$10/mo hard cap**,
 expected <$1). Pull-forward to syd3 pre-cutover = founder decision 2026-07-11
 (charter amendment queued for next checkpoint). Full design:
-`agent_handoff/founder-interface-plan-2026-07-11.md`.
+`agent_handoff/archive/founder-interface-plan-2026-07-11.md`.
 
 Upstream: [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent)
 (MIT — hot-path licensing OK). Own repo assessment: `research/2026-07-07-vps-ops-research.md` §11
@@ -118,7 +118,7 @@ Vercel AI Gateway key. Then:
 
 E1 = the conversational relay to Claude Code on syd4 (one allowlisted command,
 manual approvals for everything else) — design in
-`agent_handoff/founder-interface-plan-2026-07-11.md`. Verdict gate per charter:
+`agent_handoff/archive/founder-interface-plan-2026-07-11.md`. Verdict gate per charter:
 2–4 weeks at E0/E1 → keep or drop.
 
 ## Rebuild path

@@ -1,3 +1,5 @@
+> **Moved from `agent_handoff/` 2026-07-15** — reference doc for a LIVE system (cited by AGENTS.md rule 10), not an open handoff thread.
+
 # Hermes E1 relay — finished design (2026-07-13, validated live)
 
 > Supersedes the Leg-3 E1 sketch in `founder-interface-plan-2026-07-11.md`
