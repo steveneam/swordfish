@@ -20,6 +20,11 @@ set -euo pipefail
 # proposed in their channel; each project installs its own.
 #
 # Add a peer: append "name:absolute-path" to the WATCHES list below and re-run.
+# GUARDED-NAME peers (Project 1/2): their workspace paths contain guarded
+# tokens, so their entries live in UNTRACKED /etc/swordfish/peer-mail-watches.local
+# (same precedent as the gitignored .context/ vault pointer) - one
+# "name:absolute-path" per line, # comments ok, and the name MUST be the mask
+# (project1/project2): it lands in flag filenames, alerts, and session chat.
 # Root unit (alerts.env is root:600). Idempotent - safe to re-run.
 
 changed=0
@@ -39,6 +44,15 @@ install_if_changed 0755 /usr/local/bin/swordfish-peer-mail-watch.sh <<'WATCH'
 # env just means "next tick". One alert per content change per channel.
 set -u
 WATCHES="thalon:/home/deploy/work/thalon/agent_handoff/ASK-BACKS-FOR-SWORDFISH.md"
+
+# guarded-name peers ride the untracked local list (see setup script header)
+LOCAL_WATCHES=/etc/swordfish/peer-mail-watches.local
+if [ -r "$LOCAL_WATCHES" ]; then
+  while IFS= read -r line; do
+    case "$line" in ''|\#*) continue ;; esac
+    WATCHES="$WATCHES $line"
+  done < "$LOCAL_WATCHES"
+fi
 
 STATE=/var/lib/swordfish/peer-mail
 mkdir -p "$STATE"
@@ -102,9 +116,21 @@ fi
 systemctl is-active --quiet swordfish-peer-mail.timer || { echo "FAIL: timer inactive"; exit 1; }
 sudo /usr/local/bin/swordfish-peer-mail-watch.sh || { echo "FAIL: watcher errored"; exit 1; }
 sudo test -f /var/lib/swordfish/peer-mail/thalon.hash || { echo "FAIL: baseline hash not written"; exit 1; }
+# every local-list peer whose channel file exists must have a baseline too
+extra=""
+if sudo test -r /etc/swordfish/peer-mail-watches.local; then
+  while IFS= read -r line; do
+    case "$line" in ''|\#*) continue ;; esac
+    n=${line%%:*}; p=${line#*:}
+    sudo test -r "$p" || { echo "WARN: local peer '$n' channel file not readable yet - baseline deferred"; continue; }
+    sudo test -f "/var/lib/swordfish/peer-mail/$n.hash" \
+      || { echo "FAIL: baseline hash missing for local peer '$n'"; exit 1; }
+    extra="$extra + $n"
+  done < <(sudo cat /etc/swordfish/peer-mail-watches.local)
+fi
 
 if [ "$changed" -eq 0 ]; then
-  echo "== converged: no changes"
+  echo "== converged: no changes (channels: thalon$extra)"
 else
-  echo "== converged: peer-mail watch armed (channels: thalon)"
+  echo "== converged: peer-mail watch armed (channels: thalon$extra)"
 fi
