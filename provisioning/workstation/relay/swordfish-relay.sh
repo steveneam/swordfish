@@ -78,13 +78,30 @@ for r in db.execute(
 PY
 }
 
-ensure_session() { # $1 slug $2 dir -> 0 when composer ready
+claude_pane() { # $1 slug -> pane target of the pane RUNNING claude, else the
+  # bare session name (= active window). Sessions can hold more than the agent
+  # (founder's codex TUI landed as eamos window 1, 2026-07-15): session-level
+  # send-keys types into whatever window is focused, so every capture/inject
+  # must aim at the claude pane itself. A dead claude leaves a stale ❯ on the
+  # old screen - callers must treat the bare-name fallback as NOT-a-claude.
+  local p
+  p=$(tmux list-panes -s -t "$1" -F '#{window_index}.#{pane_index} #{pane_current_command}' 2>/dev/null \
+      | awk '$2=="claude"{print $1; exit}')
+  if [ -n "$p" ]; then printf '%s:%s\n' "$1" "$p"; else printf '%s\n' "$1"; fi
+}
+
+ensure_session() { # $1 slug $2 dir -> 0 when the claude pane's composer is ready
   tmux has-session -t "$1" 2>/dev/null || tmux new-session -d -s "$1" -c "$2" \
     'claude; echo; echo "[claude exited - type claude to relaunch, or claude --continue to resume]"; exec bash'
   for _ in $(seq 1 40); do
-    local pane; pane=$(tmux capture-pane -t "$1" -p 2>/dev/null || true)
-    grep -q 'trust this folder' <<<"$pane" && { tmux send-keys -t "$1" Enter; sleep 2; continue; }
-    grep -q '❯' <<<"$pane" && return 0
+    local tgt pane; tgt=$(claude_pane "$1")
+    pane=$(tmux capture-pane -t "$tgt" -p 2>/dev/null || true)
+    grep -q 'trust this folder' <<<"$pane" && { tmux send-keys -t "$tgt" Enter; sleep 2; continue; }
+    # ready = a LIVE claude pane (resolver returned window.pane) showing the
+    # composer - a stale ❯ on a dead claude's screen must not count
+    case "$tgt" in
+      *:*) grep -q '❯' <<<"$pane" && return 0 ;;
+    esac
     sleep 3
   done
   return 1
@@ -95,15 +112,19 @@ handle_cmd() { # $1 cmd $2 slug $3 dir $4 thread
     '!status')
       local st="no session"
       if tmux has-session -t "$2" 2>/dev/null; then
-        st="session up"
-        tmux capture-pane -t "$2" -p 2>/dev/null | grep -q 'esc to interrupt' \
-          && st="$st, agent mid-turn" || st="$st, agent idle"
+        local ctgt; ctgt=$(claude_pane "$2")
+        case "$ctgt" in
+          *:*) st="session up"
+               tmux capture-pane -t "$ctgt" -p 2>/dev/null | grep -q 'esc to interrupt' \
+                 && st="$st, agent mid-turn" || st="$st, agent idle" ;;
+          *)   st="session up but NO claude pane (agent exited?) - !kill then resend to relaunch" ;;
+        esac
       fi
       local last; last=$(grep "\"project\":\"$2\"" "$LEDGER" 2>/dev/null | tail -1 \
         | jq -r '"last \(.dir) \((now - .ts | floor))s ago"' 2>/dev/null || true)
       printf '%s: %s%s\n' "$2" "$st" "${last:+ · $last}" | send "$4" ;;
     '!stop')
-      tmux send-keys -t "$2" Escape 2>/dev/null \
+      tmux send-keys -t "$(claude_pane "$2")" Escape 2>/dev/null \
         && echo "$2: sent interrupt (Escape)" | send "$4" \
         || echo "$2: no session to interrupt" | send "$4" ;;
     '!kill')
@@ -228,9 +249,20 @@ process_row() { # $1 id $2 thread $3 content
   # submitting extra turns that could carry a forged provenance prefix (security
   # review 2026-07-14). The single Enter below is the only turn submit.
   local oneline; oneline=$(printf '%s' "$text" | tr '\n\r' '  ')
-  tmux send-keys -t "$slug" -l -- "[Steven via hermes-relay] $oneline"
+  # aim at the claude PANE, never the session (= active window): the founder's
+  # codex TUI or a bash fallback shell must never receive relayed keystrokes.
+  # ensure_session just returned 0, so a live claude pane exists; re-resolve
+  # defensively and refuse rather than spray keys if it vanished in between.
+  local tgt; tgt=$(claude_pane "$slug")
+  case "$tgt" in
+    *:*) ;;
+    *) echo "$slug: claude pane vanished before inject - !kill then resend" | send "$thread"
+       ledger cmd "$slug" "$thread" "$id" "inject aborted: no claude pane"
+       return ;;
+  esac
+  tmux send-keys -t "$tgt" -l -- "[Steven via hermes-relay] $oneline"
   sleep 1
-  tmux send-keys -t "$slug" Enter
+  tmux send-keys -t "$tgt" Enter
   ledger in "$slug" "$thread" "$id" "${oneline:0:80}"
   log "injected msg $id -> $slug"
 }
@@ -247,7 +279,7 @@ sweep_markers() {
     slug=$(basename "$m" .json)
     age=$(( $(date +%s) - $(jq -r '.injected_at // 0' "$m") ))
     [ "$age" -gt 120 ] || continue
-    tmux capture-pane -t "$slug" -p 2>/dev/null | grep -q 'esc to interrupt' && continue  # still working
+    tmux capture-pane -t "$(claude_pane "$slug")" -p 2>/dev/null | grep -q 'esc to interrupt' && continue  # still working
     dir=$(jq -r '.dir // empty' "$m"); thread=$(jq -r '.thread' "$m")
     [ -n "$dir" ] || { rm -f "$m"; continue; }
     tfile=$(ls -t "$HOME/.claude/projects/$(printf '%s' "$dir" | tr '/.' '--')"/*.jsonl 2>/dev/null | head -1)
