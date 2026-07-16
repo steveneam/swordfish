@@ -33,6 +33,17 @@ for d in assets manifests; do
     [ -d "/srv/project1/$d" ] \
         || { install -d -o deploy -g deploy -m 755 "/srv/project1/$d"; mark "created /srv/project1/$d (deploy:deploy - wake-up default, confirm with their agent)"; }
 done
+# Phase-1 subtrees (contract frozen with Project 1's agent 2026-07-16): the two
+# bind-mount targets are pre-created deploy-owned so a container can never
+# root-own them at first mount. Both sit under the recorded assets/** restic
+# exclusion; diffs scope to the subtree, never the assets root (the .drill
+# canary lives there and would always read EXTRA).
+#   assets/runtime         <-> container /var/data/eamos/bio_assets
+#   assets/phase1-dry-run  <-> container /var/data/eamos/phase1-dry-run
+for d in runtime phase1-dry-run; do
+    [ -d "/srv/project1/assets/$d" ] \
+        || { install -d -o deploy -g deploy -m 755 "/srv/project1/assets/$d"; mark "created /srv/project1/assets/$d (Phase-1 mount target, deploy:deploy)"; }
+done
 echo "OK: landing tree present ($(stat -c '%U:%G %a' /srv/project1/assets) assets; $(stat -c '%U:%G %a' /srv/project1/manifests) manifests)"
 
 # --- 2. the harness ----------------------------------------------------------
@@ -64,6 +75,24 @@ fi
 # excluded canary exactly (this is the same call their agent makes at Phase 1)
 /usr/local/bin/asset-manifest diff "$manifest" /srv/project1/assets/.drill
 echo "OK: drill canaries in place (manifest covered, canary excluded)"
+
+# --- 4. Phase-1 preflight (fail-closed; their agent's frozen contract) --------
+# numeric 1000:1000 is the deployment identity their hardened image runs as -
+# assert it BEFORE any container writes here, and halt on any mismatch.
+pf_fail=0
+for p in /srv/project1/assets /srv/project1/assets/runtime /srv/project1/assets/phase1-dry-run; do
+    own=$(stat -c '%u:%g' "$p")
+    [ "$own" = "1000:1000" ] || { echo "PREFLIGHT-FAIL: $p is $own, expected 1000:1000"; pf_fail=1; }
+done
+# the drill canary must be byte-identical (its manifest above already proves
+# content; this asserts the subtree was never disturbed by mount work)
+[ -f /srv/project1/assets/.drill/exclusion-canary.bin ] \
+    || { echo "PREFLIGHT-FAIL: drill canary missing"; pf_fail=1; }
+# free space: the ClinGen dry-run payload is 527,925,248 bytes; require 2 GB
+avail=$(df -B1 --output=avail /srv/project1/assets | tail -1)
+[ "$avail" -ge 2147483648 ] || { echo "PREFLIGHT-FAIL: only $avail bytes free under /srv/project1/assets"; pf_fail=1; }
+[ "$pf_fail" = 0 ] || { echo "== PREFLIGHT FAILED - no writes may proceed"; exit 1; }
+echo "OK: preflight green (1000:1000 on assets + both mount targets; canary intact; $(( avail / 1024 / 1024 / 1024 )) GiB free)"
 
 [ "$changed" = 1 ] || echo "OK: nothing to change"
 echo "== converged: project1 landing zone (assets excluded from restic BY profiles.yaml - dispatch backups-apply after any profile edit)"
