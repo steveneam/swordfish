@@ -145,7 +145,12 @@ write_files:
       enabled = true
 
   # code-server: tunnel-only by construction (localhost bind + no auth layer -
-  # the SSH tunnel is the auth; ufw/provider firewall never expose 8080)
+  # the SSH tunnel is the auth; ufw/provider firewall never expose 8080).
+  # --proxy-domain (live on syd4 2026-07-16): subdomain proxying for app
+  # previews - the /proxy/<port>/ subpath form breaks apps that emit
+  # root-absolute asset URLs (Next.js /_next/...), the founder saw unstyled
+  # pages. With it, http://<port>.localhost:8080 through the tunnel works
+  # (browsers resolve *.localhost to loopback).
   - path: /etc/systemd/system/code-server.service
     permissions: "0644"
     content: |
@@ -155,7 +160,33 @@ write_files:
 
       [Service]
       User=deploy
-      ExecStart=/usr/bin/code-server --bind-addr 127.0.0.1:8080 --auth none
+      ExecStart=/usr/bin/code-server --bind-addr 127.0.0.1:8080 --auth none --proxy-domain localhost
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+
+  # agent-tmux: the tmux server as its OWN unit, outside code-server's cgroup.
+  # 2026-07-16 incident: the server used to be spawned by the first agent-term
+  # terminal, i.e. INSIDE code-server.service's cgroup - a code-server restart
+  # killed every agent session on the box. CANONICAL: setup-qol.sh (lockstep).
+  - path: /etc/systemd/system/agent-tmux.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=agent tmux server - persistent seam for all agent sessions
+      # invariant: must NEVER be merged into / made dependent on code-server -
+      # surviving code-server restarts is this unit's entire reason to exist
+      After=network.target
+
+      [Service]
+      User=deploy
+      Type=simple
+      ExecStart=/usr/bin/tmux -D
+      # sessions inherit the SERVER's env: ~/.local/bin carries the
+      # self-updating claude build that agent-term auto-starts
+      Environment=PATH=/home/deploy/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       Restart=always
       RestartSec=5
 
@@ -210,7 +241,9 @@ write_files:
   # agent-term: code-server's default terminal profile (wired in settings.json
   # above). Lands every terminal in a tmux session named after the workspace
   # folder - a window crash never kills the agent; reopening the tab
-  # reattaches. CANONICAL: provisioning/host/setup-qol.sh (lockstep copy).
+  # reattaches. The tmux server itself runs under agent-tmux.service (above),
+  # which agent-term ensures before attaching - never in this terminal's
+  # cgroup. CANONICAL: provisioning/host/setup-qol.sh (lockstep copy).
   - path: /usr/local/bin/agent-term
     permissions: "0755"
     content: |
@@ -220,6 +253,9 @@ write_files:
       [ "$d" = "$HOME" ] && [ -d "$HOME/work/swordfish" ] && d="$HOME/work/swordfish"
       s=$(printf '%s' "$(basename "$d")" | tr -cs 'A-Za-z0-9_-' '-')
       s=${s#-}; s=${s%-}; [ -n "$s" ] || s=agent
+      # the shared tmux server must run under agent-tmux.service, never this
+      # terminal's cgroup (a code-server restart killed every agent 2026-07-16)
+      systemctl is-active --quiet agent-tmux || sudo -n systemctl start agent-tmux 2>/dev/null || true
       exec tmux new-session -A -s "$s" -c "$d" \
         'claude; echo; echo "[claude exited - type claude to relaunch, or claude --continue to resume the last conversation]"; exec bash'
 
@@ -340,6 +376,7 @@ runcmd:
   - echo "a1cb96f64d5c68736764726cd3b0c9b6e500bdc30cfefebc05f59259149380e2  /tmp/code-server.deb" | sha256sum -c -
   - dpkg -i /tmp/code-server.deb
   - systemctl daemon-reload
+  - systemctl enable --now agent-tmux
   - systemctl enable --now code-server
 
   # --- PowerShell 7: the repo's operational scripts (grep guard, DNS, box
