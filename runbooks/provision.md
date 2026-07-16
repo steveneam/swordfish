@@ -71,6 +71,18 @@ swordfish-specific parts (anonymity grep guard, Telegram relay) unless wanted.
    pre-write).
 8. 🤖 **Provider firewall** (defense outside the box): allow 22 + 80/443
    only (`vultr/firewall-group.ps1`, `binarylane/set-firewall.ps1`).
+8b. 🤖 **Check the provider's OUTBOUND filter — it is invisible from inside the
+   box.** BinaryLane enables per-server `port_blocking` by default: outbound
+   tcp/22 and SMTP are dropped to every destination, while `ufw` still reports
+   `Default: allow (outgoing)` and `iptables -S OUTPUT` is clean, because the
+   drop happens upstream. Converge it per box policy with
+   `binarylane/set-port-blocking.ps1 -Name <box> -State enabled|disabled`
+   (dry-run default; `-Approve` applies). Boxes that only RECEIVE connections
+   keep the block; boxes where agents work need it off. **cloud-init cannot
+   express this** — a rebuilt box silently regains the block, so the script is
+   the rebuild path. Prove it from the box, never from the API:
+   `timeout 8 bash -c 'exec 3<>/dev/tcp/github.com/22 && head -c 4 <&3'`
+   (expect `SSH-`).
 9. 🤖 **Verify, don't trust:** run `provisioning/checks/assert-hardening.sh`
    via the `hardening-smoke.yml` workflow. Never pipe a verdict through
    grep/head in a checked chain — capture output, then grep (pipes hide
@@ -182,6 +194,31 @@ Everything not listed here is agent/CI-executable:
   (`provisioning/cloud-init/`)
 - **Verdicts: capture then grep** — piping verdict commands hides failures.
   (`provisioning/checks/`)
+- **A timeout is a symptom, not a diagnosis — always test a control host.**
+  Outbound 22 "failing to the peer" was the provider blocking outbound 22 to
+  *everything*; two agents blamed the remote, the key, and the laptop before
+  anyone tried `github.com:22`. If a connection fails, prove the same class of
+  connection succeeds somewhere else before believing any story about the far
+  end. (`binarylane/set-port-blocking.ps1`)
+- **Price and quota facts come from the live API/docs, never from memory** —
+  a model's recollection of any vendor's tiers is stale by definition. Both a
+  bandwidth allowance and a resize price were wrong from memory in one session;
+  the API and the current docs settled both. (Phase 0, step 4)
+- **Check BOTH sides of any data movement** — "free" on the destination
+  (ingress) says nothing about the source (egress), where the quota, the bill,
+  and the failure mode usually live.
+- **Read the failure mode, not just the price** — a quota overage that bills
+  a few cents with a payment method on file may instead *spin the service down
+  until next month* without one. The cost was never the risk.
+- **Shell-safe params for cross-shell scripts** — bash expands `$true`/`$false`
+  to the empty string, so a PowerShell `[bool]` flag invoked from bash inverts
+  silently. Use a `ValidateSet` string: unmanglable, and it fails loudly.
+  (`binarylane/set-port-blocking.ps1`)
+- **Two-party verification for irreplaceable data** — two operators, two code
+  paths, one tree: identical manifests turn "the tool says so" into evidence.
+- **A gate written down by another team is not yours to reinterpret.** An
+  outside agent arguing a peer's blocking check "doesn't really apply here" is
+  the failure mode a gate exists to survive — the peer was right to refuse.
 - **Delivery-green ≠ content-true** — read back what you wrote (API 200s lie;
   assignPermissions answers 200 for unknown ids). (`runbooks/dogfood.md`)
 - **The recovery path is never rate-limited, never firewalled-by-default,

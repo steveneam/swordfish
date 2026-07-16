@@ -78,6 +78,16 @@ if [ "$BOX" = "syd4" ]; then
     check "code-server: service active"   "systemctl is-active --quiet code-server"
     check "code-server: bound localhost"  "sudo ss -tln | grep -q '127.0.0.1:8080'"
     check "code-server: no public bind"   "! sudo ss -tln | grep ':8080' | grep -qv '127.0.0.1:8080'"
+    # EGRESS 22 (2026-07-16): BinaryLane ships per-server outbound port_blocking
+    # ENABLED BY DEFAULT - it silently drops outbound tcp/22 to EVERY host. It
+    # cost this fleet hours across two agents (Render SSH + box-to-box + git
+    # over SSH all "timed out" with healthy keys; the tell is that github.com:22
+    # fails too). It is a PROVIDER-API setting, so cloud-init cannot express it
+    # and a rebuilt box silently regains the block: converge it with
+    # provisioning/binarylane/set-port-blocking.ps1 -Name syd4.swordfish.cfd
+    # -Enabled:$false -Approve. The workspace box needs egress 22 for agent
+    # work; syd2 (CI-as-hands target) deliberately keeps the block.
+    check "egress: tcp/22 leaves the box"  "timeout 8 bash -c 'exec 3<>/dev/tcp/github.com/22 && head -c 4 <&3' | grep -q SSH"
 fi
 
 echo "== $((total - fails))/$total assertions passed"
