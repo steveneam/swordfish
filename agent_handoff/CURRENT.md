@@ -49,11 +49,15 @@ ratchet built + committed (984dcf4), cutover staged awaiting founder go._
   eamos: codex killed, fresh codex running; **founder call: codex STAYS in a
   plain shell** (native scrollback > tmux persistence for reading codex;
   `codex resume` = recovery) — documented in setup-qol.sh + memory.
-- **:3001 dev server still DOWN** (killed 06:43, owner = peers' side) — the
-  proxy config fix is live but unverified until the app is back:
-  `http://3001.localhost:8080` through the tunnel should render styled.
-  **No code-server restarts are needed for this** — and none happen anyway
-  until agent-tmux owns the server (invariant lesson below).
+- **App preview VERIFIED (07:35Z):** the dev server is back on **:3005**
+  (Next.js, relaunched by its owner) and the proxy-domain fix works — page +
+  CSS both 200 via `Host: 3005.localhost`. Founder URL pattern:
+  `http://<port>.localhost:8080` (in his COPY-ME.txt). **Known wart:**
+  code-server's Ports tab emits the link WITHOUT `:8080` ("//{{port}}.localhost")
+  → "refused to connect" on the Mac; a real fix (e.g. test
+  `--proxy-domain localhost:8080`) needs a code-server restart = POST-CUTOVER
+  ONLY (queued in Next 7). :3005 binds `*` but ufw allows only 22 — not
+  exposed; suggest 127.0.0.1 bind to the owner sometime.
 - **Eamos's 07-15 ask-backs still owed an answer** (handoff shape /
   NEEDS-STEVEN pattern / archive plan — see their ASK-BACKS file; Phase 1
   itself is founder-held). Promised "next working session" in their channel.
@@ -82,9 +86,11 @@ ratchet built + committed (984dcf4), cutover staged awaiting founder go._
 5. **⛔ SPEND GATE: resize syd2 → std-6vcpu** (AUD 78.40, +39.20/mo) — fires
    only after eamos's Phase 1 exit.
 6. **Cloudflare bucket (founder acct) — AFTER the soak gate.**
-7. **Postgres follow-ups** · **post-cutover queue** (Kuma dead-man legs,
-   traefik bump, Dokploy notifications, Renovate PR #4, ntfy audit) — as
-   listed in the 07-15 wrap, unchanged.
+7. **Postgres follow-ups** · **post-cutover queue** (fix code-server Ports-tab
+   proxy links missing :8080 — test `--proxy-domain localhost:8080`, restart
+   is safe once agent-tmux owns the server and peers are at clean points ·
+   Kuma dead-man legs · traefik bump · Dokploy notifications · Renovate
+   PR #4 · ntfy audit) — rest as listed in the 07-15 wrap, unchanged.
 
 ## Protocol notes
 
