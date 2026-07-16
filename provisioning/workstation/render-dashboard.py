@@ -87,16 +87,22 @@ def section(sid, title, data, body):
 
 def needs_items(projects, security, money):
     items = []  # (sort_key_epoch, html)
-    try:
-        for line in NEEDS_FILE.read_text().splitlines():
-            m = re.match(r"^- \[(\d{4}-\d{2}-\d{2})\]\s+(.*)", line)
-            if m:
-                d, text = m.group(1), m.group(2)
-                ep = int(datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
-                items.append((ep, f'<li><span class="tag">queue</span>{esc(text)}'
-                                  f'<span class="when">{rel(ep)}</span></li>'))
-    except Exception as e:
-        items.append((NOW, f'<li>{badge("queue file unreadable", "bad")} {esc(e)}</li>'))
+    # every project queue on the box feeds the card: ~/work/*/agent_handoff/NEEDS-STEVEN.md
+    if not NEEDS_FILE.exists():
+        items.append((NOW, f'<li>{badge("queue file unreadable", "bad")} swordfish queue missing</li>'))
+    for qf in sorted((HOME / "work").glob("*/agent_handoff/NEEDS-STEVEN.md")):
+        proj = qf.parts[-3]
+        tag = "queue" if proj == "swordfish" else f"queue · {proj}"
+        try:
+            for line in qf.read_text().splitlines():
+                m = re.match(r"^- \[(\d{4}-\d{2}-\d{2})\]\s+(.*)", line)
+                if m:
+                    d, text = m.group(1), m.group(2)
+                    ep = int(datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+                    items.append((ep, f'<li><span class="tag">{esc(tag)}</span>{esc(text)}'
+                                      f'<span class="when">{rel(ep)}</span></li>'))
+        except Exception as e:
+            items.append((NOW, f'<li>{badge(f"{proj} queue unreadable", "bad")} {esc(e)}</li>'))
 
     for ask in (projects.get("asks") or []):
         items.append((NOW, f'<li><span class="tag">agent ask</span>'

@@ -15,15 +15,16 @@
 > decision below, incl. AGENTS.md rule-10 founder-gate list). If the box state
 > and this file disagree, the box wins — say so, then fix the file.
 
-_Stamped: 2026-07-16 07:55 UTC (17:55 AEST). Session = **the 06:43Z incident,
-owned, ratcheted and CLOSED OUT LIVE**: the previous swordfish session
-restarted code-server believing tmux was safe — but the tmux server lived in
-code-server's CGROUP, so the restart killed EVERY agent mid-work. This
-session: forensics, peers notified, agent-tmux ratchet built (984dcf4),
-preview proxy fully root-caused (three stacked bugs), sustainability pass
-(unit converged in setup-qol.sh + assert-agent-seams.sh), and on the
-founder's go the detached cutover pass was FIRED — ending this session by
-design. Successor: verify the pass (Next 0)._
+_Stamped: 2026-07-16 08:15 UTC (18:15 AEST). Session = **post-cutover boot:
+the 06:43Z incident is VERIFIED CLOSED.** The 07:59Z detached pass came back
+all green (cutover=OK, converge=OK, code-server restart survived with the
+same tmux PID, assert=OK) and the assert was independently rerun green. All
+three project tabs confirmed landed right (thalon+swordfish in agent-tmux
+tmux; eamos codex in a plain shell per founder call). Both peer-mail flags
+acted on and cleared: thalon's token-hygiene ask adopted (memory:
+thalon-channel-token-hygiene), and eamos's ask-backs ANSWERED — the dashboard
+collector now ingests every project's NEEDS-STEVEN.md (their M-013 line
+renders live). Replies appended in both peers' FROM-SWORDFISH.md._
 
 ## State
 
@@ -44,11 +45,9 @@ design. Successor: verify the pass (Next 0)._
   new seam holds (agent-tmux MainPID must survive it), (4)
   `provisioning/checks/assert-agent-seams.sh` end-to-end, (5) Telegram ping
   with every verdict, all logged to `swordfish-cutover` in journald.
-  **Successor: FIRST verify the pass** — `journalctl -t swordfish-alerts -t
-  swordfish-cutover --since -2h`, rerun the assert script yourself, then
-  close the incident in chat. If anything FAILed: the old world is gone
-  either way, fix forward (unit files are all converged on disk; worst case
-  `systemctl restart agent-tmux` + code-server and rerun the assert).
+  **VERIFIED 08:05Z: all green** (journald verdicts read + assert rerun by
+  the successor session; tmux PID 1969099 unchanged across the restart).
+  Incident closed in chat + both peer channels.
 - **Peer status (06:43 fallout):** both notified via their
   `agent_handoff/FROM-SWORDFISH.md`. thalon: fresh session recovering
   (founder: "continue on before the crash"); killed session resumable
@@ -80,13 +79,15 @@ design. Successor: verify the pass (Next 0)._
 
 ## Next
 
-0. **Verify the fired cutover pass and close the incident** (see the CUTOVER
-   FIRED bullet: journald verdicts + rerun assert-agent-seams.sh + tell the
-   founder). Then check `/var/lib/swordfish/peer-mail/NEW-*` flags — both
-   peers were told to reply via ask-backs (thalon: which session it kept;
-   whether :3005 is theirs).
-1. **Answer eamos's 07-15 ask-backs** (uid confirm + dry-run route when they
-   send it; handoff-shape questions 2+3 are swordfish's fleet-pattern call).
+0. ~~Verify cutover + close incident~~ **DONE 08:05Z** · ~~peer-mail flags~~
+   **DONE**: thalon ack'd (kept the fresh session, killed transcript stays
+   dead; :3005/:3001 NOT theirs → eamos told to relaunch + bind 127.0.0.1 if
+   theirs). ⚠️ NEW RULE: thalon's repo guards BOTH project names — masks only
+   in their tracked files (memory: thalon-channel-token-hygiene).
+1. ~~Answer eamos's ask-backs~~ **DONE**: dashboard collector now scans
+   `~/work/*/agent_handoff/NEEDS-STEVEN.md` (verified rendering); their
+   layout alignment blessed as the fleet shape. Still open when founder
+   un-parks Phase 1: their uid/gid confirm + dry-run route choice.
 2. **Relay `!driver` + codex reply leg (founder: LATER, he'll ask)** — note
    codex now lives in a plain SHELL, not a tmux pane: the deferred design
    must target it differently (codex `notify` hook, not send-keys).
@@ -98,11 +99,10 @@ design. Successor: verify the pass (Next 0)._
 5. **⛔ SPEND GATE: resize syd2 → std-6vcpu** (AUD 78.40, +39.20/mo) — fires
    only after eamos's Phase 1 exit.
 6. **Cloudflare bucket (founder acct) — AFTER the soak gate.**
-7. **Postgres follow-ups** · **post-cutover queue** (fix code-server Ports-tab
-   proxy links missing :8080 — test `--proxy-domain localhost:8080`, restart
-   is safe once agent-tmux owns the server and peers are at clean points ·
-   Kuma dead-man legs · traefik bump · Dokploy notifications · Renovate
-   PR #4 · ntfy audit) — rest as listed in the 07-15 wrap, unchanged.
+7. **Postgres follow-ups** · **post-cutover queue** (~~Ports-tab :8080
+   links~~ FIXED by the dual proxy-domain cutover, assert-checked · Kuma
+   dead-man legs · traefik bump · Dokploy notifications · Renovate PR #4 ·
+   ntfy audit) — rest as listed in the 07-15 wrap, unchanged.
 
 ## Protocol notes
 
