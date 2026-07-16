@@ -1,6 +1,6 @@
 # runbooks/ — executable ops procedures
 
-One runbook per procedure: `provision` · `deploy` · `backup-restore` · `incident` · `migration` (one dual-run M0–M6 instance per real move).
+One runbook per procedure: `provision` (the end-to-end zero→operated-box playbook, human gates marked) · `deploy` · `backup-restore` · `incident` · `migration` (one dual-run M0–M6 instance per real move).
 
 Rules:
 
