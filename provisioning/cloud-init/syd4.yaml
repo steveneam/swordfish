@@ -146,11 +146,15 @@ write_files:
 
   # code-server: tunnel-only by construction (localhost bind + no auth layer -
   # the SSH tunnel is the auth; ufw/provider firewall never expose 8080).
-  # --proxy-domain (live on syd4 2026-07-16): subdomain proxying for app
-  # previews - the /proxy/<port>/ subpath form breaks apps that emit
-  # root-absolute asset URLs (Next.js /_next/...), the founder saw unstyled
-  # pages. With it, http://<port>.localhost:8080 through the tunnel works
-  # (browsers resolve *.localhost to loopback).
+  # Subdomain proxying for app previews (2026-07-16): the /proxy/<port>/
+  # subpath form breaks apps that emit root-absolute asset URLs (Next.js
+  # /_next/...) - unstyled pages. Dual --proxy-domain, ORDER MATTERS:
+  # localhost:8080 FIRST (browsers send Host WITH the port and code-server
+  # matches it verbatim; first entry also becomes VSCODE_PROXY_URI so
+  # Ports-tab links carry :8080), portless localhost second (compat).
+  # Preview pattern for ANY app port: http://<port>.localhost:8080.
+  # CANONICAL: provisioning/host/setup-qol.sh (this is the lockstep copy);
+  # regression check: provisioning/checks/assert-agent-seams.sh.
   - path: /etc/systemd/system/code-server.service
     permissions: "0644"
     content: |
@@ -160,7 +164,7 @@ write_files:
 
       [Service]
       User=deploy
-      ExecStart=/usr/bin/code-server --bind-addr 127.0.0.1:8080 --auth none --proxy-domain localhost
+      ExecStart=/usr/bin/code-server --bind-addr 127.0.0.1:8080 --auth none --proxy-domain localhost:8080 --proxy-domain localhost
       Restart=always
       RestartSec=5
 

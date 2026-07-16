@@ -15,13 +15,15 @@
 > decision below, incl. AGENTS.md rule-10 founder-gate list). If the box state
 > and this file disagree, the box wins — say so, then fix the file.
 
-_Stamped: 2026-07-16 07:20 UTC (17:20 AEST). Session = **the 06:43Z incident,
-owned and ratcheted**: the previous swordfish session restarted code-server
-(adding `--proxy-domain` for app previews) believing tmux was safe — but the
-tmux server lived in code-server's CGROUP, so the restart killed EVERY agent
-mid-work (swordfish, thalon, eamos's codex, the founder's :3001 dev server).
-This session: forensics, peers notified via their channels, root-cause
-ratchet built + committed (984dcf4), cutover staged awaiting founder go._
+_Stamped: 2026-07-16 07:55 UTC (17:55 AEST). Session = **the 06:43Z incident,
+owned, ratcheted and CLOSED OUT LIVE**: the previous swordfish session
+restarted code-server believing tmux was safe — but the tmux server lived in
+code-server's CGROUP, so the restart killed EVERY agent mid-work. This
+session: forensics, peers notified, agent-tmux ratchet built (984dcf4),
+preview proxy fully root-caused (three stacked bugs), sustainability pass
+(unit converged in setup-qol.sh + assert-agent-seams.sh), and on the
+founder's go the detached cutover pass was FIRED — ending this session by
+design. Successor: verify the pass (Next 0)._
 
 ## State
 
@@ -33,14 +35,20 @@ ratchet built + committed (984dcf4), cutover staged awaiting founder go._
   swordfish session ONLY); syd4.yaml captures all of it + the live
   `--proxy-domain localhost` code-server change the dead session never got
   to commit.
-- **CUTOVER PENDING = top of NEEDS-STEVEN.** Fire with:
-  `sudo systemd-run --unit=agent-tmux-cutover --on-active=10 /usr/local/bin/agent-tmux-cutover`
-  — but ONLY on the founder's go (it ends the live swordfish session; wrap
-  chat first). It self-verifies (unit owns server cgroup) and Telegram-pings
-  him "expected". If you boot and `systemctl is-active agent-tmux` is active +
-  `tmux has-session` works, the cutover already ran: verify the server PID's
-  `/proc/<pid>/cgroup` says agent-tmux.service, close the incident (remove
-  the NEEDS-STEVEN line), and tell him it held.
+- **CUTOVER FIRED 2026-07-16 ~07:55Z (founder go: "do all the fixes"), as a
+  detached pass** (`systemd-run`, unit `agent-cutover-pass`) doing, in order:
+  (1) agent-tmux-cutover — tmux server → agent-tmux.service (ended the
+  swordfish session that staged it), (2) setup-qol.sh converge — code-server
+  unit gains DUAL `--proxy-domain localhost:8080` + `localhost`,
+  (3) `systemctl restart code-server` — deliberately, as the live proof the
+  new seam holds (agent-tmux MainPID must survive it), (4)
+  `provisioning/checks/assert-agent-seams.sh` end-to-end, (5) Telegram ping
+  with every verdict, all logged to `swordfish-cutover` in journald.
+  **Successor: FIRST verify the pass** — `journalctl -t swordfish-alerts -t
+  swordfish-cutover --since -2h`, rerun the assert script yourself, then
+  close the incident in chat. If anything FAILed: the old world is gone
+  either way, fix forward (unit files are all converged on disk; worst case
+  `systemctl restart agent-tmux` + code-server and rerun the assert).
 - **Peer status (06:43 fallout):** both notified via their
   `agent_handoff/FROM-SWORDFISH.md`. thalon: fresh session recovering
   (founder: "continue on before the crash"); killed session resumable
@@ -49,14 +57,18 @@ ratchet built + committed (984dcf4), cutover staged awaiting founder go._
   eamos: codex killed, fresh codex running; **founder call: codex STAYS in a
   plain shell** (native scrollback > tmux persistence for reading codex;
   `codex resume` = recovery) — documented in setup-qol.sh + memory.
-- **App preview VERIFIED (07:35Z):** the dev server is back on **:3005**
-  (Next.js, relaunched by its owner) and the proxy-domain fix works — page +
-  CSS both 200 via `Host: 3005.localhost`. Founder URL pattern:
-  `http://<port>.localhost:8080` (in his COPY-ME.txt). **Known wart:**
-  code-server's Ports tab emits the link WITHOUT `:8080` ("//{{port}}.localhost")
-  → "refused to connect" on the Mac; a real fix (e.g. test
-  `--proxy-domain localhost:8080`) needs a code-server restart = POST-CUTOVER
-  ONLY (queued in Next 7). :3005 binds `*` but ufw allows only 22 — not
+- **App preview: root-caused fully + fix in the fired pass (sustainable).**
+  Dev server back on **:3005** (Next.js). Three stacked findings: (a) subpath
+  `/proxy/<port>/` breaks root-absolute assets → proxy-domain needed;
+  (b) portless proxy-domain made Ports-tab links omit `:8080` → "refused to
+  connect" on the Mac (port 80); (c) code-server matches Host VERBATIM
+  (`getHost` keeps the port), so browser requests (`Host: 3005.localhost:8080`)
+  never matched portless `localhost` at all — they 302'd to the UI. Fix =
+  dual `--proxy-domain localhost:8080` (FIRST: matching + link template) +
+  `localhost` (compat), converged via setup-qol.sh + syd4.yaml, regression-
+  checked by `provisioning/checks/assert-agent-seams.sh`, works for ANY port
+  on ANY future project: `http://<port>.localhost:8080`. Founder's
+  COPY-ME.txt has the pattern. :3005 binds `*` but ufw allows only 22 — not
   exposed; suggest 127.0.0.1 bind to the owner sometime.
 - **Eamos's 07-15 ask-backs still owed an answer** (handoff shape /
   NEEDS-STEVEN pattern / archive plan — see their ASK-BACKS file; Phase 1
@@ -68,11 +80,11 @@ ratchet built + committed (984dcf4), cutover staged awaiting founder go._
 
 ## Next
 
-0. **Close the cutover** (see State — either fire it on founder go, or if it
-   already ran, verify cgroup + prune the NEEDS-STEVEN line + confirm to him).
-   Then check `/var/lib/swordfish/peer-mail/NEW-*` flags — both peers were
-   told to reply via ask-backs (thalon: which session it kept; whether :3001
-   is theirs).
+0. **Verify the fired cutover pass and close the incident** (see the CUTOVER
+   FIRED bullet: journald verdicts + rerun assert-agent-seams.sh + tell the
+   founder). Then check `/var/lib/swordfish/peer-mail/NEW-*` flags — both
+   peers were told to reply via ask-backs (thalon: which session it kept;
+   whether :3005 is theirs).
 1. **Answer eamos's 07-15 ask-backs** (uid confirm + dry-run route when they
    send it; handoff-shape questions 2+3 are swordfish's fleet-pattern call).
 2. **Relay `!driver` + codex reply leg (founder: LATER, he'll ask)** — note

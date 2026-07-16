@@ -92,6 +92,45 @@ set -g allow-passthrough on
 set -s set-clipboard external
 TMUXCONF
 
+# code-server unit: CONVERGED here since 2026-07-16 (cloud-init lockstep) -
+# it used to live only in cloud-init and had drifted by hand-edit on the live
+# box, which is how the 06:43 incident restart happened outside provisioning.
+# Workstation boxes only (guarded on the binary).
+# Dual --proxy-domain, ORDER MATTERS:
+#   1. localhost:8080 - browsers send Host WITH the port
+#      ("3005.localhost:8080"), and code-server matches the Host verbatim
+#      (getHost never strips ports), so this entry is what makes real
+#      browser requests proxy at all. Being FIRST it also becomes
+#      VSCODE_PROXY_URI, so Ports-tab links carry :8080 - portless links
+#      were "refused to connect" on the founder's Mac (port 80).
+#   2. localhost - keeps portless Host shapes working (curl, header-rewriting
+#      proxies). Works for ANY app port on ANY future project - the URL
+#      pattern is http://<port>.localhost:8080 through the tunnel.
+# NOTE: converging this file NEVER auto-restarts code-server - a restart
+# kills plain-shell terminals (codex). Restart deliberately at clean points;
+# tmux agents survive it once agent-tmux (below) owns the server.
+if command -v code-server >/dev/null 2>&1; then
+  pre_cs=$changed
+  install_if_changed 0644 /etc/systemd/system/code-server.service <<'CSUNIT'
+[Unit]
+Description=code-server (VS Code in the browser) - SSH-tunnel-only
+After=network.target
+
+[Service]
+User=deploy
+ExecStart=/usr/bin/code-server --bind-addr 127.0.0.1:8080 --auth none --proxy-domain localhost:8080 --proxy-domain localhost
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+CSUNIT
+  if [ "$changed" -ne "$pre_cs" ]; then
+    sudo systemctl daemon-reload
+    echo "NOTE: code-server.service converged - restart it DELIBERATELY (kills plain-shell terminals)"
+  fi
+fi
+
 # agent-tmux.service: the tmux server as its OWN unit, outside every other
 # service's cgroup. Learned the hard way 2026-07-16: agent-term used to let
 # the first terminal spawn the tmux server, which parked it inside
