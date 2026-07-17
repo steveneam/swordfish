@@ -78,6 +78,25 @@ and never pass `--force`.** A `--force` refresh against a populated target is a
 different profile — old destination coexists with the incoming temp until the
 atomic replace — and is explicitly not what was proven.
 
+## ✅ Progress ledger (live — 2026-07-17)
+
+| phase | state |
+|---|---|
+| **3a** bulk seed | **DONE + two-party verified.** 23 files / 47,943,536,945 B exact; swordfish's independently-computed manifest SHA-256 `c907fa2a…` matched eamos's frozen contract byte-for-byte. 33.91 GiB free after — **no resize was needed.** |
+| **contract freeze** | **DONE.** 45 bucket objects classified: 7 seed + 10 preserved runtime + 6 set-C runtime-required + 22 excluded → **23-file landing tree**. Swordfish's set-C finding (28 objects / 2.471 GiB unclassified) is what forced the freeze; it resolved to 6 needed + 22 out. |
+| **3b** backend on syd2 | **DONE, internal only.** Now a **Dokploy Compose** service (`5rBnRf20ht4wGRQ856ZLO`, tracked file SHA-256 `723d378c…`) — which closed the durability gap: Applications have **no field** for ReadonlyRootfs/CapDrop/tmpfs/bind-`:ro`, so the hardening previously survived only on Dokploy's undocumented partial-update behaviour. Independently sampled: read-only root, cap-drop ALL, 2 GiB cap, both corpus binds RW=false, **zero published ports, zero domains**. Render untouched. |
+| **CI / deploy** | Deploy-only tenant grant **moved** Application → Compose and proven by consuming (compose 200; old app / cross-tenant / docker / sshKey all 401; sees `project1` only). Auto-deploy deliberately **NOT wired** — and now *safe* to wire, because the hardening is declarative. |
+| **3c** soak | **NEXT, eamos's call.** Founder policy: **evidence-based, not calendar-based** — and explicitly *not* code for "short": if behaviour only surfaces after N hours of real traffic, that is the soak. Eamos defines the exit criteria; they own the app. |
+| **4** cancel Render | **Founder gate, issued directly to eamos.** Swordfish will not convey it. −US$40/mo. |
+
+**The blocker that was never the soak:** Render cannot be cancelled until the
+backend actually serves. 3a moved the *assets*; the app still runs on Render.
+3b→3c (cutover) is the only thing between the founder and the saving.
+
+**Retired blockers, for the record:** the resize (measurement killed it — see the
+amendment above); the 2× staging-disk fear (eamos proved it from their code);
+the GitHub Actions billing gate (founder cleared it ~10:00 UTC, fleet-wide).
+
 ## The Phase-3 landing contract — NOT YET FROZEN (blocks Phase 3a, not the founder's gate)
 
 Eamos's pre-release ask, and they are right to make it: the disk proof is
