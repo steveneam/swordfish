@@ -58,8 +58,22 @@ evaluated and declined. Plus: **the portfolio is now FULLY unmasked** — Projec
     `assert-browser-lanes.sh` (already caught selom's shared-profile config —
     which is also `cmd /c`, a dead Windows leftover on this box).
   - Adoption is one line in **each project's own repo** (`next dev -p 3532`) —
-    notes sent to both channels. Ambient `PORT=` env **rejected**: partial
-    session coverage on a wrong-app bug fails unpredictably.
+    notes sent to ALL THREE channels (founder ask, later same day): eamos +
+    thalon got addenda; **selom got a full welcome note at
+    `~/work/selom/agent_handoff/FROM-SWORDFISH.md`** (new file — general
+    channel; the drive/ark one stays separate) covering its lanes, its doubly
+    broken `.mcp.json` (`cmd /c` + shared profile), the unmask, and the fleet
+    map. Ambient `PORT=` env **rejected**: partial session coverage on a
+    wrong-app bug fails unpredictably.
+  - **Backends are laned too (same-day extension): backend = frontend + 5000**
+    (8100..8799, clear of :8080/:8090). eamos and selom BOTH default FastAPI to
+    `:8000` — same collision one layer down. **eamos 8532 · thalon 8111 ·
+    selom 8152**; `:8000` unallocated like `:3000`. `dev-lane.sh backend <dir>`.
+  - **Peer-mail watcher now covers selom** (tracked WATCHES — post-unmask it no
+    longer needs the untracked local list, which stays as the mechanism for any
+    future masked project). Baseline records on first sighting of their
+    ASK-BACKS file; absent-file tick proven clean. NEW-eamos flag from 07-16
+    read, acted (Phase-1 receipt → pre-brief answered), and removed.
 - **⭐ RENDER CANCEL IS NO LONGER BEHIND THE RESIZE SPEND.** Re-measured syd2
   live rather than trusting the 07-15 plan's estimates, and its sequencing
   premise does not survive:

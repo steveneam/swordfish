@@ -20,12 +20,13 @@ set -euo pipefail
 # proposed in their channel; each project installs its own.
 #
 # Add a peer: append "name:absolute-path" to the WATCHES list below and re-run.
-# GUARDED-NAME peers (Project 2, since eamos unmasked 2026-07-15): a guarded
-# workspace path may never enter this tracked file, so such entries live in
-# UNTRACKED /etc/swordfish/peer-mail-watches.local (same precedent as the
-# gitignored .context/ vault pointer) - one "name:absolute-path" per line,
-# # comments ok, and the name MUST be the mask (project2): it lands in flag
-# filenames, alerts, and session chat.
+# GUARDED-NAME peers: none since the full unmask (founder call 2026-07-17 -
+# selom was the last, and graduated into the tracked WATCHES like eamos before
+# it). The mechanism is KEPT for the next masked project: entries whose paths
+# may not appear in tracked files live in UNTRACKED
+# /etc/swordfish/peer-mail-watches.local (same precedent as the gitignored
+# .context/ vault pointer) - one "name:absolute-path" per line, # comments ok,
+# and the name MUST be the mask: it lands in flag filenames, alerts, and chat.
 # Root unit (alerts.env is root:600). Idempotent - safe to re-run.
 
 changed=0
@@ -45,7 +46,8 @@ install_if_changed 0755 /usr/local/bin/swordfish-peer-mail-watch.sh <<'WATCH'
 # env just means "next tick". One alert per content change per channel.
 set -u
 WATCHES="thalon:/home/deploy/work/thalon/agent_handoff/ASK-BACKS-FOR-SWORDFISH.md
-eamos:/home/deploy/work/eamos/agent_handoff/ASK-BACKS-FOR-SWORDFISH.md"
+eamos:/home/deploy/work/eamos/agent_handoff/ASK-BACKS-FOR-SWORDFISH.md
+selom:/home/deploy/work/selom/agent_handoff/ASK-BACKS-FOR-SWORDFISH.md"
 
 # guarded-name peers ride the untracked local list (see setup script header)
 LOCAL_WATCHES=/etc/swordfish/peer-mail-watches.local
@@ -133,7 +135,7 @@ if sudo test -r /etc/swordfish/peer-mail-watches.local; then
 fi
 
 if [ "$changed" -eq 0 ]; then
-  echo "== converged: no changes (channels: thalon + eamos$extra)"
+  echo "== converged: no changes (channels: thalon + eamos + selom$extra)"
 else
-  echo "== converged: peer-mail watch armed (channels: thalon + eamos$extra)"
+  echo "== converged: peer-mail watch armed (channels: thalon + eamos + selom$extra)"
 fi

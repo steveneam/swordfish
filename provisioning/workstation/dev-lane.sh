@@ -26,8 +26,18 @@
 # :3000 is deliberately left OUTSIDE the range and unallocated. Nothing should
 # ever be there; if something is, it is a project that has not adopted a lane.
 #
+# Backends get a lane too (added 2026-07-17, same session): eamos and selom
+# BOTH run FastAPI dev servers that default to :8000 - the identical collision
+# one layer down, minus the silent-increment twist (uvicorn refuses the bind,
+# which is louder but still a broken verify). Rule: backend = frontend + 5000,
+# i.e. 8100..8799. Chosen because it stays derived (no registry), keeps the
+# front/back pairing obvious at a glance (3532/8532), and the range dodges the
+# box's standing residents (:8080 code-server, :8090 dashboard). :8000 is left
+# unallocated for the same reason :3000 is - anything there is a stray default.
+#
 # USAGE
-#   dev-lane.sh port [dir]     # print this project's port (default: $PWD)
+#   dev-lane.sh port [dir]     # print this project's frontend port (default: $PWD)
+#   dev-lane.sh backend [dir]  # print this project's backend port (frontend + 5000)
 #   dev-lane.sh doctor         # every project's lane + live listeners + clashes
 #   dev-lane.sh env [dir]      # print `PORT=<n>` for eval/export
 #
@@ -64,6 +74,10 @@ project_name_from_dir() {
 
 cmd_port() {
     lane_port "$(project_name_from_dir "${1:-$PWD}")"
+}
+
+cmd_backend() {
+    echo $(( $(cmd_port "${1:-$PWD}") + 5000 ))
 }
 
 cmd_env() {
@@ -134,8 +148,9 @@ cmd_doctor() {
 }
 
 case "${1:-doctor}" in
-    port)   shift; cmd_port "${1:-$PWD}" ;;
-    env)    shift; cmd_env  "${1:-$PWD}" ;;
-    doctor) cmd_doctor ;;
-    *) echo "usage: dev-lane.sh {port|env|doctor} [dir]" >&2; exit 2 ;;
+    port)    shift; cmd_port    "${1:-$PWD}" ;;
+    backend) shift; cmd_backend "${1:-$PWD}" ;;
+    env)     shift; cmd_env     "${1:-$PWD}" ;;
+    doctor)  cmd_doctor ;;
+    *) echo "usage: dev-lane.sh {port|backend|env|doctor} [dir]" >&2; exit 2 ;;
 esac
