@@ -124,6 +124,13 @@ def needs_items(projects, security, money, agents=None):
             items.append((NOW, f'<li><span class="tag">domain</span><b>{esc(d["domain"])}</b> '
                                f'expires in {d["days_left"]} days</li>'))
 
+    b2 = (money.get("api") or {}).get("b2") or {}
+    if isinstance(b2.get("pct_of_cap"), (int, float)) and b2["pct_of_cap"] >= 85:
+        word = "OVER the free cap - backups are failing" if b2["pct_of_cap"] >= 100 \
+               else f"{b2['pct_of_cap']}% of the free cap"
+        items.append((NOW, f'<li><span class="tag">backups</span>Backblaze B2 storage is '
+                           f'<b>{word}</b> - shrink the backup set or raise the cap before it blocks uploads</li>'))
+
     for s in (money.get("subscriptions") or []):
         du = s.get("days_until")
         if du is not None and du <= 7:
@@ -358,6 +365,18 @@ def money_html(m):
                  else f"balance USD {esc(bal)}"
         rows.append(f'<tr><td>Vultr</td><td>{credit}</td>'
                     f'<td>pending {esc(vu.get("pending_charges", "?"))}</td></tr>')
+    b2 = api.get("b2") or {}
+    if b2.get("error"):
+        rows.append(f'<tr><td>Backblaze B2</td><td colspan="2">{badge(b2["error"], "bad")}</td></tr>')
+    elif b2.get("total_bytes") is not None:
+        pct = b2.get("pct_of_cap")
+        cls = "bad" if pct >= 100 else ("warn" if pct >= 85 else "ok")
+        biggest = max(b2.get("buckets") or [{}], key=lambda x: x.get("bytes", 0))
+        rows.append(f'<tr><td>Backblaze B2</td>'
+                    f'<td>{human_bytes(b2["total_bytes"])} of {human_bytes(b2["cap_bytes"])} free cap '
+                    f'{badge(f"{pct}%", cls)}</td>'
+                    f'<td class="dim">biggest: {esc(biggest.get("bucket", "?"))} {human_bytes(biggest.get("bytes"))}'
+                    f' — at cap B2 rejects uploads and every nightly backup fails</td></tr>')
     pb = api.get("porkbun") or {}
     if pb.get("error"):
         rows.append(f'<tr><td>Porkbun</td><td colspan="2">{badge(pb["error"], "bad")}</td></tr>')
