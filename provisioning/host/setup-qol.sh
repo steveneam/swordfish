@@ -71,6 +71,29 @@ copytest() {
 }
 alias snapshots='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" snapshots'
 alias backup-now='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" backup'
+
+# --- SHELTER INDICATOR (founder ask 2026-07-17) -------------------------------
+# The problem it solves: a terminal in code-server gives no hint whether it is
+# inside tmux. Inside = the agent survives a code-server restart (agent-tmux.service
+# owns the tmux server's cgroup). Outside = the agent DIES with code-server - and
+# apt can restart code-server for you via needrestart. That is exactly how a live
+# agent was killed mid-run on 2026-07-17; the difference was invisible.
+# In tmux the green SHELTERED badge in the status bar says so. Out here, nothing
+# said anything - so say it loudly, in the two places that survive an agent TUI
+# taking over the screen: the shell banner (printed before the agent starts) and
+# the prompt (visible whenever you are back at a shell).
+# _SWORDFISH_SHELTER_WARNED is deliberately NOT exported: this file is sourced
+# twice in one shell (profile.d for login + bash.bashrc for non-login), which
+# would double the banner AND double-prefix PS1. Unexported = deduped within a
+# shell, but a CHILD shell re-evaluates and warns again - correct, because a
+# child of an unsheltered shell is equally unsheltered.
+if [ -n "${PS1:-}" ] && [ -z "${TMUX:-}" ] && [ -t 1 ] && [ -z "${_SWORDFISH_SHELTER_WARNED:-}" ]; then
+  _SWORDFISH_SHELTER_WARNED=1
+  printf '\033[41;97;1m  UNSHELTERED SHELL  \033[0m \033[91mnot in tmux — an agent started here DIES if code-server restarts\033[0m\n'
+  printf '  \033[93mrun\033[0m \033[1mwork\033[0m\033[93m (swordfish) or\033[0m \033[1mtmux new -A -s <project>\033[0m\033[93m before starting an agent.\033[0m\n'
+  printf '  \033[90m(a DETACHED tmux session is not dead — reattaching restores it intact)\033[0m\n'
+  PS1='\[\033[41;97;1m\]UNSHELTERED\[\033[0m\] '"$PS1"
+fi
 QOL
 
 # tmux.conf: mouse policy + clipboard passthrough. Canonical HERE (cloud-init
@@ -85,7 +108,17 @@ set -g mouse off
 bind m set -g mouse \; display 'tmux mouse: #{?mouse,ON (wheel scroll; selection captured),off (native selection works)}'
 set -g history-limit 50000
 set -g status-interval 5
-set -g status-right "#H | %H:%M UTC"
+# SHELTER INDICATOR (founder ask 2026-07-17, after apt restarted code-server and
+# killed an agent that was NOT in tmux). A status bar merely EXISTING meant
+# "you're in tmux" only to someone who already knew that - the dangerous state
+# looked like nothing at all. Now the safe state SAYS so, in green, permanently,
+# and it is visible even while an agent's TUI owns the pane (the status line
+# lives outside it). Its absence is the tell for a plain shell, reinforced by
+# the red banner+prompt that /etc/profile.d/swordfish-qol.sh prints there.
+set -g status-left "#[bg=colour28,fg=colour231,bold] SHELTERED #[bg=colour22,fg=colour231] #S #[default] "
+set -g status-left-length 40
+set -g status-right "#[fg=colour245]survives code-server restart · #H | %H:%M UTC"
+set -g status-right-length 60
 # clipboard: let OSC52 escape from inside tmux to the outer terminal, so the
 # `copy` QoL command lands content in the founder's Mac clipboard (2026-07-13)
 set -g allow-passthrough on

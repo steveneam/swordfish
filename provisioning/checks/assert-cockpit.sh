@@ -91,6 +91,10 @@ if [ "$BOX" = "syd4" ]; then
     # code-server, killing every agent in its cgroup. The rule "never restart
     # code-server while agents run" binds humans; apt is not a human. This
     # asserts the config that binds apt (setup-needrestart-guard.sh).
+    # the founder must be able to SEE shelter state (his ask, 2026-07-17): the
+    # dangerous state used to look like nothing at all.
+    check "shelter indicator: tmux says SHELTERED"  "grep -q 'SHELTERED' /etc/tmux.conf"
+    check "shelter indicator: plain shell warns"    "grep -q 'UNSHELTERED SHELL' /etc/profile.d/swordfish-qol.sh"
     check "needrestart: code-server guarded" "sudo -n grep -rq 'override_rc.*code-server' /etc/needrestart/conf.d/"
     check "needrestart: agent-tmux guarded"  "sudo -n grep -rq 'override_rc.*agent-tmux' /etc/needrestart/conf.d/"
     check "agent-tmux: service active (agents survive code-server)" "systemctl is-active --quiet agent-tmux"
