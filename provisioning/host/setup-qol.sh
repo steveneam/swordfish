@@ -72,6 +72,23 @@ copytest() {
 alias snapshots='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" snapshots'
 alias backup-now='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" backup'
 
+# --- TMUX AUTO-LAND (founder ask 2026-07-17) ----------------------------------
+# A code-server panel must land in the agent tmux, never sit as a bare shell:
+# when code-server died today (13:56, "a socket was left hanging", NRestarts=1),
+# the recreated panels came back as PLAIN bash - and because code-server
+# focuses the last-active terminal, those dead panels hijacked every dashboard
+# project button until killed by hand. Redirect instead of warn: an interactive
+# vscode panel not already in tmux execs into agent-term (the same session the
+# button's agent profile attaches - tmux new -A dedupes, never two agents).
+# The "bash" dropdown profile sets PLAIN_SHELL=1: the deliberate plain-shell
+# escape hatch, which falls through to the UNSHELTERED banner below instead.
+# Inert off the workstation: fires only in vscode panels with agent-term on disk.
+# AGENT_TERM override exists so tests can stub the exec target.
+if [ -n "${PS1:-}" ] && [ "${TERM_PROGRAM:-}" = "vscode" ] && [ -z "${TMUX:-}" ] \
+   && [ -z "${PLAIN_SHELL:-}" ] && [ -x "${AGENT_TERM:-/usr/local/bin/agent-term}" ]; then
+  exec "${AGENT_TERM:-/usr/local/bin/agent-term}"
+fi
+
 # --- SHELTER INDICATOR (founder ask 2026-07-17) -------------------------------
 # The problem it solves: a terminal in code-server gives no hint whether it is
 # inside tmux. Inside = the agent survives a code-server restart (agent-tmux.service
@@ -273,8 +290,20 @@ if ! grep -qF '/etc/profile.d/swordfish-qol.sh' /etc/bash.bashrc; then
 fi
 
 # --- verify ------------------------------------------------------------------
-bash -ic 'type work' >/dev/null 2>&1 || { echo "FAIL: work invisible to non-login interactive shells"; exit 1; }
-bash -lc 'type work' >/dev/null 2>&1 || { echo "FAIL: work invisible to login shells"; exit 1; }
+# env -u TERM_PROGRAM: probe as a NON-vscode shell - converging from a
+# code-server terminal leaks TERM_PROGRAM=vscode into the probe, the auto-land
+# guard execs the probe into agent-term and false-fails the check (2026-07-17)
+env -u TERM_PROGRAM bash -ic 'type work' >/dev/null 2>&1 || { echo "FAIL: work invisible to non-login interactive shells"; exit 1; }
+env -u TERM_PROGRAM bash -lc 'type work' >/dev/null 2>&1 || { echo "FAIL: work invisible to login shells"; exit 1; }
+# auto-land guard: a vscode-shaped interactive shell must exec into agent-term
+# (stubbed via AGENT_TERM); the PLAIN_SHELL=1 dropdown profile must fall through
+stub=$(mktemp); printf '#!/bin/bash\necho GUARD-FIRED\n' > "$stub"; chmod +x "$stub"
+out=$(env -u TMUX TERM_PROGRAM=vscode AGENT_TERM="$stub" bash -ic 'echo REACHED-BODY' 2>/dev/null)
+case "$out" in *GUARD-FIRED*) ;; *) echo "FAIL: auto-land guard did not fire in a vscode shell"; exit 1;; esac
+case "$out" in *REACHED-BODY*) echo "FAIL: auto-land guard fired but the shell body still ran"; exit 1;; esac
+out=$(env -u TMUX TERM_PROGRAM=vscode PLAIN_SHELL=1 AGENT_TERM="$stub" bash -ic 'echo REACHED-BODY' 2>/dev/null)
+case "$out" in *REACHED-BODY*) ;; *) echo "FAIL: PLAIN_SHELL escape hatch broken"; exit 1;; esac
+rm -f "$stub"
 [ -x /usr/local/bin/agent-term ] || { echo "FAIL: agent-term missing or not executable"; exit 1; }
 bash -n /usr/local/bin/agent-term || { echo "FAIL: agent-term does not parse"; exit 1; }
 [ -x /usr/local/bin/agent-tmux-cutover ] || { echo "FAIL: cutover script missing"; exit 1; }

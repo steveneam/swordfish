@@ -108,7 +108,7 @@ write_files:
         "terminal.integrated.defaultProfile.linux": "agent",
         "terminal.integrated.profiles.linux": {
           "agent": { "path": "/usr/local/bin/agent-term" },
-          "bash": { "path": "/bin/bash" }
+          "bash": { "path": "/bin/bash", "env": { "PLAIN_SHELL": "1" } }
         }
       }
 
@@ -241,6 +241,46 @@ write_files:
       }
       alias snapshots='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" snapshots'
       alias backup-now='sudo resticprofile -c /etc/resticprofile/profiles.yaml --name "$(hostname -s)" backup'
+
+      # --- TMUX AUTO-LAND (founder ask 2026-07-17) ----------------------------------
+      # A code-server panel must land in the agent tmux, never sit as a bare shell:
+      # when code-server died today (13:56, "a socket was left hanging", NRestarts=1),
+      # the recreated panels came back as PLAIN bash - and because code-server
+      # focuses the last-active terminal, those dead panels hijacked every dashboard
+      # project button until killed by hand. Redirect instead of warn: an interactive
+      # vscode panel not already in tmux execs into agent-term (the same session the
+      # button's agent profile attaches - tmux new -A dedupes, never two agents).
+      # The "bash" dropdown profile sets PLAIN_SHELL=1: the deliberate plain-shell
+      # escape hatch, which falls through to the UNSHELTERED banner below instead.
+      # Inert off the workstation: fires only in vscode panels with agent-term on disk.
+      # AGENT_TERM override exists so tests can stub the exec target.
+      if [ -n "${PS1:-}" ] && [ "${TERM_PROGRAM:-}" = "vscode" ] && [ -z "${TMUX:-}" ] \
+         && [ -z "${PLAIN_SHELL:-}" ] && [ -x "${AGENT_TERM:-/usr/local/bin/agent-term}" ]; then
+        exec "${AGENT_TERM:-/usr/local/bin/agent-term}"
+      fi
+
+      # --- SHELTER INDICATOR (founder ask 2026-07-17) -------------------------------
+      # The problem it solves: a terminal in code-server gives no hint whether it is
+      # inside tmux. Inside = the agent survives a code-server restart (agent-tmux.service
+      # owns the tmux server's cgroup). Outside = the agent DIES with code-server - and
+      # apt can restart code-server for you via needrestart. That is exactly how a live
+      # agent was killed mid-run on 2026-07-17; the difference was invisible.
+      # In tmux the green SHELTERED badge in the status bar says so. Out here, nothing
+      # said anything - so say it loudly, in the two places that survive an agent TUI
+      # taking over the screen: the shell banner (printed before the agent starts) and
+      # the prompt (visible whenever you are back at a shell).
+      # _SWORDFISH_SHELTER_WARNED is deliberately NOT exported: this file is sourced
+      # twice in one shell (profile.d for login + bash.bashrc for non-login), which
+      # would double the banner AND double-prefix PS1. Unexported = deduped within a
+      # shell, but a CHILD shell re-evaluates and warns again - correct, because a
+      # child of an unsheltered shell is equally unsheltered.
+      if [ -n "${PS1:-}" ] && [ -z "${TMUX:-}" ] && [ -t 1 ] && [ -z "${_SWORDFISH_SHELTER_WARNED:-}" ]; then
+        _SWORDFISH_SHELTER_WARNED=1
+        printf '\033[41;97;1m  UNSHELTERED SHELL  \033[0m \033[91mnot in tmux — an agent started here DIES if code-server restarts\033[0m\n'
+        printf '  \033[93mrun\033[0m \033[1mwork\033[0m\033[93m (swordfish) or\033[0m \033[1mtmux new -A -s <project>\033[0m\033[93m before starting an agent.\033[0m\n'
+        printf '  \033[90m(a DETACHED tmux session is not dead — reattaching restores it intact)\033[0m\n'
+        PS1='\[\033[41;97;1m\]UNSHELTERED\[\033[0m\] '"$PS1"
+      fi
 
   # agent-term: code-server's default terminal profile (wired in settings.json
   # above). Lands every terminal in a tmux session named after the workspace
