@@ -16,12 +16,26 @@ $base = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
 $root = (& git -C $base rev-parse --show-toplevel 2>$null)
 if (-not $root) { Write-Error 'Not inside a git repository.'; exit 2 }
 
-# Assemble the guarded token at runtime (never a literal on disk).
-# Token C (Thalon = former Project 3) was unmasked by founder call 2026-07-08
-# and removed; token A (Eamos = former Project 1) was unmasked by founder
-# call 2026-07-15 and removed. Token B (Project 2) remains guarded.
-$tokenB  = 'se' + 'lom'
-$pattern = "$tokenB"
+# Assemble the guarded tokens at runtime (never literals on disk).
+#
+# Unmask history, each a founder call: token C (Thalon = former Project 3)
+# 2026-07-08; token A (Eamos = former Project 1) 2026-07-15; token B (Selom =
+# former Project 2) 2026-07-17. The portfolio is now FULLY UNMASKED - every
+# project may be named in tracked files and no token is guarded.
+#
+# The list is kept rather than deleted so re-masking a future project stays a
+# one-line change and the CI wiring never has to be rebuilt.
+#
+# An EMPTY list MUST pass, and must not reach git grep: a zero-length regex
+# matches EVERY line, so `git grep -E ''` would flag the whole tree and exit 0
+# = "hits found" = FAIL. Short-circuit before building the pattern.
+$tokens = @()
+
+if ($tokens.Count -eq 0) {
+    Write-Host "PASS: no project tokens are currently guarded (portfolio fully unmasked 2026-07-17)."
+    exit 0
+}
+$pattern = ($tokens -join '|')
 
 # Grep TRACKED files only — the correct CI semantics (CI only ever sees committed
 # files), and it keeps the gitignored .context/ vault pointer out of scope.

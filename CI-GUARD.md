@@ -1,12 +1,18 @@
 # CI Guard — anonymity check
 
-This repository ships a hard invariant: it must contain **zero references to the two guarded portfolio project names** (the anonymized migration targets — written here only as Project 1 / Project 2) in any **git-tracked** file — no files, strings, config, or comments. Swordfish is deliberately project-agnostic; the Project-N ↔ real-name key is held by the founder, outside this repo.
+This repository ships a hard invariant: it must contain **zero references to any guarded portfolio project name** in any **git-tracked** file — no files, strings, config, or comments.
 
-> **Unmask on record (founder call, 2026-07-08):** the former third guarded project — **Project 3 = Thalon** — was unmasked; its guard token (token C) was removed from the script, and Thalon may now be named in tracked files. Tokens A and B remain guarded; everything below applies to them unchanged.
+> ## ⚠️ Status 2026-07-17: the portfolio is FULLY UNMASKED — the guarded set is EMPTY.
+>
+> Three founder calls retired the three tokens in turn: **Project 3 = Thalon** (2026-07-08, token C) · **Project 1 = Eamos** (2026-07-15, token A) · **Project 2 = Selom** (2026-07-17, token B). All three may now be named freely in tracked files.
+>
+> **The guard is kept, not deleted** — with an empty token list it short-circuits to PASS. Re-masking a future project is a one-line change (`$tokens = @('fr' + 'agment')`) and the CI wiring never has to be rebuilt. Everything below describes the machinery as it behaves the moment a token is added back.
+>
+> **The empty-list trap, handled:** a zero-length regex matches *every* line, so `git grep -E ''` would report the whole tree as hits and exit 0 = "hits found" = FAIL. The script therefore returns before building a pattern when the list is empty. Both directions are proven: empty → PASS(0); re-armed with a token known to be present → FAIL(1) listing hits.
 
 ## The check
 
-`scripts/ci-grep-guard.ps1` runs a case-insensitive grep for the two guarded tokens over **git-tracked files only** and:
+`scripts/ci-grep-guard.ps1` runs a case-insensitive grep for the guarded tokens over **git-tracked files only** and:
 
 - prints every offending `path:line`, if any;
 - exits **0** when there are zero hits (clean);
@@ -45,8 +51,8 @@ what the hook now does on every commit, whether or not anyone remembers to.
 
 CI only ever sees **committed** files, so grepping the tracked set is the true guarantee that the *shipped* repo is clean. It also keeps the repo pristine while the local build agent still has full context:
 
-- The vault pointer lives under `.context/`, which is **gitignored**. The research vault's absolute path itself contains a guarded token, so `.context/` must never be tracked. Because the guard greps only tracked files, `.context/` is correctly out of scope.
-- The guarded tokens are **assembled from fragments at runtime** inside `scripts/ci-grep-guard.ps1` (and referred to only obliquely in this document), so the guard, this file, and the rest of the tracked tree never contain the literal strings and therefore never trip their own check. The guard can scan itself and pass — no path is excluded from the grep.
+- The vault pointer lives under `.context/`, which is **gitignored**. Its absolute path contained a guarded token; that token is now retired, but `.context/` stays gitignored — it is the vault pointer, and untracking it was never about the token alone.
+- Guarded tokens are **assembled from fragments at runtime** inside `scripts/ci-grep-guard.ps1`, so the guard never contains the literal strings and never trips its own check. It can scan itself and pass — no path is excluded from the grep. (With the set empty this is moot; it matters again the moment a token returns.)
 
 ## The rule extends to PUBLIC infrastructure names (invariant)
 
@@ -57,7 +63,9 @@ The grep guard protects tracked *files* — but some strings this repo chooses b
 
 So every public-visible name is **neutral by design**: hostnames derive from the engine + region + function only (apex `swordfish.cfd`; boxes `syd1.`; services `deploy.` / `status.` / `metrics.`), and buckets follow `swordfish-<box>-backups`. Never a guarded token, never a guarded project's real name, never anything that maps a guarded workload to its owner. Naming a new public surface? Derive it from *what it does*, not *who it serves*. (Pinned at the founder charter, decision 4/6.)
 
-**Accepted exception (founder call, 2026-07-08):** Thalon is unmasked, and `thalon.org` (+ `www` 301) will point at the shared box's IP alongside the `swordfish.cfd` service hostnames — the reverse-IP / CT-log linkage between those domains is understood and accepted. This acceptance is Thalon-specific; it does not extend to the two guarded projects.
+**Accepted exception (founder call, 2026-07-08):** Thalon is unmasked, and `thalon.org` (+ `www` 301) will point at the shared box's IP alongside the `swordfish.cfd` service hostnames — the reverse-IP / CT-log linkage between those domains is understood and accepted.
+
+**Still the default after the 2026-07-17 full unmask.** Unmasking removed the *grep* constraint; it did not make owner-mapped public naming a good idea. Public surfaces stay derived from **what they do, not who they serve** — that is a design convention worth keeping on its own merits (it keeps hostnames stable when a tenant is renamed, sold, or retired), and it is the cheap default. Name a public surface after a project only as a deliberate, recorded call, the way `thalon.org` was.
 
 ## What this does NOT do
 

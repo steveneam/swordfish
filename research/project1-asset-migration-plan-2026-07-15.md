@@ -1,10 +1,77 @@
-# Project 1 asset migration — Render → syd2, readiness-first plan (2026-07-15)
+# Eamos asset migration — Render → syd2, readiness-first plan (2026-07-15)
 
 > **2026-07-15 (later):** Project 1 **unmasked as Eamos** by founder call —
 > the name may appear in tracked files; provisioned `project1` slugs stay.
 > Phase 0 is COMPLETE (landing zone · verified restic exception · deploy-only
 > tenant pack · harness); Phase 1 handed to Eamos's agent via
 > `~/work/eamos/agent_handoff/FROM-SWORDFISH.md`.
+>
+> **2026-07-16:** Phase 1 **COMPLETE + double-verified** by both sides. ClinGen
+> `527,925,248 B` pulled Supabase→syd2, md5+sha256 green; the
+> nothing-lives-only-on-Render proof is green (`render_only=0`), retired early.
+
+---
+
+## ⚠️ 2026-07-17 AMENDMENT — the resize is NOT on the critical path to cancelling Render
+
+_Founder ask: "organise the full migration so I can cancel Render." Re-measured
+syd2 live rather than trusting this doc's own July-15 estimates — and the
+sequencing premise below (§Phase 2 before §Phase 3) **no longer holds.**_
+
+**What this plan assumed:** the ~41 GB corpus would squeeze a 100 GB disk, so
+the resize must precede the bulk seed.
+
+**What syd2 actually shows (measured 2026-07-17, `df` + `docker stats`):**
+
+| | measured | after a 41 GB seed | verdict |
+|---|---|---|---|
+| disk | 99 G total, **81 G free** (15 G used) | ~40 G free | seed fits, with room |
+| RAM | 7,941 MB total, **6,037 MB available** (~1.4 G actually in use) | −~2 G for the Eamos backend → ~4 G spare | app cutover fits |
+
+The RAM headline is the one that matters and it is easy to misread from config
+alone: **thalon-web is consuming 92 MiB against a 4 GiB cap.** That cap is a
+*limit, not a reservation* — it was read as "4 GB is spoken for", and it is not.
+The largest real consumer on the box is Dokploy itself at 1,023 MiB.
+
+**Therefore the resize gates _Thalon's render worker_, not Eamos's migration.**
+Those two needs were bundled into one gate (they genuinely share one resize),
+and the bundle has been quietly holding Render hostage to a spend that
+Eamos does not need.
+
+**Consequence for the founder's actual goal — the money moves the other way:**
+
+- **As sequenced here:** pay **+AUD 39.20/mo** (resize) → *then* seed → cutover
+  → soak → cancel Render (−US$40/mo). Spend precedes saving.
+- **Decoupled:** seed → cutover → soak → **cancel Render (−US$40/mo now)** →
+  resize later, on Thalon's timeline, when its worker actually needs the RAM.
+  Saving precedes spend, and the resize is then judged on Thalon's merits with
+  the assets already proven on the box.
+
+Nothing about the *safety* preconditions changes — Phase 4's three gates below
+stand exactly as written. This amendment reorders spend, not proof.
+
+**Revised sequence (supersedes the Phase 2 → Phase 3 ordering below):**
+
+1. **Phase 3a — bulk seed at current size.** Zero spend. Eamos drives. The long
+   pole (~41 GB + checksums), and it needs nothing from the founder's wallet.
+2. **Phase 3b — Eamos backend cutover to syd2.** ~2 GB into ~6 GB available —
+   strictly *more* headroom than Render Standard's 2 GB gives it today, which
+   also de-risks Eamos's known `protein_annotation` OOM history.
+3. **Phase 3c — parallel-run soak** (≥48 h suggested; Eamos's call), Render live.
+4. **Phase 4 — ⛔ founder cancels Render.** Preconditions unchanged.
+5. **Phase 2 (was first, now last) — resize, if and when Thalon's worker needs
+   it.** Re-priced live at the gate, never from memory.
+
+**The one open risk this amendment carries, for Eamos to close before the seed:**
+peak *transient* disk during materialization. 81 G free covers the 41 G result,
+but not a hypothetical 2× staging pass (41 G download + 41 G extract = 82 G >
+81 G). The ClinGen dry run streamed a single 528 MB object cleanly, which
+suggests per-object streaming (peak ≈ final + one object) — **suggests, not
+proves.** Eamos confirms the materialization run's peak disk behaviour before
+the bulk run; if it stages 2×, the resize returns to the critical path and the
+spend gate genuinely fires first.
+
+---
 
 _Founder directive 2026-07-15: prove the VPS is ready BEFORE the resize spend,
 then wake Project 1's agent on the box and run the migration as a coordinated

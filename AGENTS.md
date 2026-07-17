@@ -4,20 +4,23 @@
 
 Swordfish is the portfolio's **infrastructure / DevOps ops engine** — it provisions, hardens, and operates self-managed VPS boxes (DNS · TLS · reverse proxy · containers · auto-deploy · firewall · backups · monitoring) so that an AI agent does the ops and the founder approves. It is an **infra engine, not an app**: its product is reproducible provisioning + AI-operated runbooks. You are a build agent working inside this repository. Read this file before writing anything.
 
-## ⛔ The one hard constraint
+## ⛔ The one hard constraint — RETIRED 2026-07-17 (the portfolio is fully unmasked)
 
-This repository must contain **zero references to the one remaining guarded portfolio project name** — that migration target is only ever **Project 2** — in any **git-tracked** file: no files, strings, config, or comments. (**Project 3 was unmasked as Thalon** by founder call 2026-07-08, and **Project 1 was unmasked as Eamos** by founder call 2026-07-15: their guard tokens are removed, those names may now appear in tracked files. Token B stays guarded. Eamos artifacts provisioned under the mask — `/srv/project1`, Dokploy project `project1`, `project1-apply.yml`, the tenant credential — deliberately keep the `project1` slug; it is burned into live box paths and minted permissions, and a rename is churn without safety value.)
+**There are no guarded project names left.** Three founder calls retired the three tokens in turn: **Project 3 = Thalon** (2026-07-08) · **Project 1 = Eamos** (2026-07-15) · **Project 2 = Selom** (2026-07-17). Every project may now be named freely in tracked files. Nothing in this repo needs a mask.
 
-- The guarded tokens are defined as **fragments** inside `scripts/ci-grep-guard.ps1`, on purpose, so this protocol, that guard, and every other tracked file stay clean and never trip their own check.
-- Enforcement is `scripts/ci-grep-guard.ps1`: a case-insensitive grep over **git-tracked files only** (the correct CI semantics — CI only ever sees committed files). It must return **zero hits**; it exits non-zero on any hit. Run it before every commit. See `CI-GUARD.md`.
-- The vault pointer at `.context/` is **gitignored** precisely because the research vault's absolute path contains a guarded token. Never move vault-pointing content out of `.context/` into a tracked file.
-- If a task truly needs a project's real identity, **ask the founder — never guess, never write it here.**
+- **The guard stays wired, with an empty token list** (`scripts/ci-grep-guard.ps1` → PASS). Deleting it would mean rebuilding the hook + CI wiring the next time a project needs a mask; keeping it makes re-masking a one-line change. Still run it before every commit — it is a required CI check and the pre-commit hook. See `CI-GUARD.md`.
+- **If a new project ever arrives masked**, add its fragment back to `$tokens` and the whole apparatus (fragments-not-literals, tracked-files-only, hook + CI) works unchanged. The empty-list short-circuit is deliberate: a zero-length regex matches every line, so an empty pattern must never reach `git grep`.
+- **Legacy slugs stay.** Eamos artifacts provisioned under the mask — `/srv/project1`, Dokploy project `project1`, `project1-apply.yml`, the tenant credential — deliberately keep the `project1` slug: it is burned into live box paths and minted permissions, and a rename is churn without safety value. The same reasoning covers any `project2` slug.
+- **What did NOT change:** public-surface naming still derives from **what a thing does, not who it serves** (`CI-GUARD.md`, "public infrastructure names"). That convention outlived the guard that motivated it — it keeps hostnames stable across tenant renames, and CT logs are still forever. `.context/` also stays gitignored: it is the vault pointer, which was never only about the token.
+- **Secrets are a separate invariant and are untouched by this** — see *Secrets* below. Unmasking a *name* never unmasks a *credential*.
 
 ## Separation of duties (binding)
 
-- **Swordfish provisions + hardens + operates boxes** and hands off connection details (control-plane access + connection strings). It does **not** reach into the ship-first projects' codebases — **Project 1 and Project 2 connect their own apps** to the provisioned boxes (founder-directed; no Swordfish interaction on the app side).
-- Swordfish's own hands-on / **dogfood** workloads — the ones it may touch — are: **itself** (control plane / monitoring / tooling), **Thalon's workloads** (web app + render offload; Thalon = former Project 3), or **a Walter/vault service**.
-- **Keep-managed boundary:** Project 1's compliance-bound data plane and Thalon's managed control plane stay on managed services — only mispriced compute / data-disk / bandwidth moves to a box. Never migrate a clinical/stateful data plane.
+- **Swordfish provisions + hardens + operates boxes** and hands off connection details (control-plane access + connection strings). It does **not** reach into the ship-first projects' codebases — **Eamos and Selom connect their own apps** to the provisioned boxes (founder-directed; no Swordfish interaction on the app side). Reading their config to *assert fleet health* is ops and is fine; editing their repo is not.
+- Swordfish's own hands-on / **dogfood** workloads — the ones it may touch — are: **itself** (control plane / monitoring / tooling), **Thalon's workloads** (web app + render offload), or **a Walter/vault service**.
+- **Keep-managed boundary:** Eamos's compliance-bound data plane and Thalon's managed control plane stay on managed services — only mispriced compute / data-disk / bandwidth moves to a box. Never migrate a clinical/stateful data plane.
+
+> Naming note (post-unmask 2026-07-17): **Project 1 = Eamos · Project 2 = Selom · Project 3 = Thalon.** Prefer real names in new writing. The `Project N` phrasing survives in older docs and in provisioned slugs (`/srv/project1`, `project1-apply.yml`) — those stay by design; see the hard-constraint section.
 
 ## Operating rules
 
