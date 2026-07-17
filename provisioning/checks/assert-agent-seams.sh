@@ -13,6 +13,9 @@ set -euo pipefail
 #      did not match the proxy at all)
 #   3. end-to-end: an app on an arbitrary port is reachable through the
 #      preview proxy for BOTH Host shapes a client can send
+#   4. OOMPolicy=continue is LOADED (not just written) - with the stop
+#      default, one OOM-killed agent stopped the whole unit and every
+#      session in it (2026-07-17 incident)
 #
 # Part of the monthly documented-commands pass. Exit 0 = all seams hold.
 
@@ -25,6 +28,9 @@ pid=$(systemctl show -p MainPID --value agent-tmux)
 cg=$(cat "/proc/$pid/cgroup" 2>/dev/null) || fail "cannot read tmux server cgroup"
 case "$cg" in *agent-tmux.service*) ;; *) fail "tmux server not in agent-tmux.service cgroup" ;; esac
 case "$cg" in *code-server*) fail "tmux server inside code-server's cgroup (the 06:43 incident shape)" ;; esac
+oompol=$(systemctl show -p OOMPolicy --value agent-tmux)
+[ "$oompol" = continue ] \
+  || fail "agent-tmux OOMPolicy is '$oompol', not continue (one OOM-killed agent would stop EVERY session - the 2026-07-17 incident shape; check for a missed daemon-reload)"
 
 # --- 2. code-server unit shape ------------------------------------------------
 u=/etc/systemd/system/code-server.service

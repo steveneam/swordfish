@@ -206,6 +206,11 @@ ExecStart=/usr/bin/tmux -D
 Environment=PATH=/home/deploy/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Restart=always
 RestartSec=5
+# OOMPolicy=stop (systemd's service default) turned one hungry agent into a
+# fleet kill on 2026-07-17: the kernel OOM-killed thalon's 3.7GiB claude and
+# systemd then stopped the WHOLE unit - tmux server + every agent session.
+# continue = the kernel's single-process kill stands; everyone else survives.
+OOMPolicy=continue
 
 [Install]
 WantedBy=multi-user.target

@@ -193,6 +193,9 @@ write_files:
       Environment=PATH=/home/deploy/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       Restart=always
       RestartSec=5
+      # OOMPolicy=stop (the default) = one OOM-killed agent stops the whole
+      # unit and every session with it (2026-07-17). CANONICAL: setup-qol.sh.
+      OOMPolicy=continue
 
       [Install]
       WantedBy=multi-user.target
