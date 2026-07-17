@@ -93,6 +93,15 @@ if [ "$BOX" = "syd4" ]; then
     # asserts the config that binds apt (setup-needrestart-guard.sh).
     # the founder must be able to SEE shelter state (his ask, 2026-07-17): the
     # dangerous state used to look like nothing at all.
+    # peer-mail must be BIDIRECTIONAL: the outbound half was "proposed" for
+    # months and never installed - a documentary ratchet that rotted and cost a
+    # live stall (2026-07-17). Assert the half that was missing, and the two
+    # silent-no-op bugs that would have made it decorative: root's tmux cannot
+    # see deploy's socket, and a busy agent needs Tab (queue), not Enter.
+    check "peer-mail: outbound watch armed"   "sudo -n grep -q 'WATCHES_OUT' /usr/local/bin/swordfish-peer-mail-watch.sh"
+    check "peer-mail: nudges via deploy tmux" "sudo -n grep -q 'runuser -u deploy -- tmux' /usr/local/bin/swordfish-peer-mail-watch.sh"
+    check "peer-mail: busy agent -> Tab"      "sudo -n grep -q 'tab to queue' /usr/local/bin/swordfish-peer-mail-watch.sh"
+    check "peer-mail: timer active"           "systemctl is-active --quiet swordfish-peer-mail.timer"
     check "shelter indicator: tmux says SHELTERED"  "grep -q 'SHELTERED' /etc/tmux.conf"
     check "shelter indicator: plain shell warns"    "grep -q 'UNSHELTERED SHELL' /etc/profile.d/swordfish-qol.sh"
     check "needrestart: code-server guarded" "sudo -n grep -rq 'override_rc.*code-server' /etc/needrestart/conf.d/"
