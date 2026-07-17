@@ -140,8 +140,11 @@ syd2:
 # write the profile out in full. Policy values (retention/schedule/check/prune)
 # are hand-copied from syd1 - keep them in lockstep when either changes.
 # Cockpit state = the deploy home dir (agent memory/transcripts, repos'
-# gitignored secrets, the vault when it lands). No pre-backup hooks: nothing
-# to dump, and the fleet dokploy hook hard-fails without docker by design.
+# gitignored secrets, the vault when it lands). No run-before: syd3 has nothing
+# to dump. (The old reason - "the fleet dokploy hook hard-fails without docker"
+# - was retired 2026-07-17: every docker-dependent hook now SELF-SKIPS on a
+# box with no docker, so run-parts is safe on cockpit boxes. syd4 relies on
+# that and DOES run the chain, for thalon's native dev-postgres dump.)
 syd3:
   repository: "b2:swordfish-syd3-backups:restic"
   password-file: /etc/resticprofile/password.txt
@@ -224,6 +227,15 @@ syd4:
       # (kept). A fourth copy in B2 is what the free cap cannot afford.
       - /home/deploy/transfer-project1/render-only-20260716
     exclude-caches: true
+    # 2026-07-17: syd4 gained its FIRST stateful workload - thalon's native dev
+    # Postgres 17 (founder-approved live; provisioning/host/setup-dev-postgres.sh).
+    # PGDATA under /var/lib/postgresql is deliberately NOT a source: a file-level
+    # copy of a live cluster is not consistent - the same reason dokploy-postgres
+    # and thalon's PGlite are dumped, not copied. 40-dev-postgres-dump lands a
+    # consistent dump in /home/deploy/pg-dumps, which IS inside the source above.
+    # The docker-dependent fleet hooks SELF-SKIP here (no docker on cockpit-class),
+    # so run-parts is safe on this box - that guard is what makes this line safe.
+    run-before: "run-parts --exit-on-error /etc/resticprofile/pre-backup.d"
     run-after: "/etc/resticprofile/hc-ping.sh success"
     run-after-fail: "/etc/resticprofile/hc-ping.sh fail"
     schedule: "*-*-* 15:00:00"

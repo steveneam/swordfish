@@ -11,6 +11,17 @@
 
 set -euo pipefail
 
+# SELF-ARM (2026-07-17): phase7-backups.sh ships EVERY hook to EVERY box, so a
+# hook must no-op where its dependency is absent rather than hard-fail. This one
+# needs Docker; cockpit-class boxes (syd3/syd4) have none by charter. Without
+# this guard the hook exits 127 and `run-parts --exit-on-error` fails the WHOLE
+# pre-backup chain - which is exactly what happened on syd4 when it gained its
+# first hook that DOES belong there (thalon's native dev-postgres dump).
+# A SKIP is correct and must be loud; a hard failure here is a self-inflicted
+# backup outage on a box that simply has nothing of this kind to dump.
+command -v docker >/dev/null 2>&1 || { echo "SKIP: no docker on $(hostname -s) (cockpit-class) - nothing of this kind to dump"; exit 0; }
+
+
 dump_dir=/var/backups/swordfish
 cid=$(docker ps --filter label=com.docker.swarm.service.name=dokploy-postgres --format '{{.ID}}' | head -n1)
 [ -n "$cid" ] || { echo "FAIL: dokploy-postgres container not running - refusing to snapshot without a fresh dump"; exit 1; }

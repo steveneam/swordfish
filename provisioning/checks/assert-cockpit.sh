@@ -87,6 +87,14 @@ if [ "$BOX" = "syd4" ]; then
     # provisioning/binarylane/set-port-blocking.ps1 -Name syd4.swordfish.cfd
     # -Enabled:$false -Approve. The workspace box needs egress 22 for agent
     # work; syd2 (CI-as-hands target) deliberately keeps the block.
+    # 2026-07-17 incident: an `apt install` let needrestart auto-restart
+    # code-server, killing every agent in its cgroup. The rule "never restart
+    # code-server while agents run" binds humans; apt is not a human. This
+    # asserts the config that binds apt (setup-needrestart-guard.sh).
+    check "needrestart: code-server guarded" "sudo -n grep -rq 'override_rc.*code-server' /etc/needrestart/conf.d/"
+    check "needrestart: agent-tmux guarded"  "sudo -n grep -rq 'override_rc.*agent-tmux' /etc/needrestart/conf.d/"
+    check "agent-tmux: service active (agents survive code-server)" "systemctl is-active --quiet agent-tmux"
+
     check "egress: tcp/22 leaves the box"  "timeout 8 bash -c 'exec 3<>/dev/tcp/github.com/22 && head -c 4 <&3' | grep -q SSH"
 fi
 
