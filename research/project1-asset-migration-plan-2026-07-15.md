@@ -193,12 +193,54 @@ anything Render-only is uploaded back to the source bucket before we proceed.
 
 ## Phase 2 — ⛔ SPEND GATE: resize syd2 → std-6vcpu (founder says "resize go")
 
+> **2026-07-17: this is now THALON's gate, not Eamos's** (see the amendment at
+> the top) — and it is **no longer on the path to cancelling Render**. Re-priced
+> live at the gate, never from memory.
+
 - AUD 78.40/mo (+39.20); net ≈ **US$14/mo cheaper** once Render cancels.
   In-place BinaryLane resize, grow-only disk, brief reboot, no data at risk.
+  Two costs that are easy to miss: it needs a **power-off** (Dokploy + thalon's
+  app + tenant-pg all briefly down → a peer-coordinated window), and the disk
+  grows 100→180 GB **one-way — it cannot be shrunk back**.
 - Swordfish executes: resize → boot checks → smoke suite green → restic
   backup post-resize → confirm 180 GB visible.
-- Also unlocked by this gate: Thalon's render worker at its full 3–4 GB cap
-  (currently queue-of-one fallback) — one resize serves both tenants.
+
+### Measured, not guessed — Thalon's render-spike figures (their data, 2026-07-17)
+
+Thalon measured `VmHWM` from `/proc` during a real product render (50.8 s film,
+1080×1080, libx264 crf18 preset slow, 9 caption plates) — high-water marks, not
+samples. **This retires the plan's old "3–4 GB" estimate**, which was a guess:
+
+| | measured VmHWM |
+|---|---|
+| ffmpeg (the render worker spike) | 2,371,072 kB ≈ **2.26 GiB** |
+| next-server (dev, incl. embedded PGlite) | 1,918,776 kB ≈ **1.83 GiB** |
+| concurrent worst case (app + one render) | ≈ **4.09 GiB** |
+
+Ground them against syd2 as measured the same day (5.90 GiB available; the
+`thalon-web` container is 76 MiB against a 4 GiB **cap** — a limit, not a
+reservation):
+
+```text
+syd2 available now                      5.90 GiB
+  - eamos backend at cutover  (~2.00)   3.90 GiB left
+  - ONE thalon render worker  (2.26)    1.63 GiB left   <- fits, thin but real
+  - a SECOND concurrent render (2.26)  -0.63 GiB        <- OOM
+```
+
+**Reading (the honest one): the resize is not needed for anything on today's
+roadmap.** Even after Eamos's backend cuts over, a single render worker fits on
+the current 8 GB box with ~1.6 GiB to spare. What the resize actually buys is
+**concurrency headroom** — a second overlapping render, or comfortable margin
+during an Eamos memory ramp. Thalon's own read, recorded verbatim: renders are
+operator-triggered, single-project, minutes long, and the **queue-of-one
+fallback is costing them nothing today**.
+
+So the trigger for this gate is a *future* condition, not a present pain:
+thalon's renders moving onto syd2 **and** wanting to overlap, or Eamos's
+post-cutover memory behaviour eating the margin. Until one of those is real,
+the cheapest correct answer is **don't spend**. Revisit with live prices when
+it is.
 
 ## Phase 3 — coordinated re-seed + cutover (Project 1's agent drives)
 
