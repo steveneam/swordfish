@@ -85,8 +85,15 @@ def section(sid, title, data, body):
 
 # --- NEEDS STEVEN -------------------------------------------------------------
 
-def needs_items(projects, security, money):
+def needs_items(projects, security, money, agents=None):
     items = []  # (sort_key_epoch, html)
+    # a BLOCKED agent is the literal definition of "needs Steven" - it sits on
+    # a question/permission prompt until he answers (collect-agents.sh)
+    for ag in ((agents or {}).get("agents") or []):
+        if ag.get("state") == "blocked":
+            items.append((NOW, f'<li><span class="tag">agent blocked</span>'
+                               f'🖐 <b>{esc(ag.get("name"))}</b> is stopped on a '
+                               f'question/permission prompt - it waits until you answer</li>'))
     # every project queue on the box feeds the card: ~/work/*/agent_handoff/NEEDS-STEVEN.md
     if not NEEDS_FILE.exists():
         items.append((NOW, f'<li>{badge("queue file unreadable", "bad")} swordfish queue missing</li>'))
@@ -128,6 +135,48 @@ def needs_items(projects, security, money):
     if not items:
         return '<p class="allclear">Nothing needs you. ✓</p>'
     return "<ul class='needs'>" + "".join(h for _, h in items) + "</ul>"
+
+# --- AGENTS -------------------------------------------------------------------
+# the herdr steelman, landed (research/herdr-evaluation-2026-07-17.md): semantic
+# agent state in ONE view on the surface the founder already reads. The founder
+# question this answers is "which agent is stuck on ME right now?" - so blocked
+# sorts first and is the loudest thing on the card.
+
+AGENT_STATES = {  # state -> (emoji, badge class, sort rank, founder gloss)
+    "blocked": ("🖐", "warn", 0, "waiting on YOU"),
+    "working": ("🤖", "ok", 1, "running"),
+    "idle":    ("💤", "", 2, "at the prompt"),
+    "opaque":  ("❔", "", 3, "no pane to read"),
+    "exited":  ("⛔", "bad", 4, "agent gone"),
+}
+
+def agents_html(a):
+    if a.get("error"):
+        return ""
+    rows = []
+    agents = sorted(a.get("agents") or [],
+                    key=lambda x: AGENT_STATES.get(x.get("state"), ("", "", 9, ""))[2])
+    for ag in agents:
+        emoji, cls, _, gloss = AGENT_STATES.get(ag.get("state"), ("❔", "", 9, "unknown"))
+        state_cell = f'{emoji} ' + (badge(ag.get("state", "?"), cls) if cls
+                                    else f'<span class="dim">{esc(ag.get("state", "?"))}</span>')
+        if ag.get("runtime") == "tmux":
+            seen = rel(ag.get("last_activity"))
+            how = f'tmux · output {seen}'
+        else:
+            cpu = ag.get("cpu_pct")
+            how = f'pty · cpu {dash(cpu, "%")} · up {uptime_h(ag.get("uptime_s"))}'
+        rows.append(f'<tr><td><b>{esc(ag.get("name", "?"))}</b></td>'
+                    f'<td>{state_cell} <span class="dim">{esc(gloss)}</span></td>'
+                    f'<td class="dim">{esc(how)}</td>'
+                    f'<td class="dim">{esc(ag.get("basis", ""))}</td></tr>')
+    if not rows:
+        return '<p class="dim">no agent sessions on this box</p>'
+    note = ('<p class="dim">blocked = a question/permission prompt is on screen — '
+            'work is stopped until you answer it (also raised under Needs Steven). '
+            'opaque = the agent runs outside tmux, so blocked is invisible there.</p>')
+    return ('<table><tr><th>agent</th><th>state</th><th>evidence</th><th>basis</th></tr>'
+            + "".join(rows) + "</table>" + note)
 
 # --- PROJECTS -----------------------------------------------------------------
 
@@ -510,6 +559,7 @@ JS = """
 
 def main():
     projects = load("projects")
+    agents = load("agents")
     fleet = load("fleet")
     security = load("security")
     money = load("money")
@@ -540,7 +590,8 @@ def main():
 <header><h1>syd4 · infrastructure cockpit</h1>
 <div class="clock"><span id="clk">…</span><br>
 <span class="dim">box up {uptime_h(up4)} · page regenerates every 15 min</span></div></header>
-{section("needs-steven", "Needs Steven", needs_meta, safe(lambda _: needs_items(projects, security, money), None, "needs"))}
+{section("needs-steven", "Needs Steven", needs_meta, safe(lambda _: needs_items(projects, security, money, agents), None, "needs"))}
+{section("agents", "Agents", agents, safe(agents_html, agents, "agents"))}
 {section("projects", "Projects", projects, safe(projects_html, projects, "projects"))}
 {section("fleet", "Fleet health", fleet, safe(fleet_html, fleet, "fleet"))}
 {section("security", "Security", security, safe(security_html, security, "security"))}

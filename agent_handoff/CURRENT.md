@@ -15,12 +15,13 @@
 > decision below, incl. AGENTS.md rule-10 founder-gate list). If the box state
 > and this file disagree, the box wins — say so, then fix the file.
 
-_Stamped: 2026-07-17 07:20 UTC (17:20 AEST). Session = **three founder asks,
-all answered**: the cross-project browser/port collision diagnosed (it was two
-bugs, one of them a correctness bug) and fixed project-agnostically · the Eamos
-Render migration re-measured and **decoupled from the resize spend** · herdr
-evaluated and declined. Plus: **the portfolio is now FULLY unmasked** — Project
-2 = Selom, the last token, by founder call. **Nothing is blocked on an agent.**_
+_Stamped: 2026-07-17 08:45 UTC (18:45 AEST). Session = the 07:20 wrap **plus a
+live afternoon**: eamos coordination re-opened and answered (their peak-disk
+proof accepted; a 28-object gap found in their own numbers; landing-contract
+freeze process agreed) · the **Agents card built** onto the cockpit (the herdr
+steelman, landed) · selom onboarded (channel + watcher + lanes) · backend port
+lanes added · and one **false accusation to thalon made and retracted** — the
+lesson is in memory and below. **Nothing is blocked on an agent.**_
 
 ## State
 
@@ -74,6 +75,42 @@ evaluated and declined. Plus: **the portfolio is now FULLY unmasked** — Projec
     future masked project). Baseline records on first sighting of their
     ASK-BACKS file; absent-file tick proven clean. NEW-eamos flag from 07-16
     read, acted (Phase-1 receipt → pre-brief answered), and removed.
+- **⭐ AGENTS CARD LIVE on the cockpit dashboard** (founder ask, same day as
+  the herdr evaluation that seeded it): `collect-agents.sh` + an Agents section
+  in the renderer. Semantic states — 🖐 blocked (sorts first, ALSO raised into
+  Needs Steven: it is the literal definition) · 🤖 working · 💤 idle · ❔ opaque
+  · ⛔ exited. Detection is deterministic pane-text + /proc: the SPINNER line is
+  the working signal (the footer's "esc to interrupt" was rejected — visible on
+  running panes, unproven absent on idle ones, and an unfalsifiable signal is
+  chrome, not state); blocked = question/permission UI with no spinner; recent
+  pane output upgrades idle→working (45 s horizon). eamos's codex lives in a
+  plain pty (founder call), so it renders **opaque** with CPU evidence and the
+  row SAYS blocked is invisible there — no pretending. Proven: 6-fixture
+  classifier test incl. a quoted-question trap · live 3-agent detection ·
+  synthetic blocked fixture landed in Needs Steven and sorted first · timer
+  path regenerated it via glob discovery (zero orchestrator changes).
+- **⚠️ FALSE ACCUSATION, MADE AND RETRACTED (memory: blame-requires-direct-evidence).**
+  Swordfish told thalon's channel their session had corrupted our plan doc.
+  WRONG: the writer was swordfish's own Edit calls **landing partially while
+  erroring "not found"** (twice, truncating mid-table); the "evidence" was
+  cwd+mtime coincidence, and one `tmux capture-pane` — run too late — showed
+  thalon deep in its own video-template work. Retraction sent same channel,
+  fault named as ours. Repo pattern now 3 confident-wrong-about-peers
+  incidents; the ratchet: **capture-pane before attributing, python-splice
+  large doc edits, git-diff before diagnosing file state.**
+- **Eamos coordination (afternoon): freeze process agreed, ball with them.**
+  Their 07:46Z reply PROVED peak-disk from their materialization code
+  (sequential, stream-to-temp-in-destdir, atomic rename → peak ≈ final total;
+  invariants adopted: **empty target, no `--force`**) and asked to freeze the
+  landing manifest before Phase 3. Accepted — and swordfish found **set C** in
+  their own numbers: 45 bucket objects − 7 seed − 10 preserved = **28 objects /
+  2,652,905,494 B unclassified**. Asks sent: classify all 28; rule whether the
+  10 preserved runtime files land on box / fetch at runtime / stay archival;
+  re-sum → swordfish records the frozen contract in the plan. **Capacity
+  unchanged under every outcome** (syd2 avail 85,942,239,232 B; full 45 objects
+  → 34.81 GiB still free) — the freeze is correctness, not capacity, and does
+  NOT reinstate the resize. Phase 3 itself stays behind the founder's explicit
+  gate, stated to them again in exactly those words.
 - **⭐ RENDER CANCEL IS NO LONGER BEHIND THE RESIZE SPEND.** Re-measured syd2
   live rather than trusting the 07-15 plan's estimates, and its sequencing
   premise does not survive:
@@ -126,8 +163,7 @@ evaluated and declined. Plus: **the portfolio is now FULLY unmasked** — Projec
    projects adopt their lanes. Deliberately NOT wired yet: it currently FAILS on
    selom's shared-profile config, and adding a red check to a green 33/33 suite
    unprompted is not this agent's call. The scripts run standalone today.
-4. **Consider the dashboard agent-state column** (the one thing herdr does
-   better) — small, owned, lands on the surface he actually reads.
+4. ~~Dashboard agent-state column~~ **BUILT same day (founder ask)** — see State.
 5. **Alerting hygiene remainder:** relay failed-poll alarm · pin CI
    `known_hosts` · validate `workflow_dispatch` inputs · IPv6 firewall rules.
 6. Cloudflare bucket (after syd1 gate) · Postgres follow-ups · Kuma dead-man

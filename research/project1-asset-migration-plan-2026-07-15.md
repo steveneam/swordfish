@@ -62,14 +62,65 @@ stand exactly as written. This amendment reorders spend, not proof.
 5. **Phase 2 (was first, now last) — resize, if and when Thalon's worker needs
    it.** Re-priced live at the gate, never from memory.
 
-**The one open risk this amendment carries, for Eamos to close before the seed:**
-peak *transient* disk during materialization. 81 G free covers the 41 G result,
-but not a hypothetical 2× staging pass (41 G download + 41 G extract = 82 G >
-81 G). The ClinGen dry run streamed a single 528 MB object cleanly, which
-suggests per-object streaming (peak ≈ final + one object) — **suggests, not
-proves.** Eamos confirms the materialization run's peak disk behaviour before
-the bulk run; if it stages 2×, the resize returns to the critical path and the
-spend gate genuinely fires first.
+**The one open risk this amendment carried — CLOSED 2026-07-17 07:46Z by Eamos,
+from their code rather than inference.** They audited
+`materialization_orchestrator.py`, `local_evidence_runtime_seed.py` and
+`generated_source_artifacts.py` read-only: the orchestrator runs
+**sequentially**; each S3 object **streams** into one `NamedTemporaryFile`
+created *in the destination directory*, is checksum/schema verified there, then
+becomes final by same-filesystem atomic `Path.replace()`; failed candidates are
+unlinked. **No decompression stage, no second full-size copy** — peak occupancy
+is bounded by the *final cumulative total*: not 2x, and not even
+final-plus-largest. **The resize stays off the critical path.**
+
+**Invariant bought by that proof (binding on Phase 3a): assert an empty target,
+and never pass `--force`.** A `--force` refresh against a populated target is a
+different profile — old destination coexists with the incoming temp until the
+atomic replace — and is explicitly not what was proven.
+
+## The Phase-3 landing contract — NOT YET FROZEN (blocks Phase 3a, not the founder's gate)
+
+Eamos's pre-release ask, and they are right to make it: the disk proof is
+conclusive for the *seven-item run*, but the **full cutover asset set is not a
+frozen contract**. This doc's own loose "~41 GB reference-asset tree" is what
+hid that. Three distinct sets exist where the plan spoke of one:
+
+| set | objects | bytes | GiB | status |
+|---|---|---|---|---|
+| **A** — SG seed manifest (`materialization-manifest-sg.json`) | 7 | 40,847,382,851 | 38.042 | disk-proven; largest = dbSNP 29,552,227,779 B (27.523 GiB) |
+| **B** — preserved Render-only objects (precutover prefix) | 10 | 5,061,937,840 | 4.714 | exact-byte preserved 07-16; AlphaMissense/Pfam **runtime** files, **not enumerated by A** |
+| **C** — **UNCLASSIFIED** | **28** | **2,652,905,494** | **2.471** | blocks the freeze — see below |
+| **total** (strict source proof) | **45** | **48,562,226,185** | **45.227** | |
+
+**Set C is swordfish's finding on reading Eamos's note** — their figures imply
+it but did not name it: `45 - 7 - 10 = 28 objects / 2.471 GiB` in **neither**
+the materialization manifest **nor** the preserved set. A landing contract
+cannot be frozen while 2.471 GiB is unclassified: that is exactly the class of
+gap the nothing-lives-only-on-Render check exists to catch. It is not
+"probably sidecars" — 7 payloads' metadata is kilobytes (Phase 1's ClinGen
+sidecar was 303 bytes), so sidecars cannot explain 2.471 GiB.
+
+**Capacity verdict — unchanged under every classification of set C.** Measured
+live 2026-07-17, exact bytes: syd2 avail = **85,942,239,232 B (80.04 GiB)**.
+
+- after set A only -> **42.00 GiB** free
+- after **all 45 objects** -> **34.81 GiB** free
+
+**The freeze is a correctness precondition, not a capacity one.** It does not
+threaten the Render cancel and does not reinstate the resize — worth stating
+plainly so it is not mistaken for a new blocker on the founder's gate.
+
+**To freeze (Eamos owns the classification; swordfish owns this doc):**
+
+1. **Classify all 28 set-C objects**: superseded versions · sidecars/metadata ·
+   genuinely-needed runtime assets · out-of-scope.
+2. **Rule on set B**: do the 10 preserved objects **land on the box** at
+   cutover, get **fetched from the bucket at runtime**, or stay
+   **archival-only**? They are Render *runtime* files, so "preserved in the
+   bucket" is not automatically "present where the app expects it" — a cutover
+   that silently drops them is the failure this step prevents.
+3. **Eamos re-sums the frozen set**; swordfish records it here as the contract;
+   the empty-target / no-`--force` invariant applies to whatever lands.
 
 ---
 
