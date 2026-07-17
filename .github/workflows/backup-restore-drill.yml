@@ -26,13 +26,33 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RESTIC_REPOSITORY: ${{ inputs.repository || 'b2:swordfish-syd1-backups:restic' }}
-      RESTIC_PASSWORD: ${{ secrets.RESTIC_PASSWORD }}
-      B2_ACCOUNT_ID: ${{ secrets.RESTIC_B2_KEY_ID }}
-      B2_ACCOUNT_KEY: ${{ secrets.RESTIC_B2_KEY }}
+      # PER-BOX credentials, selected below from the repository input - never
+      # one global slot (incident 2026-07-17: global slots held whichever box
+      # was applied last, and the mismatch shipped syd2's credentials to syd4).
+      RESTIC_PASSWORD_SYD1: ${{ secrets.RESTIC_PASSWORD_SYD1 }}
+      RESTIC_PASSWORD_SYD2: ${{ secrets.RESTIC_PASSWORD_SYD2 }}
+      RESTIC_B2_KEY_ID_SYD1: ${{ secrets.RESTIC_B2_KEY_ID_SYD1 }}
+      RESTIC_B2_KEY_ID_SYD2: ${{ secrets.RESTIC_B2_KEY_ID_SYD2 }}
+      RESTIC_B2_KEY_SYD1: ${{ secrets.RESTIC_B2_KEY_SYD1 }}
+      RESTIC_B2_KEY_SYD2: ${{ secrets.RESTIC_B2_KEY_SYD2 }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+
+      - name: Select per-box credentials from the repository input
+        run: |
+          SHORT=$(echo "$RESTIC_REPOSITORY" | grep -oE 'syd[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]')
+          case "$SHORT" in
+            SYD1|SYD2) ;;
+            SYD3|SYD4) echo "$RESTIC_REPOSITORY is a cockpit-class repo - use cockpit-restore-drill.yml"; exit 1 ;;
+            *) echo "cannot derive box from repository '$RESTIC_REPOSITORY'"; exit 1 ;;
+          esac
+          pick() { eval "printf '%s' \"\${$1_$SHORT}\""; }
+          PW=$(pick RESTIC_PASSWORD); KID=$(pick RESTIC_B2_KEY_ID); KEY=$(pick RESTIC_B2_KEY)
+          { [ -n "$PW" ] && [ -n "$KID" ] && [ -n "$KEY" ]; } || { echo "per-box secrets for $SHORT are not set (no global fallback - the fallback IS the bug)"; exit 1; }
+          { echo "RESTIC_PASSWORD=$PW"; echo "B2_ACCOUNT_ID=$KID"; echo "B2_ACCOUNT_KEY=$KEY"; } >> "$GITHUB_ENV"
+          echo "selected $SHORT credentials"
 
       - name: Install restic at the box pin (read from phase7-backups.sh - one source of truth)
         run: |

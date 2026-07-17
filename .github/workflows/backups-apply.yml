@@ -74,16 +74,49 @@ jobs:
           echo "SSH unreachable after 5 minutes"; exit 1
 
       - name: Install backup secrets on box (0600 root)
+        # PER-HOST secrets, selected by the host input - never one global slot.
+        # INCIDENT 2026-07-17: the old global RESTIC_* slots held syd2's values
+        # (set for whichever box was applied last), so running this workflow
+        # against syd4 silently installed syd2's bucket key, syd2's repo
+        # password, AND another box's dead-man ping URLs onto syd4. The backup
+        # then failed as "wrong password", and its failure pinged the WRONG
+        # box's healthchecks - a false alarm on a healthy box and a silent gap
+        # on the broken one. Per-box blast-radius isolation (decision 6) is
+        # meaningless if one shared slot decides which box's credentials ship.
+        # A missing per-host secret is a HARD FAIL, never a fallback to a
+        # global value - the fallback IS the bug.
         env:
-          RESTIC_PASSWORD: ${{ secrets.RESTIC_PASSWORD }}
-          RESTIC_B2_KEY_ID: ${{ secrets.RESTIC_B2_KEY_ID }}
-          RESTIC_B2_KEY: ${{ secrets.RESTIC_B2_KEY }}
-          HC_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
-          KUMA_URL: ${{ secrets.KUMA_PUSH_URL }}
+          RESTIC_PASSWORD_SYD1: ${{ secrets.RESTIC_PASSWORD_SYD1 }}
+          RESTIC_PASSWORD_SYD2: ${{ secrets.RESTIC_PASSWORD_SYD2 }}
+          RESTIC_B2_KEY_ID_SYD1: ${{ secrets.RESTIC_B2_KEY_ID_SYD1 }}
+          RESTIC_B2_KEY_ID_SYD2: ${{ secrets.RESTIC_B2_KEY_ID_SYD2 }}
+          RESTIC_B2_KEY_SYD1: ${{ secrets.RESTIC_B2_KEY_SYD1 }}
+          RESTIC_B2_KEY_SYD2: ${{ secrets.RESTIC_B2_KEY_SYD2 }}
+          HC_URL_SYD1: ${{ secrets.HEALTHCHECKS_PING_URL_SYD1 }}
+          HC_URL_SYD2: ${{ secrets.HEALTHCHECKS_PING_URL_SYD2 }}
+          KUMA_URL_SYD1: ${{ secrets.KUMA_PUSH_URL_SYD1 }}
+          KUMA_URL_SYD2: ${{ secrets.KUMA_PUSH_URL_SYD2 }}
           INSTALL_PINGS: ${{ inputs.install_ping_urls }}
         run: |
-          [ -n "$RESTIC_PASSWORD" ] || { echo "RESTIC_PASSWORD secret is not set"; exit 1; }
-          { [ -n "$RESTIC_B2_KEY_ID" ] && [ -n "$RESTIC_B2_KEY" ]; } || { echo "RESTIC_B2_KEY_ID / RESTIC_B2_KEY secrets are not set"; exit 1; }
+          # select this host's secrets; box short-name drives the suffix.
+          # FLEET boxes only: syd3/syd4 are cockpit-class and their apply is
+          # cockpit-backups-apply.yml (per-box SYDN_-prefix secrets). Running
+          # THIS workflow at a cockpit box is exactly the 2026-07-17 incident
+          # - refuse it instead of trusting the operator to remember.
+          SHORT=$(echo "$HOST" | cut -d. -f1 | tr '[:lower:]' '[:upper:]')
+          case "$SHORT" in
+            SYD1|SYD2) ;;
+            SYD3|SYD4) echo "'$HOST' is a cockpit-class box - use cockpit-backups-apply.yml (it selects the $SHORT-prefixed secrets)"; exit 1 ;;
+            *) echo "unknown host '$HOST' - no per-host secrets defined"; exit 1 ;;
+          esac
+          pick() { eval "printf '%s' \"\${$1_$SHORT}\""; }
+          RESTIC_PASSWORD=$(pick RESTIC_PASSWORD)
+          RESTIC_B2_KEY_ID=$(pick RESTIC_B2_KEY_ID)
+          RESTIC_B2_KEY=$(pick RESTIC_B2_KEY)
+          HC_URL=$(pick HC_URL)
+          KUMA_URL=$(pick KUMA_URL)
+          [ -n "$RESTIC_PASSWORD" ] || { echo "RESTIC_PASSWORD_$SHORT secret is not set (per-host, no global fallback - see step comment)"; exit 1; }
+          { [ -n "$RESTIC_B2_KEY_ID" ] && [ -n "$RESTIC_B2_KEY" ]; } || { echo "RESTIC_B2_KEY_ID_$SHORT / RESTIC_B2_KEY_$SHORT secrets are not set (per-host, no global fallback)"; exit 1; }
           s() { ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o BatchMode=yes "deploy@$HOST" "$@"; }
           s 'sudo install -d -m 700 /etc/resticprofile'
           printf '%s\n' "$RESTIC_PASSWORD" | tr -d '\r' | \
