@@ -76,6 +76,16 @@ GRANT  CONNECT ON DATABASE "$slug" TO "$slug";
 SQL
     echo "OK: database $slug closed to PUBLIC, open to its role"
 
+    # pgvector, pre-installed per tenant DB (thalon staging cutover step-0,
+    # 2026-07-18): CREATE EXTENSION vector is superuser-only (pgvector is not
+    # marked trusted - the owner role rightly can't), so the service does it.
+    # Needs the pgvector-bundled image (tenant-pg.sh pins it); this succeeding
+    # is also the running-container proof that the image swap actually landed.
+    echo 'CREATE EXTENSION IF NOT EXISTS vector' | sql "$slug" >/dev/null
+    [ "$(echo "SELECT count(*) FROM pg_extension WHERE extname='vector'" | sql "$slug")" = 1 ] \
+        || { echo "FAIL: pgvector extension absent from $slug after install"; exit 1; }
+    echo "OK: pgvector installed in $slug"
+
     # verification from the ROLE's point of view, over TCP (forces password auth;
     # the password rides stdin into the container shell, never argv)
     as_tenant() { # $1 = database -> exit code of a select 1

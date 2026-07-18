@@ -29,7 +29,12 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 SERVICE=tenant-pg
-IMAGE=postgres:17.10        # founder call pinned major 17; bump minor deliberately
+# founder call pinned major 17; bump deliberately. pgvector build of the same
+# major (thalon staging cutover step-0, 2026-07-18): stock postgres:17.10
+# ships no pgvector and tenant migrations need CREATE EXTENSION vector -
+# same-major image swap, the data volume carries over. The extension itself
+# is pre-installed per tenant DB by tenant-db-apply.sh (superuser-only).
+IMAGE=pgvector/pgvector:0.8.5-pg17
 PROJECT=swordfish
 SUPERUSER=swordfish
 SECFILE=inventory/secrets/pg-syd2.env
@@ -102,6 +107,19 @@ print(json.dumps({"name": sys.argv[1], "appName": sys.argv[1],
     echo "OK: deploy dispatched"
 fi
 
+# --- 2b. converge the image pin on an existing service (postgres.update lands on
+# the next postgres.DEPLOY - same mechanism as the memory cap, proven live
+# 2026-07-14; record-level readback below, and tenant-db-apply.sh's
+# CREATE EXTENSION is the running-container proof)
+cur_img=$(admin GET "postgres.one?postgresId=$PG_ID" \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin).get("dockerImage",""))')
+if [ "$cur_img" != "$IMAGE" ]; then
+    printf '{"postgresId":"%s","dockerImage":"%s"}' "$PG_ID" "$IMAGE" | admin POST postgres.update >/dev/null
+    printf '{"postgresId":"%s"}' "$PG_ID" | admin POST postgres.deploy >/dev/null
+    echo "CHANGED: image $cur_img -> $IMAGE, deploy dispatched"
+    sleep 10
+fi
+
 # --- 3. poll until running, then verify the no-public-port invariant --------------
 STATUS="" EXT="" HOST="" IMG=""
 for _ in $(seq 1 24); do
@@ -119,6 +137,8 @@ done
 case "$STATUS" in done|running) ;; *)
     echo "FAIL: service never reached done/running (last: $STATUS)"; exit 1 ;; esac
 echo "OK: service status=$STATUS image=$IMG"
+[ "$IMG" = "$IMAGE" ] \
+    || { echo "FAIL: record image=$IMG, expected $IMAGE"; exit 1; }
 [ "$EXT" = null ] \
     || { echo "FAIL: externalPort=$EXT - tenant-pg must NEVER publish a port"; exit 1; }
 echo "OK: no external port (internal docker network only)"
