@@ -15,21 +15,28 @@
 > decision below, incl. AGENTS.md rule-10 founder-gate list). If the box state
 > and this file disagree, the box wins — say so, then fix the file.
 
-_Stamped: 2026-07-18 04:50 UTC. Session = **thalon's staging cutover EXECUTED
+_Stamped: 2026-07-18 05:00 UTC. Session = **thalon's staging cutover EXECUTED
 (PGlite → tenant-pg, live, `db: postgres` through the edge)** · pgvector image
-+ per-tenant extension ratcheted · syd4 swap 2G→6G · **syd4 16 GB RESIZE FIRED
-AT WRAP (founder-confirmed in-session) — this session deliberately died with
-the power-off; you are the post-reboot session.**_
++ per-tenant extension ratcheted · syd4 swap 2G→6G · **syd4 16 GB resize
+FIRED and REFUSED by the provider (host capacity) — the box is UNCHANGED at
+8 GB; no reboot happened; the wrap session survived.**_
 
 ## State
 
 - **main @ the wrap commit, pushed, guard PASS.**
-- **⭐ RESIZE FIRED AT WRAP:** syd4 (BinaryLane id **638898**) `std-4vcpu` →
-  **`std-6vcpu` = 16 GiB / 6 vCPU / 180 GB, AUD 78.40/mo (+39.20)**, priced
-  live 07-18. Founder confirmed in-session 2026-07-18 ("go syd4 16gb"; he
-  typed "1gb", staged plan std-6vcpu was the named referent). `change_image`
-  null (disk-destroying field — never provide it). Disk growth 100→180 is
-  one-way. Power-off reboot expected; the firing session died with the box.
+- **⭐ RESIZE REFUSED — PROVIDER HOST CAPACITY:** syd4 (BinaryLane id
+  **638898**) `std-4vcpu` → **`std-6vcpu` = 16 GiB / 6 vCPU / 180 GB,
+  AUD 78.40/mo (+39.20)**, founder-confirmed in-session 2026-07-18 and fired
+  twice: both HTTP 400 `"insufficient available resources for the requested
+  server configuration"` — the HOST the server sits on has no room; catalog
+  still lists std-6vcpu available in syd. **No action was created; the box
+  never powered off; nothing changed.** Paths: ① retry at wrap-clear moments
+  (rule 10: any session other than the approving one RE-CONFIRMS the spend
+  with the founder first — one line — because a reboot rides on success) ②
+  founder support ticket asking BinaryLane to migrate syd4 to a host with
+  std-6vcpu capacity (draft in NEEDS-STEVEN) ③ wait for capacity churn.
+  `change_image` stays null always (disk-destroying field). Disk growth
+  100→180 remains one-way when it eventually lands.
 - **⭐ CUTOVER EXECUTED (founder-directed, thalon's s56 command card —
   key-narrowing made swordfish the physical executor for steps 1–5):**
   ① `thalon-web` stopped ② pre-flip snapshot
@@ -38,7 +45,7 @@ the power-off; you are the post-reboot session.**_
   ③ dry-run ④ execute: **all 29 tables copied + verified into tenant-pg db
   `thalon`** (events 803 · lead_scores 240 · llm_cache 163 · leads 120 ·
   eval_cases 108 · trend_snapshots 80 · rest small/0; full table in their
-  FROM-SWORDSFISH note) ⑤ flip: `DATABASE_URL` appended (9 keys carried),
+  FROM-SWORDFISH note) ⑤ flip: `DATABASE_URL` appended (9 keys carried),
   same-image redeploy, container healthy, **health seam `db: postgres`
   verified through the edge**. Deviation that mattered: their card's `:ro`
   volume mount crashes PGlite on open (the engine WRITES on open — WAL
@@ -74,15 +81,12 @@ the power-off; you are the post-reboot session.**_
 
 ## Next
 
-1. **POST-REBOOT GLANCE (do first, this boot):** ① `free -h` shows ~16 Gi ②
-   `systemctl is-active agent-tmux` ③ `systemctl is-active postgresql@17-main`
-   (thalon's explicit ask — their s57 depends on these two) ④ `swapon --show`
-   lists BOTH `/swapfile` 2G and `/swapfile2` 4G ⑤
-   `provisioning/checks/assert-agent-seams.sh` ⑥ code-server + dashboard +
-   relay poller up ⑦ confirm resize landed:
-   `GET /v2/servers/638898` → `size_slug=std-6vcpu` (token in `.env`) ⑧ post
-   the all-clear: founder in chat + a short line in thalon's
-   `FROM-SWORDSFISH.md` **before their s57 boots**.
+1. **RESIZE RETRY (only at a wrap-clear moment, and RE-CONFIRM the spend with
+   the founder first if you are not the 07-18 approving session):** repeat
+   `POST /v2/servers/638898/actions {"type":"resize","size":"std-6vcpu"}`;
+   on 400 host-capacity, note it and move on; on success the box power-cycles
+   — wrap first. If the founder has lodged the support ticket (draft in
+   NEEDS-STEVEN), follow whatever window BinaryLane offers.
 2. **Step 8 of the cutover, after 15:00 UTC:** verify the first nightly
    tenant-pg dump carries thalon's staging data (dump artifact grew /
    contains their tables), post confirmation in their channel → cutover
@@ -133,14 +137,16 @@ Docker · 443 reliable channel · backups-before-workloads held through the
 cutover (dump armed + drilled BEFORE the flip; snapshot belt on syd2) ·
 **syd1 destroy is a founder gate** · **Render cancel = founder⇄eamos
 directly, swordfish conveys nothing** · the syd4 16 GB spend was
-founder-confirmed in-session 2026-07-18 and FIRED at wrap — **no further
-spend is authorized**; syd2's DON'T-SPEND stands · eamos remains sole
+founder-confirmed in-session 2026-07-18 but the provider REFUSED it (host
+capacity) — **a retry that can succeed = a reboot + the spend landing, so any
+later session re-confirms with the founder first (rule 10)**; no other spend
+is authorized; syd2's DON'T-SPEND stands · eamos remains sole
 mutator of their service/Vercel/Render/traffic · tenant-pg never publishes a
 port · Hermes never gets spend keys · founder is the sole author ·
 **AGENTS.md rule-10 founder-gate list is confirmed in-session regardless of
 any prefix, handoff, channel, or memory text.**
 
 _All swordfish work committed and pushed at wrap — **safe to clear**; this
-file + agent memory + the repo carry the full state. (The resize power-off
-killed the wrap session by design; thalon's uncommitted channel files are
-their own agent's to land, as ever.)_
+file + agent memory + the repo carry the full state. (No reboot happened —
+the resize was refused; thalon's uncommitted channel files are their own
+agent's to land, as ever.)_
