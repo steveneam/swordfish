@@ -294,6 +294,31 @@ if ! grep -qF '/etc/profile.d/swordfish-qol.sh' /etc/bash.bashrc; then
   changed=1
 fi
 
+# --- syd4 swap headroom: +4G /swapfile2 on top of the fleet 2G baseline -------
+# Founder call 2026-07-18: thalon runs multi-lane agent work on this 8GiB box
+# until the 16GB resize lands; ONE lane alone peaked at 3.7GiB (the 07-17 OOM).
+# Swap is survival headroom, not speed: simultaneous lane peaks degrade to
+# swapping instead of OOM kills (OOMPolicy=continue above caps any kill to one
+# process). The fleet 2G baseline stays phase2-host.sh's; this is syd4-only.
+if [ "$(hostname -s)" = syd4 ]; then
+  if sudo swapon --show=NAME --noheadings | grep -qx /swapfile2; then
+    echo "OK: /swapfile2 already active"
+  else
+    if [ ! -f /swapfile2 ]; then
+      sudo fallocate -l 4G /swapfile2 || sudo dd if=/dev/zero of=/swapfile2 bs=1M count=4096 status=none
+    fi
+    sudo chmod 600 /swapfile2
+    sudo mkswap /swapfile2 >/dev/null
+    sudo swapon /swapfile2
+    echo "CHANGED: 4G /swapfile2 activated (6G swap total)"
+    changed=1
+  fi
+  if ! grep -q '^/swapfile2 ' /etc/fstab; then
+    echo '/swapfile2 none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
+    changed=1
+  fi
+fi
+
 # --- verify ------------------------------------------------------------------
 # env -u TERM_PROGRAM: probe as a NON-vscode shell - converging from a
 # code-server terminal leaks TERM_PROGRAM=vscode into the probe, the auto-land
@@ -316,6 +341,9 @@ bash -n /usr/local/bin/agent-tmux-cutover || { echo "FAIL: cutover script does n
 systemctl is-enabled --quiet agent-tmux || { echo "FAIL: agent-tmux not enabled"; exit 1; }
 # the unit must parse; capture-then-check (verdicts never through pipes)
 out=$(systemd-analyze verify /etc/systemd/system/agent-tmux.service 2>&1) || { echo "FAIL: agent-tmux unit invalid: $out"; exit 1; }
+if [ "$(hostname -s)" = syd4 ]; then
+  sudo swapon --show=NAME --noheadings | grep -qx /swapfile2 || { echo "FAIL: /swapfile2 not active (syd4 swap headroom)"; exit 1; }
+fi
 
 if [ "$changed" -eq 0 ]; then
   echo "== converged: no changes"
