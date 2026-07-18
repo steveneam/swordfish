@@ -21,6 +21,14 @@ _Stamped: 2026-07-18 05:00 UTC. Session = **thalon's staging cutover EXECUTED
 FIRED and REFUSED by the provider (host capacity) — the box is UNCHANGED at
 8 GB; no reboot happened; the wrap session survived.**_
 
+_Updated: 2026-07-18 07:00 UTC (founder-directed thalon check-in; delta = this
+file + NEEDS-STEVEN only): **cutover steps 6–7 were already VERIFIED GREEN by
+thalon at ~04:45Z ("no rollback — the flip stands")** · step 8 pre-checked
+live on syd2 (backup timer next-fire **15:00 UTC today**; dump artifact still
+the 1,843-byte pre-flip run from 04:12 — expected until the timer fires) ·
+**thalon GO'd the credential rotation AND ruled DB_DUMP_TOKEN retired** ·
+thalon s57 AND s58 both wrapped, no lanes live → **resize hold RELEASED**._
+
 ## State
 
 - **main @ the wrap commit, pushed, guard PASS.**
@@ -53,7 +61,11 @@ FIRED and REFUSED by the provider (host capacity) — the box is UNCHANGED at
   so **the migration never opened their volume**; rollback belts intact
   (unset DATABASE_URL + redeploy = reopen untouched volume; snapshot = belt 2).
   Working copies + target-credential file shredded from syd2 post-flip.
-  **Their steps 6–7 (edge probes + spot-checks) land s57; step 8 is OURS.**
+  **Steps 6–7: VERIFIED GREEN by thalon ~04:45Z 07-18** (five routes 200,
+  `db: postgres` at the health seam, spot-checks matched our step-4 counts;
+  their verdict: "no rollback — the flip stands"). **Step 8 is OURS and is
+  the ONLY open cutover item** (their `.context/cutover-s56/` tarball deletes
+  on our confirm).
 - **⭐ pgvector ratchet (`2b036ec`):** tenant-pg image →
   `pgvector/pgvector:0.8.5-pg17` (tenant-pg.sh now converges image-pin
   changes, record readback asserted) + tenant-db-apply.sh pre-installs
@@ -67,8 +79,13 @@ FIRED and REFUSED by the provider (host capacity) — the box is UNCHANGED at
 - **Disclosure, open:** during cutover step 1 a truncated API echo put two
   thalon staging env VALUES into this box's session transcript
   (`WORKSPACE_BASIC_AUTH`, most of `DB_DUMP_TOKEN`) — on-box only, never in
-  git/channels. Rotation offered in their channel (also: does the PGlite dump
-  door retire post-cutover?). Their/founder call pending.
+  git/channels. **Thalon ANSWERED (~04:45Z): rotation GO "by the book, at your
+  convenience"** (new pair via their gitignored `.context` channel + a note in
+  their file; they then swap CI `STAGING_EDGE_AUTH` and re-probe — a red CI
+  probe in the gap is known-harmless), **and DB_DUMP_TOKEN RETIRES** (nightly
+  `pg_dumpall` now covers staging): drop `pre-backup.d/30-thalon-pglite-dump`
+  + unset/rotate the token env in the same console pass. Founder briefed
+  ~06:50Z and deferred execution to the next session (Next item 2).
 - **GitHub Actions billing (yesterday's 🔴) is evidently CLEARED** — two
   dispatched workflows ran green 07-18 (29629895700, 29630143046). Queue line
   can move to accounted once confirmed stable.
@@ -81,22 +98,35 @@ FIRED and REFUSED by the provider (host capacity) — the box is UNCHANGED at
 
 ## Next
 
-1. **RESIZE — ON HOLD until thalon's s57 wraps (founder call 2026-07-18):
-   NO retry attempts while their session is live** (a success = instant
-   power-cycle under their four lanes). Sequence: thalon s57 wraps → remind
-   the founder to lodge the BinaryLane support ticket (his paste; draft in
-   NEEDS-STEVEN — the API has NO ticket endpoint, verified in the OpenAPI) →
-   follow whatever window BinaryLane offers, wrapped clear-safe, spend
-   re-confirmed in-session (rule 10) before any attempt that can succeed.
-2. **Step 8 of the cutover, after 15:00 UTC:** verify the first nightly
-   tenant-pg dump carries thalon's staging data (dump artifact grew /
-   contains their tables), post confirmation in their channel → cutover
-   choreography CLOSED.
-3. **NEEDS-STEVEN refresh:** resize line → done/accounted (with final price
-   read back from the API) · GH-billing line → cleared-pending-stability ·
-   syd2 DON'T-SPEND unchanged.
-4. **Thalon rotation call** when they answer the disclosure (basicauth regen =
-   console + founder's COPY-ME; DB_DUMP_TOKEN may simply retire).
+1. **Step 8 of the cutover — after 15:00 UTC today (2026-07-18):** on syd2,
+   `/var/backups/swordfish/tenant-pg.dumpall.sql.gz` must be re-stamped
+   15:00 UTC and grown WELL past the 1,843-byte pre-flip run (thalon's 29
+   tables inside — zgrep a couple of table names, e.g. `events`, `leads`, and
+   the `thalon` database header); then post the confirm in their
+   `FROM-SWORDFISH.md` → they delete `.context/cutover-s56/` → **cutover
+   choreography CLOSED**. Pre-checked 06:45Z: timer next-fire 15:00 today,
+   snapshot belt (`thalon-data-preflip-20260718.tar.gz`) in the restic
+   source. Read-only probes may ride the syd4→syd2 ssh path (works on plain
+   22; posture ruling on that path still open in NEEDS-STEVEN). **If booted
+   before 15:00 UTC, this item WAITS — do items 2–3 first.**
+2. **Rotation pass — thalon GO'd it; founder briefed 07-18 ~06:50Z and
+   deferred to this session. Re-confirm with him in ONE line (touches his
+   COPY-ME + a tenant console), then run the whole pass:** ① regen the
+   preview basicauth in the Dokploy console + update his `~/COPY-ME.txt`
+   ② drop the new pair via thalon's gitignored `.context` secrets channel +
+   a note in their ASK-BACKS inbound mirror (they swap CI `STAGING_EDGE_AUTH`
+   and re-probe; a red CI probe in the gap = known-harmless) ③ same console
+   pass: unset `DB_DUMP_TOKEN` + retire `pre-backup.d/30-thalon-pglite-dump`
+   (tracked edit — the self-arming guard means removal must be explicit;
+   `staging-assert.sh` references it too) ④ redeploy, edge re-probe.
+3. **RESIZE — hold RELEASED** (thalon s57 AND s58 wrapped by 06:45Z, no lanes
+   live): remind the founder to lodge the BinaryLane support ticket (his
+   paste; draft in NEEDS-STEVEN — the API has NO ticket endpoint, verified in
+   the OpenAPI) → follow whatever window BinaryLane offers, wrapped
+   clear-safe, spend re-confirmed in-session (rule 10) before any attempt
+   that can succeed.
+4. **NEEDS-STEVEN refresh:** resize line updated 07-18 (hold released) ·
+   GH-billing line → cleared-pending-stability · syd2 DON'T-SPEND unchanged.
 5. Carried queue: Render-cancel watch (then nothing — resize no longer rides
    it) · Dokploy key hygiene (dead `.env` key, tenant key refresh, posture
    option b) · syd1 destroy-vs-warm-fallback (founder gate, oldest) ·
