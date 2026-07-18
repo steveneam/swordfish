@@ -81,12 +81,13 @@ FIRED and REFUSED by the provider (host capacity) — the box is UNCHANGED at
 
 ## Next
 
-1. **RESIZE RETRY (only at a wrap-clear moment, and RE-CONFIRM the spend with
-   the founder first if you are not the 07-18 approving session):** repeat
-   `POST /v2/servers/638898/actions {"type":"resize","size":"std-6vcpu"}`;
-   on 400 host-capacity, note it and move on; on success the box power-cycles
-   — wrap first. If the founder has lodged the support ticket (draft in
-   NEEDS-STEVEN), follow whatever window BinaryLane offers.
+1. **RESIZE — ON HOLD until thalon's s57 wraps (founder call 2026-07-18):
+   NO retry attempts while their session is live** (a success = instant
+   power-cycle under their four lanes). Sequence: thalon s57 wraps → remind
+   the founder to lodge the BinaryLane support ticket (his paste; draft in
+   NEEDS-STEVEN — the API has NO ticket endpoint, verified in the OpenAPI) →
+   follow whatever window BinaryLane offers, wrapped clear-safe, spend
+   re-confirmed in-session (rule 10) before any attempt that can succeed.
 2. **Step 8 of the cutover, after 15:00 UTC:** verify the first nightly
    tenant-pg dump carries thalon's staging data (dump artifact grew /
    contains their tables), post confirmation in their channel → cutover
