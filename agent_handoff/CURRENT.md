@@ -15,7 +15,13 @@
 > decision below, incl. AGENTS.md rule-10 founder-gate list). If the box state
 > and this file disagree, the box wins — say so, then fix the file.
 
-_Stamped: 2026-07-19 02:20 UTC. Session = founder's four asks all landed:
+_Stamped: 2026-07-19 03:05 UTC. Post-wrap continuation: **syd4 16 GB resize
+FIRED + LANDED (both halves — see NEEDS-STEVEN accounted line)** and
+**thalon's s61 film import is DONE** (58 takes / 5 cuts / 3 lineage stamps
+into tenant-pg, media route 206 from the stored root; full record in their
+FROM-SWORDFISH ~03:00). Prior wrap summary below stands._
+
+_Wrap 02:20 UTC. Session = founder's four asks all landed:
 **① cutover step 8 CONFIRMED to thalon (choreography CLOSED)** — but only
 after finding + fixing that **syd2's nightly backup had FAILED 07-18** (two
 hook defects) · **② syd2 checked — and its ENTIRE PUBLIC EDGE was found DOWN
@@ -110,25 +116,13 @@ refusal invariant proven)**._
 
 ## Next
 
-0. **⭐ RESIZE FIRED ~02:35 UTC 2026-07-19 on the founder's in-session "go
-   syd4 16gg [sic]"** (fresh rule-10 confirm of the 07-18-approved spend:
-   std-6vcpu = 16 GiB / 6 vCPU / 180 GB, AUD 78.40/mo, +39.20). **If you are
-   reading this after a reboot, the resize likely LANDED — verify:**
-   ① `free -h` ≈ 15Gi total · `nproc` = 6 · `df -h /` grown toward 180G (if
-   not: `sudo growpart /dev/vda 1 && sudo resize2fs /dev/vda1`) ② units:
-   `agent-tmux.service` · `postgresql@17-main` (thalon's two) ·
-   `code-server` · `swordfish-relay.service` · dashboard web+timer ③ swap
-   both files active (`swapon --show`) ④ syd2 edge quick-probe from here
-   (hello/status/deploy — unrelated box, but outside-in habit) ⑤ post the
-   landed-confirm + post-reboot glance in thalon's FROM-SWORDFISH (their
-   docs assume 8 GB — tell them the ceiling moved) ⑥ NEEDS-STEVEN resize
-   line → accounted with final price. **If the box is still 8 GiB / 4 vCPU:
-   the fire 400'd again — NEEDS-STEVEN ticket paste stands; note the
-   attempt, nothing changed.**
 1. **Watch tonight's 15:00 UTC syd2 backup** — first unattended run on the
    fixed hooks: service Result=success, dump re-stamped ~15:00, new restic
-   snapshot, healthchecks+kuma success pings. Green = the incident is fully
-   closed; red = read the journal before touching anything.
+   snapshot, healthchecks+kuma success pings. **Expect the snapshot ~744 MB
+   bigger than usual** — the s61 film tree now lives in the `thalon-data`
+   volume, which is a restic source; that growth is by design, not an
+   anomaly. Green = the incident is fully closed; red = read the journal
+   before touching anything.
 2. **Rotation pass (thalon GO'd; needs the founder's one-line yes — it
    touches his COPY-ME + the tenant console):** ① regen preview basicauth in
    Dokploy + update `~/COPY-ME.txt` ② drop the pair via thalon's gitignored
@@ -136,17 +130,22 @@ refusal invariant proven)**._
    `STAGING_EDGE_AUTH`; red CI probe in the gap = known-harmless) ③ same
    console pass: unset `DB_DUMP_TOKEN` (the hook half is already done —
    retired from box + repo this session) ④ redeploy + edge re-probe.
-3. **RESIZE on the founder's "go syd4 16gb"** (Telegram reply reaches the
-   session via the relay): re-confirm spend in-session, wrap clear-safe,
-   fire; on success verify boot + thalon's two units; on another 400 the
-   NEEDS-STEVEN ticket paste stands.
-4. **Thalon s61 film import** (transfer + on-box import + row-count reply —
-   see State). Their `.context/cutover-s56/` deletion needs nothing from us.
-5. **Kuma alerting gap:** 7h of edge-down produced zero founder alerts —
+3. _(done 03:00)_ **Thalon s61 film import — COMPLETE, confirmed in their
+   FROM-SWORDFISH:** tree byte-verified into `/data/film-storyboard-s41`
+   (mediaRoot must be app-visible — the deployed pruned image can't run the
+   card's `npm -w` invocation; used the cutover-s56 one-off-checkout pattern
+   @ `be6f47c`). tenant-pg: 1 project / 58 takes (31 keeper·27 reject) /
+   5 cuts rendered / 3 lineage stamps; media route 206 with Range. They
+   close W-audit (a). Note for their runbook landed in the same reply
+   (sidecar paths are CWD-relative; pruned image ≠ workspace). Small new
+   queue item: tenant-pg logs a collation-version warning (2.41 vs 2.36)
+   on the `thalon` DB — informational, schedule `REFRESH COLLATION VERSION`
+   thinking for a quiet moment.
+4. **Kuma alerting gap:** 7h of edge-down produced zero founder alerts —
    check kuma's notification wiring (and whether an OFF-box probe of the
    edge belongs in healthchecks, which IS off-infra and did its backup job
    perfectly tonight).
-6. Carried queue: founder key-rotation verdict (NEEDS-STEVEN) ·
+5. Carried queue: founder key-rotation verdict (NEEDS-STEVEN) ·
    Render-cancel watch · Dokploy key hygiene (posture option b) · syd1
    destroy-vs-warm-fallback (founder gate, oldest) · subscriptions.yml
    fills · Gmail re-auth.
