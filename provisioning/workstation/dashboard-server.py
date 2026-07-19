@@ -86,7 +86,13 @@ HERMES_TTL = 8
 def tmux_sessions():
     """[{name, activity, cmd}] with a short TTL cache - the capture endpoint
     validates membership on every hit, and N polling cards must not mean N
-    tmux invocations per tick."""
+    tmux invocations per tick.
+
+    TRAP: cmd is #{pane_current_command} = basename(cmdline[0]) and reports
+    the wrapper `bash` for relay-launched sessions while claude runs beneath
+    (bit the relay, agent-comm AND collect-agents on 2026-07-19). It is
+    display metadata ONLY - never decide agent liveness on it; that decision
+    lives in collect-agents.sh's has_agent_desc."""
     with _sessions_lock:
         if time.time() - _sessions_cache["ts"] < SESSIONS_TTL:
             return _sessions_cache["rows"]

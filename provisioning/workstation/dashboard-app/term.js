@@ -113,16 +113,23 @@
       if (!card) {
         card = makeCard(a);
         cards.set(a.name, card);
-        grid.appendChild(card.el);
         if (active) poll(a.name);
       }
+      // (re)attach: a transient empty render may have detached live cards
+      if (!card.el.isConnected) grid.appendChild(card.el);
       card.dot.className = 'term-dot ' + (a.state || '');
     });
     cards.forEach(function (card, name) {
       if (!seen.has(name)) { card.el.remove(); cards.delete(name); }
     });
+    // empty-state is a managed sibling, never an innerHTML wipe - it must
+    // clear the moment real cards land (first-paint race, found 2026-07-19)
+    var msg = grid.querySelector('.term-empty');
     if (!cards.size) {
-      grid.innerHTML = '<p class="dim">no tmux agent sessions on this box</p>';
+      if (!msg) grid.insertAdjacentHTML('beforeend',
+        '<p class="dim term-empty">no tmux agent sessions on this box</p>');
+    } else if (msg) {
+      msg.remove();
     }
   }
 

@@ -282,9 +282,81 @@
 
   function alias(name) { return AGENT_ALIAS[name] || name; }
 
-  function renderAgents() {
-    var a = D.agents || {};
+  // composer state lives OUTSIDE the DOM rebuild cycle: the roster half of
+  // the page re-renders every 60s, but the controls half is built once - a
+  // draft the founder is mid-typing must never be wiped by a data refresh
+  var lcAgents = [], lcTarget = null, lcWith = new Set();
+
+  function controlsHtml() {
+    return '<p class="reset-row"><button class="ghost-btn" id="reset-btn" type="button">↺ reset stale terminals</button> ' +
+      '<span class="dim">kills empty panel shells only — live agents are refused server-side</span> ' +
+      '<span id="reset-out" class="dim"></span></p>' +
+      '<div id="live-comm" class="composer">' +
+      '<div class="comp-head"><span class="comp-title">📡 Live message</span>' +
+      '<span class="dim">composer inject · parked drafts are refused server-side · lands as ' +
+      '<span class="mono">[Steven via dashboard]</span></span></div>' +
+      '<div class="comp-row"><span class="comp-label">to</span>' +
+      '<div class="chip-picker" id="lc-target-chips"><span class="dim">loading roster…</span></div></div>' +
+      '<div class="comp-row"><span class="comp-label">with</span>' +
+      '<div class="chip-picker" id="lc-with-chips"></div>' +
+      '<span class="dim comp-hint">optional partners — they get the coordinate-live clause</span></div>' +
+      '<textarea id="lc-text" maxlength="1800" rows="4" ' +
+      'placeholder="what should happen — newlines are collapsed to one line"></textarea>' +
+      '<div class="comp-actions"><button class="action-btn" id="lc-send-btn" type="button">send</button>' +
+      '<span id="lc-out" class="dim" role="status"></span>' +
+      '<a href="#" id="lc-ledger-lnk" class="dim">recent sends</a></div>' +
+      '<pre id="lc-ledger" class="snip" style="display:none"></pre>' +
+      '<p class="dim comp-foot">mid-turn messages queue politely; the agent sees them at its next ' +
+      'boundary · scope changes still go through the agent\'s own queue</p></div>';
+  }
+
+  function lcChips() {
+    var tc = el('lc-target-chips'), wc = el('lc-with-chips');
+    if (!tc) return;
+    if (!lcAgents.length) {
+      tc.innerHTML = '<span class="dim">no live agents</span>';
+      wc.innerHTML = '';
+      return;
+    }
+    if (lcTarget && !lcAgents.some(function (o) { return o.session === lcTarget; })) lcTarget = null;
+    function chip(o, sel) {
+      return '<button type="button" class="agent-chip' + (sel ? ' sel' : '') + '" data-s="' +
+        esc(o.session) + '"><i class="term-dot ' + esc(o.state || '') + '"></i>' +
+        esc(alias(o.session)) + '</button>';
+    }
+    tc.innerHTML = lcAgents.map(function (o) { return chip(o, o.session === lcTarget); }).join('');
+    wc.innerHTML = lcAgents.filter(function (o) { return o.session !== lcTarget; })
+      .map(function (o) { return chip(o, lcWith.has(o.session)); }).join('') ||
+      '<span class="dim">no other agents</span>';
+  }
+
+  function ensureAgentsScaffold() {
     var body = el('agents-body');
+    if (el('agents-roster')) return;
+    body.innerHTML = '<div id="agents-roster"></div><div id="agents-controls">' + controlsHtml() + '</div>';
+    el('reset-btn').addEventListener('click', resetTerminals);
+    el('lc-send-btn').addEventListener('click', lcSend);
+    el('lc-ledger-lnk').addEventListener('click', function (e) { e.preventDefault(); lcLedger(); });
+    el('lc-target-chips').addEventListener('click', function (e) {
+      var b = e.target.closest('.agent-chip');
+      if (!b) return;
+      lcTarget = (lcTarget === b.dataset.s) ? null : b.dataset.s;
+      lcWith.delete(lcTarget);
+      lcChips();
+    });
+    el('lc-with-chips').addEventListener('click', function (e) {
+      var b = e.target.closest('.agent-chip');
+      if (!b) return;
+      if (lcWith.has(b.dataset.s)) lcWith.delete(b.dataset.s); else lcWith.add(b.dataset.s);
+      lcChips();
+    });
+    lcRoster();
+  }
+
+  function renderAgents() {
+    ensureAgentsScaffold();
+    var a = D.agents || {};
+    var body = el('agents-roster');
     if (a.error) { body.innerHTML = unavailable(a); return; }
     var rows = (a.agents || []).slice().sort(function (x, y) {
       return (AGENT_STATES[x.state] || ['', 9])[1] - (AGENT_STATES[y.state] || ['', 9])[1];
@@ -331,27 +403,7 @@
         }).join('') + '</div>';
     }
 
-    // controls: reset button + live-comm compose (ports - same ids, same
-    // relative endpoints; the server refuses anything unsafe)
-    html += '<p style="margin-top:12px"><button class="ghost-btn" id="reset-btn" type="button">↺ reset stale terminals</button> ' +
-      '<span class="dim">kills empty panel shells only — live agents are refused server-side</span> ' +
-      '<span id="reset-out" class="dim"></span></p>';
-    html += '<details id="live-comm"><summary>📡 live message / coordination (composer inject — parked drafts are refused)</summary>' +
-      '<div class="lc-row"><label class="dim">to <select id="lc-target"><option>loading…</option></select></label> ' +
-      '<label class="dim">coordinate with (optional, ctrl-click for more) <select id="lc-with" multiple size="3"></select></label></div>' +
-      '<textarea id="lc-text" maxlength="1800" rows="5" placeholder="what should happen — sent as [Steven via dashboard] …; ' +
-      'newlines are collapsed to one line; picking partners appends the coordinate-live-via-agent-comm clause automatically"></textarea>' +
-      '<p><button class="action-btn" id="lc-send-btn" type="button">send</button> <span id="lc-out" class="dim"></span></p>' +
-      '<pre id="lc-ledger" class="snip" style="display:none"></pre>' +
-      '<p class="dim"><a href="#" id="lc-ledger-lnk">recent sends</a> · mid-turn messages queue politely; ' +
-      'the agent sees them at its next boundary · scope changes still go through the agent\'s own queue</p></details>';
-
     body.innerHTML = html;
-    el('reset-btn').addEventListener('click', resetTerminals);
-    el('lc-send-btn').addEventListener('click', lcSend);
-    el('lc-ledger-lnk').addEventListener('click', function (e) { e.preventDefault(); lcLedger(); });
-    var lc = el('live-comm');
-    lc.addEventListener('toggle', function () { if (lc.open) lcRoster(); });
 
     // live terminal mirrors
     Term.mount((a.agents || []).map(function (ag) {
@@ -366,7 +418,7 @@
       return ((r.boxes || {})[name] || {})[field];
     }).slice(-192);
     var status = cur == null ? '' : cur >= bad ? 'bad' : cur >= warn ? 'warn' : 'good';
-    return Charts.spark(pts, { h: 30, fmt: fmt, label: name + ' ' + field.replace('_pct', ' %'),
+    return Charts.spark(pts, { h: 44, fmt: fmt, label: name + ' ' + field.replace('_pct', ' %'),
       max: fmt === 'pct' ? 100 : null, status: status });
   }
 
@@ -381,38 +433,71 @@
     return '<span class="' + (b.ok ? 'ok' : 'bad') + '">dead-man ' + (b.ok ? 'OK' : 'LATE') + '</span>';
   }
 
+  function gib(n) { return n == null ? '—' : (n / 1073741824).toFixed(1); }
+  function gbDec(n) { return n == null ? '—' : Math.round(n / 1e9); }
+
+  // one metric column: value + total context, capacity meter, history spark
+  function metricCol(opts) { // {label, valueHtml, cls, meterPct, spark}
+    var meter = opts.meterPct == null ? '' :
+      '<div class="meter"><i class="' + (opts.cls || '') + '" style="width:' +
+      Math.max(1, Math.min(100, opts.meterPct)).toFixed(1) + '%"></i></div>';
+    return '<div class="metric"><div class="m-label"><span>' + opts.label + '</span>' +
+      '<span class="m-val">' + opts.valueHtml + '</span></div>' + meter + (opts.spark || '') + '</div>';
+  }
+
   function renderFleet() {
     var f = D.fleet || {};
     var body = el('fleet-body');
     if (f.error) { body.innerHTML = unavailable(f); return; }
-    var html = '<div class="box-grid">';
+    function vcls(v, w, x) { return v == null ? '' : v >= x ? 'bad' : v >= w ? 'warn' : ''; }
+    var html = '';
     (f.boxes || []).forEach(function (b) {
       var upb = b.up ? badge('UP', 'ok') : (b.up == null ? badge('?', 'warn') : badge('DOWN', 'bad'));
-      var cpuVal = b.cpu_pct != null ? b.cpu_pct : b.load1;
+
+      // cpu column: real % where the source has it, else load vs core count
       var cpuIsLoad = b.cpu_pct == null && b.load1 != null;
-      var cpuTxt = b.cpu_pct != null ? b.cpu_pct.toFixed(1) + '%' : (b.load1 != null ? String(b.load1) : '—');
-      function vcls(v, w, x) { return v == null ? '' : v >= x ? 'bad' : v >= w ? 'warn' : ''; }
-      html += '<div class="box-card"><div class="b-head"><b>' + esc(b.name) + '</b>' + upb +
+      var cpuCls = cpuIsLoad
+        ? (b.cpus ? vcls(b.load1 / b.cpus * 100, 70, 90) : '')
+        : vcls(b.cpu_pct, 70, 90);
+      var cpuVal = cpuIsLoad
+        ? '<b class="' + cpuCls + '">' + esc(String(b.load1)) + '</b> load · ' + dash(b.cpus, ' vCPU')
+        : '<b class="' + cpuCls + '">' + (b.cpu_pct != null ? b.cpu_pct.toFixed(1) + '%' : '—') +
+          '</b> of ' + dash(b.cpus, ' vCPU');
+      var cpuMeter = cpuIsLoad
+        ? (b.cpus && b.load1 != null ? b.load1 / b.cpus * 100 : null)
+        : b.cpu_pct;
+
+      var memUsed = (b.mem_pct != null && b.mem_total_bytes != null)
+        ? b.mem_pct / 100 * b.mem_total_bytes : null;
+      var memVal = '<b class="' + vcls(b.mem_pct, 80, 92) + '">' +
+        dash(b.mem_pct != null ? Math.round(b.mem_pct) : null, '%') + '</b>' +
+        (memUsed != null ? ' · ' + gib(memUsed) + ' / ' + gib(b.mem_total_bytes) + ' GiB' : '');
+
+      var diskUsed = (b.disk_pct != null && b.disk_total_bytes != null)
+        ? b.disk_pct / 100 * b.disk_total_bytes : null;
+      var diskVal = '<b class="' + vcls(b.disk_pct, 80, 92) + '">' +
+        dash(b.disk_pct != null ? Math.round(b.disk_pct) : null, '%') + '</b>' +
+        (diskUsed != null ? ' · ' + gbDec(diskUsed) + ' / ' + gbDec(b.disk_total_bytes) + ' GB' : '');
+
+      html += '<div class="box-row"><div class="b-head"><b>' + esc(b.name) + '</b>' + upb +
         (b.reboot_required ? ' <span class="chip warn">reboot pending</span>' : '') +
-        '<span class="dim" style="margin-left:auto">' + uptimeH(b.uptime_s) + ' up</span></div>' +
-        '<div class="b-role">' + esc(BOX_ROLES[b.name] || '') + ' · via ' + esc(b.source || '?') + '</div>' +
-        '<div class="metric-row">' +
-        '<div class="metric"><div class="m-label"><span>' + (cpuIsLoad ? 'load' : 'cpu') + '</span><b>' +
-          esc(cpuTxt) + '</b></div>' +
-          metricSpark(b.name, cpuIsLoad ? 'load1' : 'cpu_pct', cpuIsLoad ? 'num' : 'pct', 70, 90, cpuIsLoad ? null : b.cpu_pct) + '</div>' +
-        '<div class="metric"><div class="m-label"><span>mem</span><b class="' + vcls(b.mem_pct, 80, 92) + '">' +
-          dash(b.mem_pct != null ? Math.round(b.mem_pct) : null, '%') + '</b></div>' +
-          metricSpark(b.name, 'mem_pct', 'pct', 80, 92, b.mem_pct) + '</div>' +
-        '<div class="metric"><div class="m-label"><span>disk</span><b class="' + vcls(b.disk_pct, 80, 92) + '">' +
-          dash(b.disk_pct != null ? Math.round(b.disk_pct) : null, '%') + '</b></div>' +
-          metricSpark(b.name, 'disk_pct', 'pct', 80, 92, b.disk_pct) + '</div></div>' +
-        '<div class="b-foot"><span>backup: ' + backupCell(b.backup) + '</span></div>' +
-        '<div class="b-foot" style="margin-top:6px">' + ((b.services || []).map(function (s) {
+        '<span class="b-role">' + esc(BOX_ROLES[b.name] || '') + '</span>' +
+        '<span class="dim b-via">up ' + uptimeH(b.uptime_s) + ' · via ' + esc(b.source || '?') + '</span></div>' +
+        '<div class="b-metrics">' +
+        metricCol({ label: cpuIsLoad ? 'load' : 'cpu', valueHtml: cpuVal, cls: cpuCls, meterPct: cpuMeter,
+          spark: metricSpark(b.name, cpuIsLoad ? 'load1' : 'cpu_pct', cpuIsLoad ? 'num' : 'pct', 70, 90, cpuMeter) }) +
+        metricCol({ label: 'memory', valueHtml: memVal, cls: vcls(b.mem_pct, 80, 92), meterPct: b.mem_pct,
+          spark: metricSpark(b.name, 'mem_pct', 'pct', 80, 92, b.mem_pct) }) +
+        metricCol({ label: 'disk', valueHtml: diskVal, cls: vcls(b.disk_pct, 80, 92), meterPct: b.disk_pct,
+          spark: metricSpark(b.name, 'disk_pct', 'pct', 80, 92, b.disk_pct) }) +
+        '</div>' +
+        '<div class="b-foot"><span>backup: ' + backupCell(b.backup) + '</span><span class="b-svcs">' +
+        ((b.services || []).map(function (s) {
           var good = s.state === 'active' || s.state === 'up';
           return '<span class="chip ' + (good ? 'ok' : 'bad') + '">' + esc(s.name) + '</span>';
-        }).join('') || '—') + '</div></div>';
+        }).join('') || '—') + '</span></div></div>';
     });
-    body.innerHTML = html + '</div>';
+    body.innerHTML = html;
   }
 
   // ---- security page -------------------------------------------------------
@@ -684,32 +769,30 @@
   }
 
   function lcRoster() {
-    var sel = el('lc-target'), withSel = el('lc-with');
     fetch('api/agent-roster').then(function (r) { return r.json(); }).then(function (r) {
-      var live = (r.agents || []).filter(function (a) { return a.claude; });
-      var opts = live.map(function (a) {
-        return '<option value="' + esc(a.session) + '">' + esc(alias(a.session)) + ' (' + esc(a.state) + ')</option>';
-      }).join('');
-      sel.innerHTML = opts || '<option value="">no live agents</option>';
-      withSel.innerHTML = opts;
-    }).catch(function () { sel.innerHTML = '<option value="">roster failed</option>'; });
+      lcAgents = (r.agents || []).filter(function (a) { return a.claude; });
+      lcChips();
+    }).catch(function () {
+      var tc = el('lc-target-chips');
+      if (tc) tc.innerHTML = '<span class="dim bad">roster failed — retry via page refresh</span>';
+    });
   }
 
   function lcSend() {
-    var out = el('lc-out');
-    var target = el('lc-target').value;
+    var out = el('lc-out'), btn = el('lc-send-btn');
     var text = el('lc-text').value.trim();
-    var partners = Array.prototype.slice.call(el('lc-with').selectedOptions)
-      .map(function (o) { return o.value; }).filter(function (v) { return v && v !== target; });
-    if (!target || !text) { out.textContent = 'pick an agent and type a message'; return; }
+    var partners = Array.from(lcWith).filter(function (v) { return v && v !== lcTarget; });
+    if (!lcTarget || !text) { out.textContent = 'pick an agent and type a message'; return; }
     out.textContent = 'sending…';
+    btn.disabled = true;
     fetch('api/agent-send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target: target, text: text, with: partners })
+      body: JSON.stringify({ target: lcTarget, text: text, with: partners })
     }).then(function (r) { return r.json(); }).then(function (r) {
       out.textContent = (r.human || r.status) + (r.detail ? ' — ' + r.detail : '');
-      if (r.status === 'ok') el('lc-text').value = '';
-    }).catch(function (e) { out.textContent = 'send failed: ' + e; });
+      if (r.status === 'ok') { el('lc-text').value = ''; lcWith.clear(); lcChips(); }
+    }).catch(function (e) { out.textContent = 'send failed: ' + e; })
+      .finally(function () { btn.disabled = false; lcRoster(); });
   }
 
   function lcLedger() {
@@ -817,7 +900,7 @@
       a2.classList.toggle('active', a2.dataset.route === r);
     });
     el('page-title').textContent = TITLES[r];
-    if (r === 'agents') Term.start(); else Term.stop();
+    if (r === 'agents') { Term.start(); if (el('lc-target-chips')) lcRoster(); } else Term.stop();
     if (r === 'hermes') Term.startJournal(); else Term.stopJournal();
     renderCurrent();
   }

@@ -18,11 +18,13 @@ ts_to_epoch() { # systemd timestamp -> epoch, or null
 }
 
 local_box() { # $1 = box name; local /proc + systemctl reads
-  local name=$1 uptime_s load1 mem_pct disk_pct disk_free rr result lastrun svc_json
+  local name=$1 uptime_s load1 mem_pct mem_total disk_pct disk_free disk_total cpus rr result lastrun svc_json
   uptime_s=$(cut -d. -f1 /proc/uptime)
   load1=$(awk '{print $1}' /proc/loadavg)
   mem_pct=$(free | awk '/^Mem:/{printf "%.1f", $3/$2*100}')
-  read -r disk_pct disk_free < <(df -B1 --output=pcent,avail / | tail -1 | tr -d '%')
+  mem_total=$(free -b | awk '/^Mem:/{print $2}')
+  cpus=$(nproc)
+  read -r disk_pct disk_free disk_total < <(df -B1 --output=pcent,avail,size / | tail -1 | tr -d '%')
   rr=false; [ -f /var/run/reboot-required ] && rr=true
   result=$(systemctl show "resticprofile-backup@profile-${name}.service" -p Result --value 2>/dev/null)
   lastrun=$(ts_to_epoch "$(systemctl show "resticprofile-backup@profile-${name}.service" -p ExecMainExitTimestamp --value 2>/dev/null)")
@@ -35,9 +37,11 @@ local_box() { # $1 = box name; local /proc + systemctl reads
   jq -n --arg name "$name" --argjson up true --argjson u "$uptime_s" \
         --argjson load "$load1" --argjson mem "$mem_pct" --argjson disk "$disk_pct" \
         --argjson free "$disk_free" --argjson rr "$rr" \
+        --argjson mt "$mem_total" --argjson dt "$disk_total" --argjson cpus "$cpus" \
         --arg res "${result:-unknown}" --argjson lr "$lastrun" --argjson svc "$svc_json" \
     '{name: $name, source: "local", up: $up, uptime_s: $u, load1: $load,
-      mem_pct: $mem, disk_pct: $disk, disk_free_bytes: $free,
+      mem_pct: $mem, mem_total_bytes: $mt, disk_pct: $disk,
+      disk_free_bytes: $free, disk_total_bytes: $dt, cpus: $cpus,
       reboot_required: $rr, backup: {kind: "restic-unit", result: $res, last_run: $lr},
       services: $svc}'
 }
@@ -48,7 +52,9 @@ syd3_box() {
     echo "uptime_s=$(cut -d. -f1 /proc/uptime)"
     echo "load1=$(awk "{print \$1}" /proc/loadavg)"
     echo "mem_pct=$(free | awk "/^Mem:/{printf \"%.1f\", \$3/\$2*100}")"
-    echo "disk=$(df -B1 --output=pcent,avail / | tail -1 | tr -d "%" | tr -s " " ",")"
+    echo "mem_total=$(free -b | awk "/^Mem:/{print \$2}")"
+    echo "cpus=$(nproc)"
+    echo "disk=$(df -B1 --output=pcent,avail,size / | tail -1 | tr -d "%" | tr -s " " ",")"
     [ -f /var/run/reboot-required ] && echo "rr=true" || echo "rr=false"
     echo "restic_result=$(systemctl show resticprofile-backup@profile-syd3.service -p Result --value 2>/dev/null)"
     echo "restic_last=$(systemctl show resticprofile-backup@profile-syd3.service -p ExecMainExitTimestamp --value 2>/dev/null)"
@@ -59,12 +65,14 @@ syd3_box() {
   # could emit a JSON string through --argjson and reach the page): anything
   # that isn't a plain number becomes null (security review 2026-07-13)
   num() { grep "^${1}=" <<<"$out" | cut -d= -f2 | grep -xE '[0-9]+(\.[0-9]+)?' || echo null; }
-  local uptime_s load1 mem_pct disk rr rres rlast
+  local uptime_s load1 mem_pct mem_total cpus disk rr rres rlast
   uptime_s=$(num uptime_s)
   load1=$(num load1)
   mem_pct=$(num mem_pct)
+  mem_total=$(num mem_total)
+  cpus=$(num cpus)
   disk=$(grep '^disk=' <<<"$out" | cut -d= -f2 | sed 's/^,//' \
-         | grep -xE '[0-9]+,[0-9]+' || echo 'null,null')
+         | grep -xE '[0-9]+,[0-9]+,[0-9]+' || echo 'null,null,null')
   rr=$(grep '^rr=' <<<"$out" | cut -d= -f2)
   rres=$(grep '^restic_result=' <<<"$out" | cut -d= -f2)
   rlast=$(ts_to_epoch "$(grep '^restic_last=' <<<"$out" | cut -d= -f2-)")
@@ -73,13 +81,18 @@ syd3_box() {
     svc_json=$(jq --arg n "$s" --arg st "$(grep "^svc_${s}=" <<<"$out" | cut -d= -f2)" \
       '. + [{name: $n, state: (if $st == "" then "unknown" else $st end)}]' <<<"$svc_json")
   done
+  local d_pct d_free d_total
+  IFS=, read -r d_pct d_free d_total <<<"$disk"
   jq -n --argjson u "${uptime_s:-null}" --argjson load "${load1:-null}" \
-        --argjson mem "${mem_pct:-null}" \
-        --argjson disk "${disk%%,*}" --argjson free "${disk##*,}" \
+        --argjson mem "${mem_pct:-null}" --argjson mt "${mem_total:-null}" \
+        --argjson cpus "${cpus:-null}" \
+        --argjson disk "${d_pct:-null}" --argjson free "${d_free:-null}" \
+        --argjson dt "${d_total:-null}" \
         --argjson rr "${rr:-false}" --arg res "${rres:-unknown}" --argjson lr "$rlast" \
         --argjson svc "$svc_json" \
     '{name: "syd3", source: "ssh", up: true, uptime_s: $u, load1: $load,
-      mem_pct: $mem, disk_pct: $disk, disk_free_bytes: $free,
+      mem_pct: $mem, mem_total_bytes: $mt, disk_pct: $disk,
+      disk_free_bytes: $free, disk_total_bytes: $dt, cpus: $cpus,
       reboot_required: $rr, backup: {kind: "restic-unit", result: $res, last_run: $lr},
       services: $svc}'
 }
@@ -102,10 +115,18 @@ api_box() { # $1=name $2=beszel-base $3=kuma-base $4=deadman-monitor $5...=probe
         | curl -s -m 10 "$bbase/api/collections/users/auth-with-password" \
                --data @- | jq -r '.token // empty')
   sys=null
+  local stats=null
   if [ -n "$tok" ]; then
     sys=$(curl -s -m 10 "$bbase/api/collections/systems/records" \
                -H @<(printf 'Authorization: %s\n' "$tok") \
           | jq --arg n "$name" '[.items[] | select(.name == $n)][0] // null')
+    # absolute capacity rides system_stats (info has only percentages):
+    # stats.m / stats.d are GiB totals - founder ask 2026-07-19, "usage
+    # needs its total for context"
+    stats=$(curl -s -m 10 "$bbase/api/collections/system_stats/records?perPage=1&sort=-created&filter=system.name%3D%22$name%22" \
+                 -H @<(printf 'Authorization: %s\n' "$tok") \
+            | jq '.items[0].stats // null')
+    [ -n "$stats" ] || stats=null
   fi
 
   # dead-man: the box's own Kuma push monitor - up means the backup pinged
@@ -121,11 +142,17 @@ api_box() { # $1=name $2=beszel-base $3=kuma-base $4=deadman-monitor $5...=probe
   done
 
   jq -n --arg name "$name" --argjson sys "$sys" --argjson dm "$deadman" \
+        --argjson stats "$stats" \
         --arg monitor "$monitor" --argjson svc "$svc_json" \
     '{name: $name, source: "beszel+kuma",
       up: (if $sys == null then null else ($sys.status == "up") end),
       uptime_s: ($sys.info.u // null), cpu_pct: ($sys.info.cpu // null),
+      cpus: ($sys.info.t // null),
       mem_pct: ($sys.info.mp // null), disk_pct: ($sys.info.dp // null),
+      mem_total_bytes: (if ($stats.m | type) == "number"
+                        then ($stats.m * 1073741824 | round) else null end),
+      disk_total_bytes: (if ($stats.d | type) == "number"
+                         then ($stats.d * 1073741824 | round) else null end),
       backup: {kind: "kuma-deadman", monitor: $monitor,
                ok: (if $dm == null then null else ($dm == 1) end)},
       services: $svc}'
