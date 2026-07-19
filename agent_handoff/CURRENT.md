@@ -15,7 +15,17 @@
 > decision below, incl. AGENTS.md rule-10 founder-gate list). If the box state
 > and this file disagree, the box wins — say so, then fix the file.
 
-_Stamped: 2026-07-19 11:45 UTC. This session (founder-directed): **DASHBOARD
+_Stamped: 2026-07-19 12:05 UTC. Post-wrap founder rounds, same session:
+**② `d10f494`** — founder caught thalon shown "exited" while working: the
+pane_current_command lie (fixed in relay+agent-comm that morning) had a THIRD
+consumer, collect-agents.sh; now descendant-aware (`has_agent_desc`), one row
+per session, and the trap is documented at every consumer + in memory
+(sweep-all-consumers rule). **③ `318bc63`** — founder round 2: fleet page is
+one full-width row per box with **absolute capacity** (cpus + mem/disk totals
+now emitted by collect-fleet; syd2 via beszel system_stats) and capacity
+meters; the live-message area is a proper chip composer (target/partner chips
+with state dots), and its controls are built once so the 60s refresh can
+never wipe a mid-typed draft (real bug found doing it). Earlier: **DASHBOARD
 TOTAL REDESIGN SHIPPED + CUT OVER** (`ba3c8ef`) — the cockpit at
 `localhost:8080/proxy/8090/` is now a **tracked static app**
 (`provisioning/workstation/dashboard-app/`: workrail nav · overview stat
