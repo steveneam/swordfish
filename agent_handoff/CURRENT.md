@@ -41,10 +41,12 @@ never dials = never a pam ping). Old renderer RETIRED in place;
 `generate-dashboard.sh` now = collectors + `history-append.py` (15-min
 JSONL series: fleet/money/agents/security, 6-week trim). Verify greps
 rewritten; **secret-leak haystack widened to page+JSON+history**. vault
-session displays as **walter** (founder call). Redesign surfaced a real
-signal: **an unrecognized ssh login (2026-07-15, `key: no-key-info`, fleet
-IP) sat outside the old last-10 window** — now always surfaced + queued in
-NEEDS-STEVEN. Ops notes: production web service took one ~5s self-inflicted
+session displays as **walter** (founder call). Post-wrap the redesign's
+security collector was FIXED (`suspicious` keyed on the alert's source
+classification, not the `no-key-info` key label): it had re-flagged a benign
+syd4→syd3 fleet ControlMaster login (the 🔁-expected 07-15 automation the
+founder already assessed) as red — the exact alarm-fatigue the 07-15
+ExposeAuthInfo fix killed. Ops notes: production web service took one ~5s self-inflicted
 blip at 11:44 (pkill -f trap — again; systemd Restart=always caught it);
 agents untouched throughout (who-is-live gate 6/6 sheltered before cutover)._
 
@@ -92,8 +94,7 @@ agents untouched throughout (who-is-live gate 6/6 sheltered before cutover)._
    → redeploy + edge re-probe.
 5. **Kuma alerting gap** (carried): 7h edge-down produced zero alerts —
    check notifier wiring; consider an off-box healthchecks edge probe.
-6. Carried queue: founder key-rotation verdict · **07-15 unrecognized login
-   glance (new, on the Security page)** · Render-cancel watch · Dokploy key
+6. Carried queue: founder key-rotation verdict · Render-cancel watch · Dokploy key
    hygiene (option b) · syd1 destroy-vs-warm · tenant-pg collation refresh ·
    subscriptions.yml fills · Gmail re-auth.
 

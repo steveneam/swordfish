@@ -16,9 +16,17 @@ set -uo pipefail
 TLS_HOSTS=("${SYD1_HOSTS[@]}" "${SYD2_HOSTS[@]}")  # one home: lib.sh
 DOMAINS=(swordfish.cfd thalon.org)
 
-lines_to_logins() { # stdin = alert lines -> JSON array with a suspicious flag
+lines_to_logins() { # stdin = alert lines -> JSON array with a suspicious flag.
+  # SUSPICION KEYS ON THE SOURCE CLASSIFICATION, NOT THE KEY LABEL. The alert
+  # hook (setup-login-alerts.sh) already triages every login by source IP:
+  # fleet peer / founder / CI = expected, "UNKNOWN SOURCE" = the one to look
+  # at. A fleet ControlMaster session legitimately carries no key info (the
+  # master connection holds the auth), so keying suspicion on "no-key-info"
+  # painted benign syd4->syd3 automation red and re-raised an already-closed
+  # 2026-07-15 finding (founder caught it 2026-07-19). Only an unknown source
+  # is red; the key label stays visible in the line as context.
   jq -R -s '[split("\n")[] | select(length > 0) |
-    {line: ., suspicious: (test("UNRECOGNIZED-KEY|no-key-info|method:"))}]'
+    {line: ., suspicious: (test("UNKNOWN SOURCE"))}]'
 }
 
 local_auth() { # syd4 counts + posture
