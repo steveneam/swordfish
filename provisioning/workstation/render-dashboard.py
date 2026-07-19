@@ -157,6 +157,17 @@ AGENT_STATES = {  # state -> (emoji, badge class, sort rank, founder gloss)
     "exited":  ("⛔", "bad", 4, "agent gone"),
 }
 
+# reset button (terminal-controls plan, un-parked 2026-07-19): HUPs ONLY
+# childless code-server panel shells; anything sheltering a process is refused
+# server-side (assert-dashboard-reset.sh proves the refusal). The fetch paths
+# are RELATIVE on purpose - the page is served through code-server's
+# /proxy/8090/ prefix, so an absolute /api/... would escape the proxy.
+RESET_BTN = ('<p><a class="btn" href="#" onclick="resetTerminals();return false">'
+             '↺ reset stale terminals</a> <span class="dim">kills empty panel '
+             'shells only — live agents are refused server-side</span> '
+             '<span id="reset-out" class="dim"></span></p>')
+
+
 def agents_html(a):
     if a.get("error"):
         return ""
@@ -178,12 +189,12 @@ def agents_html(a):
                     f'<td class="dim">{esc(how)}</td>'
                     f'<td class="dim">{esc(ag.get("basis", ""))}</td></tr>')
     if not rows:
-        return '<p class="dim">no agent sessions on this box</p>'
+        return '<p class="dim">no agent sessions on this box</p>' + RESET_BTN
     note = ('<p class="dim">blocked = a question/permission prompt is on screen — '
             'work is stopped until you answer it (also raised under Needs Steven). '
             'opaque = the agent runs outside tmux, so blocked is invisible there.</p>')
     return ('<table><tr><th>agent</th><th>state</th><th>evidence</th><th>basis</th></tr>'
-            + "".join(rows) + "</table>" + note)
+            + "".join(rows) + "</table>" + note + RESET_BTN)
 
 # --- PROJECTS -----------------------------------------------------------------
 
@@ -574,6 +585,17 @@ JS = """
     });
   }
   setInterval(tick, 1000); setInterval(ages, 30000); tick(); ages();
+  async function resetTerminals(){
+    const out = document.getElementById('reset-out');
+    try {
+      const p = await (await fetch('api/reset-terminals/preview')).json();
+      if (!p.stale.length && !p.refused_live.length) { out.textContent = 'nothing to reset — no panel shells at all'; return; }
+      if (!p.stale.length) { out.textContent = 'nothing stale — ' + p.refused_live.length + ' live panel(s) left alone'; return; }
+      if (!confirm('Reset ' + p.stale.length + ' stale terminal(s)? (' + p.refused_live.length + ' live panel(s) will be refused)')) return;
+      const r = await (await fetch('api/reset-terminals', {method: 'POST'})).json();
+      out.textContent = 'reset ' + r.hupped.length + ' · refused (live) ' + r.refused_live.length;
+    } catch (e) { out.textContent = 'reset failed: ' + e; }
+  }
 """
 
 def main():

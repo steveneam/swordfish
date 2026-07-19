@@ -23,20 +23,26 @@ install_if_changed() { # $1=mode $2=dest, content on stdin
   rm -f "$tmp"
 }
 
+# dashboard-server.py replaced the bare `python3 -m http.server` 2026-07-19
+# (terminal-controls plan, un-parked): same static serving + localhost-only
+# posture, plus POST /api/reset-terminals (SIGHUP childless panel shells ONLY;
+# refusal invariant proven by checks/assert-dashboard-reset.sh below).
+pre_web=$changed
 install_if_changed 0644 /etc/systemd/system/swordfish-dashboard-web.service <<'UNIT'
 [Unit]
-Description=swordfish: founder dashboard static server (localhost only - tunnel is the auth)
+Description=swordfish: founder dashboard server (localhost only - tunnel is the auth)
 After=network.target
 
 [Service]
 User=deploy
-ExecStart=/usr/bin/python3 -m http.server 8090 --bind 127.0.0.1 --directory /home/deploy/dashboard
+ExecStart=/usr/bin/python3 /home/deploy/work/swordfish/provisioning/workstation/dashboard-server.py
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 UNIT
+web_changed=$(( changed - pre_web ))
 
 install_if_changed 0644 /etc/systemd/system/swordfish-dashboard-regen.service <<'UNIT'
 [Unit]
@@ -105,6 +111,17 @@ for u in swordfish-dashboard-web.service swordfish-dashboard-regen.timer swordfi
   fi
 done
 
+# converge gap fix (2026-07-19): install_if_changed never restarts an
+# already-running service, so a changed ExecStart kept serving the OLD process.
+# Restart on unit drift, or when the running unit is not dashboard-server.py.
+running_exec=$(systemctl show swordfish-dashboard-web.service -p ExecStart --value 2>/dev/null || true)
+if [ "${web_changed:-0}" -eq 1 ] || [[ "$running_exec" != *dashboard-server.py* ]]; then
+  sudo systemctl daemon-reload
+  sudo systemctl restart swordfish-dashboard-web.service
+  sleep 1
+  changed=1
+fi
+
 # --- verify ------------------------------------------------------------------
 sudo systemctl start swordfish-dashboard-regen.service
 sleep 1
@@ -134,6 +151,13 @@ for var in BINARYLANE_API_TOKEN VULTR_API_KEY PORKBUN_API_KEY PORKBUN_SECRET_API
 done
 ss -ltn | grep -q '127.0.0.1:8090' \
   || { echo "FAIL: 8090 not bound to localhost only"; exit 1; }
+# the action endpoint answers, and its refusal invariant holds against a stub
+# process tree (the plan's ship-gate: never trust the button before this)
+preview=$(curl -fsS --max-time 5 http://127.0.0.1:8090/api/reset-terminals/preview)
+grep -q '"refused_live"' <<<"$preview" \
+  || { echo "FAIL: reset-terminals preview endpoint not answering ($preview)"; exit 1; }
+bash /home/deploy/work/swordfish/provisioning/checks/assert-dashboard-reset.sh \
+  || { echo "FAIL: reset-terminals refusal invariant"; exit 1; }
 # event-driven projects refresh: the fast service must rewrite projects.json
 # (the inotify trigger itself was proven end-to-end at install, 2026-07-13:
 # git add -> dirty count up within seconds -> unstage -> back to clean)
