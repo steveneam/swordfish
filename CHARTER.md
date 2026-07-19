@@ -356,15 +356,17 @@ flows). The calls:
    the parked cutover queue resumes; the DNS cutover and the cockpit migration must not run
    simultaneously.
 5. **syd4 = portfolio workspace box** (BinaryLane syd `std-4vcpu` — 4 vCPU / 8 GB,
-   AUD 39.20/mo ≈ US$26 cash; purchase executed 2026-07-10 at the gate). All project
+   AUD 39.20/mo ≈ US$26 cash; purchase executed 2026-07-10 at the gate — resized to
+   `std-6vcpu` 6 vCPU / 16 GB / 180 GB, AUD 78.40/mo ≈ US$52, at the 2026-07-19 founder
+   gate). All project
    repos + the research vault + agent sessions consolidate here; syd3 stays the ops
    cockpit pending the end-state call at the portfolio move. code-server (VS Code in
    the browser) runs tunnel-only on localhost:8080 — the SSH tunnel is the auth, the
    port is never exposed, and `assert-cockpit.sh` enforces the localhost bind.
-   **Ledger:** steady-state cash ≈ US$52/mo (syd2 prod + syd4 workspace); syd3 rides
-   the Vultr credit; syd1's line disappears post-soak. The workspace's US$26 is
-   accepted as the replacement for the lost work machine — a workstation line, not
-   Stage-1/2 infra under the $30 ceiling.
+   **Ledger:** steady-state cash ≈ US$78/mo (syd2 prod US$26 + syd4 workspace US$52
+   after the 2026-07-19 resize; was ≈ US$52/mo); syd3 rides the Vultr credit; syd1's
+   line disappears post-soak. The workspace's US$52 is accepted as the replacement for
+   the lost work machine — a workstation line, not Stage-1/2 infra under the $30 ceiling.
 
 ## Change control
 
