@@ -122,7 +122,11 @@ check "dogfood: beszel agent running"    "docker ps --filter name=agent-1 --form
 # container holding the socket = a box compromise waiting for an app CVE
 check "sockets: proxies+dokploy only"    "! docker ps -q | xargs -r -n1 docker inspect -f '{{.Name}} {{range .Mounts}}{{.Source}} {{end}}' | grep docker.sock | grep -vE 'socket-proxy|^/dokploy\.'"
 check "backups: dogfood dump hook"       "sudo test -x /etc/resticprofile/pre-backup.d/20-dogfood-sqlite-dumps"
-check "backups: thalon dump hook"        "sudo test -x /etc/resticprofile/pre-backup.d/30-thalon-pglite-dump"
+# 30-thalon-pglite-dump RETIRED 2026-07-19 (thalon GO ~04:45Z 07-18): staging
+# moved to tenant-pg, so the nightly pg_dumpall (15-tenant-pg-dump) covers it
+# and the app's db-dump door refuses postgres-driver dumps by design. Presence
+# is now the defect: the hook hard-FAILs the whole nightly against tenant-pg.
+check "backups: thalon pglite hook GONE" "sudo test ! -e /etc/resticprofile/pre-backup.d/30-thalon-pglite-dump"
 check "backups: sqlite3 for dump hook"   "command -v sqlite3"
 check "backups: kuma-url 0600 root"      "sudo stat -c '%a %U' /etc/resticprofile/kuma-url | grep -qx '600 root'"
 check "dogfood: hello running"           "docker ps --filter name=swordfish-hello --format '{{.Status}}' | grep -q '^Up'"
