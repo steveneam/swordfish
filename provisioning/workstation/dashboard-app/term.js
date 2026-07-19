@@ -26,7 +26,7 @@
 
   function poll(session) {
     var card = cards.get(session);
-    if (!card || !active || !visible()) return;
+    if (!card || !card.open || !active || !visible()) return;
     var url = 'api/term/capture?session=' + encodeURIComponent(session) +
       '&lines=' + card.lines + (card.hash ? '&h=' + card.hash : '');
     fetch(url, { cache: 'no-store' }).then(function (r) {
@@ -47,18 +47,40 @@
 
   function tickAll() {
     cards.forEach(function (card, session) {
+      if (!card.open) return;   // collapsed cards don't poll - the founder's
+                                // "default collapsed" ask is also a load cut
       // per-card backoff: a failing card retries every 5th tick
       if (card.err && (card.errSkip = ((card.errSkip || 0) + 1) % Math.round(TICK_ERR / TICK))) return;
       poll(session);
     });
   }
 
+  function setOpen(card, name, want) {
+    if (card.open === want) return;
+    card.open = card.el.classList.toggle('open', want);
+    card.el.classList.toggle('collapsed', !want);
+    card.chev.textContent = want ? '▾' : '▸';
+    card.status.textContent = want ? 'connecting…' : '';
+    if (want) { card.hash = ''; poll(name); }
+    syncToggleAll();
+  }
+
   function makeCard(agent) {
     var name = agent.name;
     var el = document.createElement('div');
-    el.className = 'term-card';
+    el.className = 'term-card collapsed';           // collapsed by default
+
     var head = document.createElement('div');
     head.className = 'term-head';
+
+    // the whole left region is the collapse/expand toggle (a real button, so
+    // keyboard + screen readers get it); the action buttons sit outside it
+    var toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'term-toggle';
+    toggle.setAttribute('aria-expanded', 'false');
+    var chev = document.createElement('span');
+    chev.className = 'term-chev'; chev.textContent = '▸'; chev.setAttribute('aria-hidden', 'true');
     var dot = document.createElement('span');
     dot.className = 'term-dot ' + (agent.state || '');
     var title = document.createElement('span');
@@ -68,31 +90,36 @@
     meta.className = 't-meta';
     meta.textContent = agent.label && agent.label !== name ? 'tmux: ' + name : '';
     var status = document.createElement('span');
-    status.className = 't-meta';
-    status.textContent = '…';
+    status.className = 't-meta t-status';
+    status.textContent = '';
+    toggle.appendChild(chev); toggle.appendChild(dot); toggle.appendChild(title);
+    toggle.appendChild(meta); toggle.appendChild(status);
+
     var actions = document.createElement('span');
     actions.className = 't-actions';
-    var expand = document.createElement('button');
-    expand.type = 'button';
-    expand.textContent = 'expand';
+    var taller = document.createElement('button');
+    taller.type = 'button'; taller.className = 'lnk-btn'; taller.textContent = 'taller';
     var open = document.createElement('a');
-    open.className = 'lnk-btn';
-    open.textContent = 'open in code-server';
+    open.className = 'lnk-btn'; open.textContent = 'open in code-server';
     if (agent.cwd) open.href = 'http://localhost:8080/?folder=' + encodeURIComponent(agent.cwd);
+    actions.appendChild(taller);
+    if (agent.cwd) actions.appendChild(open);
+
+    head.appendChild(toggle); head.appendChild(actions);
     var pre = document.createElement('pre');
     pre.className = 'term';
     pre.textContent = 'connecting…';
-
-    actions.appendChild(status);
-    actions.appendChild(expand);
-    if (agent.cwd) actions.appendChild(open);
-    head.appendChild(dot); head.appendChild(title); head.appendChild(meta); head.appendChild(actions);
     el.appendChild(head); el.appendChild(pre);
 
-    var card = { hash: '', lines: 200, el: el, pre: pre, status: status, dot: dot, err: 0 };
-    expand.addEventListener('click', function () {
-      var big = el.classList.toggle('expanded');
-      expand.textContent = big ? 'collapse' : 'expand';
+    var card = { hash: '', lines: 200, el: el, pre: pre, status: status, dot: dot,
+                 chev: chev, err: 0, open: false };
+    toggle.addEventListener('click', function () {
+      setOpen(card, name, !card.open);
+      toggle.setAttribute('aria-expanded', card.open ? 'true' : 'false');
+    });
+    taller.addEventListener('click', function () {
+      var big = el.classList.toggle('tall');
+      taller.textContent = big ? 'shorter' : 'taller';
       card.lines = big ? 2000 : 200;
       card.hash = '';           // force a full refetch at the new depth
       poll(name);
@@ -100,11 +127,32 @@
     return card;
   }
 
+  // "expand all / collapse all" in the section header
+  var allBtn = null;
+  function syncToggleAll() {
+    if (!allBtn) return;
+    var anyOpen = false;
+    cards.forEach(function (c) { if (c.open) anyOpen = true; });
+    allBtn.textContent = anyOpen ? 'collapse all' : 'expand all';
+  }
+  function wireToggleAll() {
+    if (allBtn) return;
+    allBtn = document.getElementById('term-toggle-all');
+    if (!allBtn) return;
+    allBtn.addEventListener('click', function () {
+      var anyClosed = false;
+      cards.forEach(function (c) { if (!c.open) anyClosed = true; });
+      cards.forEach(function (c, name) { setOpen(c, name, anyClosed); });
+    });
+    syncToggleAll();
+  }
+
   // (re)build the grid from the agents roster; keeps existing cards' scroll
   // state when the same session is still present
   function mount(agents) {
     var grid = document.getElementById('term-grid');
     if (!grid) return;
+    wireToggleAll();
     var seen = new Set();
     agents.forEach(function (a) {
       if (a.runtime !== 'tmux' || seen.has(a.name)) return;
@@ -131,6 +179,7 @@
     } else if (msg) {
       msg.remove();
     }
+    syncToggleAll();
   }
 
   function start() {

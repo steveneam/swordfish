@@ -413,15 +413,6 @@
 
   // ---- fleet page ----------------------------------------------------------
 
-  function metricSpark(name, field, fmt, warn, bad, cur) {
-    var pts = series(H.fleet, function (r) {
-      return ((r.boxes || {})[name] || {})[field];
-    }).slice(-192);
-    var status = cur == null ? '' : cur >= bad ? 'bad' : cur >= warn ? 'warn' : 'good';
-    return Charts.spark(pts, { h: 44, fmt: fmt, label: name + ' ' + field.replace('_pct', ' %'),
-      max: fmt === 'pct' ? 100 : null, status: status });
-  }
-
   function backupCell(b) {
     if (!b) return '—';
     if (b.kind === 'restic-unit') {
@@ -436,13 +427,16 @@
   function gib(n) { return n == null ? '—' : (n / 1073741824).toFixed(1); }
   function gbDec(n) { return n == null ? '—' : Math.round(n / 1e9); }
 
-  // one metric column: value + total context, capacity meter, history spark
-  function metricCol(opts) { // {label, valueHtml, cls, meterPct, spark}
-    var meter = opts.meterPct == null ? '' :
-      '<div class="meter"><i class="' + (opts.cls || '') + '" style="width:' +
-      Math.max(1, Math.min(100, opts.meterPct)).toFixed(1) + '%"></i></div>';
-    return '<div class="metric"><div class="m-label"><span>' + opts.label + '</span>' +
-      '<span class="m-val">' + opts.valueHtml + '</span></div>' + meter + (opts.spark || '') + '</div>';
+  function fleetSeries(name, pick) {
+    return series(H.fleet, function (r) { return pick((r.boxes || {})[name] || {}); }).slice(-192);
+  }
+
+  // one metric block: current value + its ceiling, then a full timeline chart
+  // whose capacity limit is the dashed line (founder ask 2026-07-19: show the
+  // limit as a dotted line with gridded y-axis and a time x-axis)
+  function metricBlock(label, valueHtml, chartHtml) {
+    return '<div class="metric"><div class="m-label"><span>' + label + '</span>' +
+      '<span class="m-val">' + valueHtml + '</span></div>' + chartHtml + '</div>';
   }
 
   function renderFleet() {
@@ -450,47 +444,65 @@
     var body = el('fleet-body');
     if (f.error) { body.innerHTML = unavailable(f); return; }
     function vcls(v, w, x) { return v == null ? '' : v >= x ? 'bad' : v >= w ? 'warn' : ''; }
+    var CH = 122;
     var html = '';
     (f.boxes || []).forEach(function (b) {
       var upb = b.up ? badge('UP', 'ok') : (b.up == null ? badge('?', 'warn') : badge('DOWN', 'bad'));
 
-      // cpu column: real % where the source has it, else load vs core count
+      // --- cpu / load: % where the source has it (dashed 100%), else load
+      // against the core count (dashed at cpus = saturation) ---
       var cpuIsLoad = b.cpu_pct == null && b.load1 != null;
-      var cpuCls = cpuIsLoad
-        ? (b.cpus ? vcls(b.load1 / b.cpus * 100, 70, 90) : '')
-        : vcls(b.cpu_pct, 70, 90);
-      var cpuVal = cpuIsLoad
-        ? '<b class="' + cpuCls + '">' + esc(String(b.load1)) + '</b> load · ' + dash(b.cpus, ' vCPU')
-        : '<b class="' + cpuCls + '">' + (b.cpu_pct != null ? b.cpu_pct.toFixed(1) + '%' : '—') +
-          '</b> of ' + dash(b.cpus, ' vCPU');
-      var cpuMeter = cpuIsLoad
-        ? (b.cpus && b.load1 != null ? b.load1 / b.cpus * 100 : null)
-        : b.cpu_pct;
+      var cpuBlock;
+      if (cpuIsLoad) {
+        var loadPts = fleetSeries(b.name, function (bx) { return bx.load1; });
+        var loadCls = b.cpus ? vcls(b.load1 / b.cpus * 100, 70, 90) : '';
+        var loadVals = loadPts.map(function (p) { return p.v; }).filter(function (v) { return v != null; });
+        var peak = Math.max.apply(null, loadVals.concat([b.cpus || 1]));
+        cpuBlock = metricBlock('load',
+          '<b class="' + loadCls + '">' + esc(String(b.load1)) + '</b> · ' + dash(b.cpus, ' vCPU'),
+          Charts.timeline(loadPts, { h: CH, fmt: 'num', label: b.name + ' load',
+            max: peak * 1.08, cap: b.cpus, capLabel: dash(b.cpus, '') + ' vCPU · saturated' }));
+      } else {
+        var cpuPts = fleetSeries(b.name, function (bx) { return bx.cpu_pct; });
+        cpuBlock = metricBlock('cpu',
+          '<b class="' + vcls(b.cpu_pct, 70, 90) + '">' +
+          (b.cpu_pct != null ? b.cpu_pct.toFixed(1) + '%' : '—') + '</b> of ' + dash(b.cpus, ' vCPU'),
+          Charts.timeline(cpuPts, { h: CH, fmt: 'pct', label: b.name + ' cpu',
+            max: 105, cap: 100, capLabel: '100% · full' }));
+      }
 
-      var memUsed = (b.mem_pct != null && b.mem_total_bytes != null)
-        ? b.mem_pct / 100 * b.mem_total_bytes : null;
-      var memVal = '<b class="' + vcls(b.mem_pct, 80, 92) + '">' +
-        dash(b.mem_pct != null ? Math.round(b.mem_pct) : null, '%') + '</b>' +
-        (memUsed != null ? ' · ' + gib(memUsed) + ' / ' + gib(b.mem_total_bytes) + ' GiB' : '');
+      // --- memory / disk plotted ABSOLUTE with the total as the dashed
+      // ceiling. History stores percentages; we reconstruct absolute usage as
+      // pct × the CURRENT total. Safe because the history window is entirely
+      // post-resize; if a box is ever resized mid-window the pre-resize arm
+      // would scale to the new total (documented tradeoff, not a silent one).
+      var mt = b.mem_total_bytes;
+      var memPts = fleetSeries(b.name, function (bx) {
+        return (bx.mem_pct != null && mt) ? bx.mem_pct / 100 * mt : null;
+      });
+      var memUsed = (b.mem_pct != null && mt) ? b.mem_pct / 100 * mt : null;
+      var memBlock = metricBlock('memory',
+        '<b class="' + vcls(b.mem_pct, 80, 92) + '">' + dash(b.mem_pct != null ? Math.round(b.mem_pct) : null, '%') +
+        '</b>' + (memUsed != null ? ' · ' + gib(memUsed) + ' / ' + gib(mt) + ' GiB' : ''),
+        Charts.timeline(memPts, { h: CH, fmt: 'gib', label: b.name + ' memory',
+          max: mt ? mt * 1.04 : null, cap: mt, capLabel: gib(mt) + ' GiB · total' }));
 
-      var diskUsed = (b.disk_pct != null && b.disk_total_bytes != null)
-        ? b.disk_pct / 100 * b.disk_total_bytes : null;
-      var diskVal = '<b class="' + vcls(b.disk_pct, 80, 92) + '">' +
-        dash(b.disk_pct != null ? Math.round(b.disk_pct) : null, '%') + '</b>' +
-        (diskUsed != null ? ' · ' + gbDec(diskUsed) + ' / ' + gbDec(b.disk_total_bytes) + ' GB' : '');
+      var dt = b.disk_total_bytes;
+      var diskPts = fleetSeries(b.name, function (bx) {
+        return (bx.disk_pct != null && dt) ? bx.disk_pct / 100 * dt : null;
+      });
+      var diskUsed = (b.disk_pct != null && dt) ? b.disk_pct / 100 * dt : null;
+      var diskBlock = metricBlock('disk',
+        '<b class="' + vcls(b.disk_pct, 80, 92) + '">' + dash(b.disk_pct != null ? Math.round(b.disk_pct) : null, '%') +
+        '</b>' + (diskUsed != null ? ' · ' + gbDec(diskUsed) + ' / ' + gbDec(dt) + ' GB' : ''),
+        Charts.timeline(diskPts, { h: CH, fmt: 'gb', label: b.name + ' disk',
+          max: dt ? dt * 1.04 : null, cap: dt, capLabel: gbDec(dt) + ' GB · total' }));
 
       html += '<div class="box-row"><div class="b-head"><b>' + esc(b.name) + '</b>' + upb +
         (b.reboot_required ? ' <span class="chip warn">reboot pending</span>' : '') +
         '<span class="b-role">' + esc(BOX_ROLES[b.name] || '') + '</span>' +
         '<span class="dim b-via">up ' + uptimeH(b.uptime_s) + ' · via ' + esc(b.source || '?') + '</span></div>' +
-        '<div class="b-metrics">' +
-        metricCol({ label: cpuIsLoad ? 'load' : 'cpu', valueHtml: cpuVal, cls: cpuCls, meterPct: cpuMeter,
-          spark: metricSpark(b.name, cpuIsLoad ? 'load1' : 'cpu_pct', cpuIsLoad ? 'num' : 'pct', 70, 90, cpuMeter) }) +
-        metricCol({ label: 'memory', valueHtml: memVal, cls: vcls(b.mem_pct, 80, 92), meterPct: b.mem_pct,
-          spark: metricSpark(b.name, 'mem_pct', 'pct', 80, 92, b.mem_pct) }) +
-        metricCol({ label: 'disk', valueHtml: diskVal, cls: vcls(b.disk_pct, 80, 92), meterPct: b.disk_pct,
-          spark: metricSpark(b.name, 'disk_pct', 'pct', 80, 92, b.disk_pct) }) +
-        '</div>' +
+        '<div class="b-metrics">' + cpuBlock + memBlock + diskBlock + '</div>' +
         '<div class="b-foot"><span>backup: ' + backupCell(b.backup) + '</span><span class="b-svcs">' +
         ((b.services || []).map(function (s) {
           var good = s.state === 'active' || s.state === 'up';

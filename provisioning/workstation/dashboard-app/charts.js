@@ -15,6 +15,8 @@
   function fmtVal(kind, v) {
     if (v == null) return '—';
     if (kind === 'pct') return (Math.round(v * 10) / 10) + '%';
+    if (kind === 'gib') return (v / 1073741824).toFixed(1) + ' GiB';
+    if (kind === 'gb') return Math.round(v / 1e9) + ' GB';
     if (kind === 'bytes') {
       var u = ['B', 'KB', 'MB', 'GB', 'TB'], i = 0, n = v;
       while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
@@ -29,6 +31,17 @@
       timeZone: 'Australia/Sydney', weekday: 'short',
       hour: '2-digit', minute: '2-digit', hour12: false
     }).format(new Date(ts * 1000));
+  }
+
+  // compact date+time for a chart's x-axis ticks ("19/7 22:01")
+  function fmtAxis(ts) {
+    var parts = new Intl.DateTimeFormat('en-AU', {
+      timeZone: 'Australia/Sydney', day: 'numeric', month: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).formatToParts(new Date(ts * 1000));
+    var o = {};
+    parts.forEach(function (x) { o[x.type] = x.value; });
+    return o.day + '/' + o.month + ' ' + o.hour + ':' + o.minute;
   }
 
   function scale(pts, optMax, optMin) {
@@ -104,9 +117,10 @@
         (opts.capLabel || 'cap') + '</span>';
     }
     svg += '<path class="fill" d="' + p.area + '"/><path class="line" d="' + p.line + '"/></svg>';
-    var t0 = pts[0].ts, t1 = pts[pts.length - 1].ts;
+    var t0 = pts[0].ts, tm = pts[(pts.length - 1) >> 1].ts, t1 = pts[pts.length - 1].ts;
     return '<div class="chart-wrap">' + svg + labels +
-      '<div class="chart-x"><span>' + fmtTime(t0) + '</span><span>' + fmtTime(t1) + '</span></div></div>';
+      '<div class="chart-x"><span>' + fmtAxis(t0) + '</span><span>' + fmtAxis(tm) +
+      '</span><span>' + fmtAxis(t1) + '</span></div></div>';
   }
 
   // bar strip (failed auth per run): right-aligned, fixed slot width, so a
