@@ -61,6 +61,26 @@ classify_pane() { # $1 = pane text (last 40 lines) -> state on stdout
   echo idle
 }
 
+has_agent_desc() { # $1 pane_pid -> 0 if a depth<=3 descendant is claude/codex.
+  # pane_current_command LIES for relay-launched sessions: the wrapper shell
+  # (`bash -c 'claude; ...'`) keeps one process group, so tmux reports bash
+  # while claude runs as its child. Same bug + same fix as agent-comm's
+  # has_claude_desc (claude_pane fix, 2026-07-19) - found AGAIN here when the
+  # dashboard showed a hard-working thalon as "exited" (founder catch): the
+  # relay and agent-comm were fixed that morning, this collector was not.
+  local depth=0 gen="$1" next c comm
+  while [ -n "$gen" ] && [ "$depth" -lt 3 ]; do
+    next=""
+    for c in $(pgrep -P "${gen// /,}" 2>/dev/null); do
+      comm=$(ps -o comm= -p "$c" 2>/dev/null)
+      case "$comm" in claude|codex) return 0 ;; esac
+      next="$next $c"
+    done
+    gen="${next# }"; depth=$((depth + 1))
+  done
+  return 1
+}
+
 tmux_rows() {
   local rows='[]'
   local sess pid cmd path act now state pane basis
@@ -70,8 +90,14 @@ tmux_rows() {
     pane=$(tmux capture-pane -p -t "$sess" 2>/dev/null | tail -40 || true)
     case "$cmd" in
       claude|node|codex|python*) state=$(classify_pane "$pane"); basis="pane" ;;
-      *) # the agent wrapper fell back to a shell -> the agent is gone
-         state=exited; basis="pane (shell where an agent should be)" ;;
+      *) if has_agent_desc "$pid"; then
+           # the pane TEXT is still the agent's TUI (it draws on the pane's
+           # tty regardless of process shape) - classify it normally
+           state=$(classify_pane "$pane"); basis="pane (agent under wrapper shell)"
+         else
+           # a shell with no agent beneath it -> the agent is gone
+           state=exited; basis="pane (shell where an agent should be)"
+         fi ;;
     esac
     # recent pane output upgrades idle -> working (a long tool call renders
     # no TUI chrome, but the pane still moves)
@@ -83,7 +109,15 @@ tmux_rows() {
               '. + [{name: $n, runtime: "tmux", state: $s, cmd: $c, cwd: $p,
                      basis: $b, last_activity: $a}]' <<<"$rows")
   done < <(tmux list-panes -a -F '#{session_name}|#{pane_pid}|#{pane_current_command}|#{pane_current_path}|#{window_activity}' 2>/dev/null)
-  echo "$rows"
+  # ONE row per session, best state wins (blocked < working < idle < opaque <
+  # exited): a session's spare shell windows are not missing agents, and three
+  # "thalon exited" rows next to a working thalon is exactly the false alarm
+  # this collector exists to prevent. Extra-pane count is kept in the basis.
+  jq '["blocked","working","idle","opaque","exited"] as $rank
+      | [group_by(.name)[]
+         | sort_by(.state as $s | $rank | index($s) // 9)
+         | .[0] + (if length > 1 then {basis: (.[0].basis + " · " + (length | tostring) + " panes")} else {} end)]' \
+    <<<"$rows"
 }
 
 # --- plain-pty side (agents living outside tmux, e.g. codex per founder call) --
