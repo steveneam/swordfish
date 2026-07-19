@@ -37,3 +37,4 @@ storage). Phase-4 blocker retired rather than carried; the alternative —
 editing a passing safety test to accept the gap — was declined. Egress
 readout that unblocked the gate: Pro, 25 Jun–25 Jul cycle, 0.014 of 250 GB
 used._
+- [2026-07-19] **Security glance (2 min): one UNRECOGNIZED ssh login surfaced by the new dashboard** — 2026-07-15 08:05Z on syd3, from the fleet IP 66.226.147.123, `key: no-key-info`. Every other login in the window is the recognized swordfish-ops key from the same IP, so this smells like a migration-era edge case (agent forwarding / password-era PAM record), not an intruder — but it sat invisible outside the old last-10 window and deserves your eyes. It is highlighted red on the dashboard Security page.
