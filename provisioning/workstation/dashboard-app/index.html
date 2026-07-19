@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>syd4 · cockpit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%233d82d9' d='M3 13c4-8 12-8 18-9-1 6-1 14-9 18l-2-5 4-6-6 4z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<!-- tracked static app (dashboard redesign 2026-07-19). All names arrive at
+     runtime via the untracked JSON under data/ - keep this file generic.
+     Every fetch path in the app is RELATIVE: the page is served through
+     code-server's /proxy/8090/ prefix and an absolute path escapes it. -->
+</head>
+<body>
+
+<aside id="workrail" aria-label="primary">
+  <div class="rail-brand">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13c4-8 12-8 18-9-1 6-1 14-9 18l-2-5 4-6-6 4z"/></svg>
+    <span class="rail-label">syd4 cockpit</span>
+  </div>
+  <nav id="rail-nav">
+    <a href="#/overview" data-route="overview">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span class="rail-label">Overview</span><b class="rail-badge" id="badge-needs" hidden></b>
+    </a>
+    <a href="#/agents" data-route="agents">
+      <svg viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="16" rx="2"/><path d="M7 9.5l3 2.5-3 2.5M12.5 15H17"/></svg>
+      <span class="rail-label">Agents</span><b class="rail-badge" id="badge-agents" hidden></b>
+    </a>
+    <a href="#/fleet" data-route="fleet">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>
+      <span class="rail-label">Fleet</span><b class="rail-badge" id="badge-fleet" hidden></b>
+    </a>
+    <a href="#/security" data-route="security">
+      <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9.5 12l2 2 3.5-4"/></svg>
+      <span class="rail-label">Security</span><b class="rail-badge" id="badge-security" hidden></b>
+    </a>
+    <a href="#/money" data-route="money">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.2c-.6-.9-1.6-1.4-2.8-1.4-1.7 0-3 .9-3 2.2 0 2.9 6 1.5 6 4.2 0 1.3-1.3 2.2-3 2.2-1.2 0-2.2-.5-2.8-1.4M12 6v1.8M12 16.4v1.8"/></svg>
+      <span class="rail-label">Money</span><b class="rail-badge" id="badge-money" hidden></b>
+    </a>
+    <a href="#/hermes" data-route="hermes" class="rail-hermes">
+      <svg viewBox="0 0 24 24"><path d="M21 3L10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5z"/></svg>
+      <span class="rail-label">Hermes</span><b class="rail-badge" id="badge-hermes" hidden></b>
+    </a>
+    <a href="#/projects" data-route="projects">
+      <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2.5h8a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      <span class="rail-label">Projects</span>
+    </a>
+    <a href="#/calendar" data-route="calendar">
+      <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5"/></svg>
+      <span class="rail-label">Calendar</span>
+    </a>
+  </nav>
+  <div class="rail-foot">
+    <span class="rail-label" id="rail-uptime">—</span>
+  </div>
+</aside>
+
+<div id="shell">
+  <header id="topbar">
+    <h1 id="page-title">Overview</h1>
+    <span id="page-age" class="age-pill" hidden></span>
+    <span id="paused-pill" class="age-pill" hidden>paused — tab hidden</span>
+    <div class="clock"><span id="clk">…</span></div>
+  </header>
+
+  <main id="content">
+
+    <div class="page" data-page="overview">
+      <div id="tiles" class="tile-row" aria-label="status tiles"></div>
+      <section id="needs-steven">
+        <h2>Needs Steven <span class="sec-age" data-domain="needs"></span></h2>
+        <div class="sec-body" id="needs-body"><div class="skel"></div></div>
+      </section>
+    </div>
+
+    <div class="page" data-page="agents" hidden>
+      <section id="agents">
+        <h2>Agents <span class="sec-age" data-domain="agents"></span></h2>
+        <div class="sec-body" id="agents-body"><div class="skel"></div></div>
+      </section>
+      <section id="terminals">
+        <h2>Live terminals <span class="dim h2-note">read-only mirrors · capture, never attach</span></h2>
+        <div id="term-grid"></div>
+      </section>
+    </div>
+
+    <div class="page" data-page="fleet" hidden>
+      <section id="fleet">
+        <h2>Fleet health <span class="sec-age" data-domain="fleet"></span></h2>
+        <div class="sec-body" id="fleet-body"><div class="skel"></div></div>
+      </section>
+    </div>
+
+    <div class="page" data-page="security" hidden>
+      <section id="security">
+        <h2>Security <span class="sec-age" data-domain="security"></span></h2>
+        <div class="sec-body" id="security-body"><div class="skel"></div></div>
+      </section>
+    </div>
+
+    <div class="page" data-page="money" hidden>
+      <section id="money">
+        <h2>Money <span class="sec-age" data-domain="money"></span></h2>
+        <div class="sec-body" id="money-body"><div class="skel"></div></div>
+      </section>
+    </div>
+
+    <div class="page" data-page="hermes" hidden>
+      <section id="hermes">
+        <h2><img src="assets/hermes-logo.png" alt="" onerror="this.hidden=true">Hermes
+            <span class="sec-age" data-domain="hermes"></span></h2>
+        <div class="sec-body" id="hermes-body"><div class="skel"></div></div>
+      </section>
+      <section id="hermes-journal">
+        <h2>Gateway journal <span class="dim h2-note">syd3 · live tail over the primed ssh master</span></h2>
+        <div class="sec-body"><pre id="journal-pre" class="term journal">connecting…</pre></div>
+      </section>
+    </div>
+
+    <div class="page" data-page="projects" hidden>
+      <section id="projects">
+        <h2>Projects <span class="sec-age" data-domain="projects"></span></h2>
+        <div class="sec-body" id="projects-body"><div class="skel"></div></div>
+      </section>
+    </div>
+
+    <div class="page" data-page="calendar" hidden>
+      <section id="calendar">
+        <h2>Calendar <span class="sec-age" data-domain="calendar"></span></h2>
+        <div class="sec-body" id="calendar-body"><div class="skel"></div></div>
+      </section>
+      <section id="migration">
+        <h2>Migration <span class="sec-age" data-domain="migration"></span></h2>
+        <div class="sec-body" id="migration-body"><div class="skel"></div></div>
+      </section>
+    </div>
+
+  </main>
+  <footer>localhost:8080/proxy/8090 · blank page? the ssh tunnel is down — it restarts itself within ~10 s</footer>
+</div>
+
+<div id="tip" hidden></div>
+
+<script src="ansi.js"></script>
+<script src="charts.js"></script>
+<script src="term.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

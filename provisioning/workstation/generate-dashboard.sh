@@ -59,4 +59,12 @@ for p in "${pids[@]}"; do
 done
 [ "$rc" -ne 0 ] && echo "note: at least one collector failed (its card shows UNAVAILABLE)"
 
-exec python3 "$DIR/render-dashboard.py"
+# time-series sample for the dashboard charts - FULL runs only (a filtered
+# event-driven refresh must not pollute the 15-min cadence)
+[ -z "$only" ] && python3 "$DIR/history-append.py"
+
+# NOTE (redesign 2026-07-19): render-dashboard.py is RETIRED - the page is now
+# the tracked static app in dashboard-app/, which reads data/*.json client-side
+# (dashboard-server.py serves it via DASH_APP_DIR). Collectors + history are
+# this script's whole job now. Delete render-dashboard.py after the soak week.
+exit 0

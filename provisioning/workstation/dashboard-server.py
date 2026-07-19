@@ -26,22 +26,86 @@ provenance to "[Steven via dashboard]", and maps agent-comm's exit codes to
 JSON the page can render. GET /api/agent-roster and /api/agent-ledger are
 thin reads over the same tool.
 
+Third addition (dashboard redesign 2026-07-19): the tracked static app +
+live read-only terminal mirrors.
+  - DASH_APP_DIR set -> `/` serves the repo's dashboard-app/ while /data/ and
+    /assets/ re-root into DASH_DIR (two roots, no copies: a copy step is the
+    sha-drift bug class setup-dashboard.sh already fought once). Default
+    empty = the old single-root behavior, so stub instances are untouched.
+  - GET /api/term/list + /api/term/capture mirror tmux panes via
+    `tmux capture-pane` ONLY - never attach (a second client would resize the
+    agent's window), never any key-injection subcommand (agent-comm is the
+    single send path; assert-dashboard-term.sh asserts this server's tmux
+    argv surface stays read-only, including a literal grep for the injection
+    subcommand's name - which is why this comment paraphrases it).
+  - GET /api/hermes/journal tails hermes-gateway on syd3 as a ControlMaster
+    PASSENGER: `ssh -O check` first, and no master = honest stale answer,
+    never a fresh dial (each new ssh session fires a pam Telegram ping).
+
 Env seams (for the check script's stub instance; production uses defaults):
   DASH_PORT / DASH_DIR / PANEL_CGROUP_SUFFIX / AGENT_COMM_BIN
+  DASH_APP_DIR / TMUX_BIN / SSH_BIN
 """
+import hashlib
 import http.server
 import json
 import os
 import re
 import signal
 import subprocess
+import threading
+import time
+import urllib.parse
 
 DASH_DIR = os.environ.get("DASH_DIR", "/home/deploy/dashboard")
+APP_DIR = os.environ.get("DASH_APP_DIR", "")
 PORT = int(os.environ.get("DASH_PORT", "8090"))
 # panel shells live in code-server's cgroup; agent-tmux.service (the shelter)
 # never matches this suffix, so sheltered sessions are structurally out of reach
 CGROUP_SUFFIX = os.environ.get("PANEL_CGROUP_SUFFIX", "/code-server.service")
 AGENT_COMM = os.environ.get("AGENT_COMM_BIN", "/usr/local/bin/agent-comm")
+# tmux socket note: this unit runs without TMUX in env, landing on the default
+# deploy socket - the same one collect-agents.sh and the agent sessions use.
+# If agents ever move to a dedicated-socket service, add the matching -S here.
+TMUX = os.environ.get("TMUX_BIN", "tmux")
+SSH = os.environ.get("SSH_BIN", "ssh")
+# same ControlPath pattern as collectors/lib.sh - ssh expands the % tokens
+CM_OPTS = ["-o", "ControlMaster=no",
+           "-o", f"ControlPath={os.path.expanduser('~')}/.ssh/cm-%r@%h-%p",
+           "-o", "BatchMode=yes"]
+
+_sessions_lock = threading.Lock()
+_sessions_cache = {"ts": 0.0, "rows": []}
+SESSIONS_TTL = 3
+
+_hermes_lock = threading.Lock()
+_hermes_cache = {"ts": 0, "lines": [], "error": None}
+HERMES_TTL = 8
+
+
+def tmux_sessions():
+    """[{name, activity, cmd}] with a short TTL cache - the capture endpoint
+    validates membership on every hit, and N polling cards must not mean N
+    tmux invocations per tick."""
+    with _sessions_lock:
+        if time.time() - _sessions_cache["ts"] < SESSIONS_TTL:
+            return _sessions_cache["rows"]
+        rows = []
+        try:
+            r = subprocess.run(
+                [TMUX, "list-sessions", "-F",
+                 "#{session_name}|#{session_activity}|#{pane_current_command}"],
+                capture_output=True, text=True, timeout=5)
+            for line in r.stdout.splitlines():
+                parts = line.split("|")
+                if len(parts) == 3:
+                    rows.append({"name": parts[0],
+                                 "activity": int(parts[1]) if parts[1].isdigit() else None,
+                                 "cmd": parts[2]})
+        except (OSError, subprocess.TimeoutExpired):
+            pass  # no tmux server / wedged -> empty list, card says so
+        _sessions_cache.update(ts=time.time(), rows=rows)
+        return rows
 
 # agent-comm send exit codes -> what the page shows (keep in step with the tool)
 SEND_CODE = {
@@ -83,23 +147,125 @@ def scan_panels():
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=DASH_DIR, **kwargs)
+        super().__init__(*args, directory=(APP_DIR or DASH_DIR), **kwargs)
+
+    def translate_path(self, path):
+        # two-root serving: app files from the repo, data/assets from DASH_DIR.
+        # stdlib translate_path keeps its traversal safety; we only swap the
+        # root it resolves against for the data prefixes.
+        clean = path.split("?", 1)[0].split("#", 1)[0]
+        if APP_DIR and (clean.startswith("/data/") or clean.startswith("/assets/")):
+            saved, self.directory = self.directory, DASH_DIR
+            try:
+                return super().translate_path(path)
+            finally:
+                self.directory = saved
+        return super().translate_path(path)
+
+    def end_headers(self):
+        # the founder must never be stuck on a stale app.js or cached JSON -
+        # the code-server proxy and the browser both honor no-cache
+        self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
 
     def log_message(self, *args):
         pass  # static hits are noise; actions log via _json below
 
-    def _json(self, obj):
+    def _json(self, obj, status=200):
         body = json.dumps(obj).encode()
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
+    def _term_capture(self, q):
+        name = (q.get("session") or [""])[0]
+        # both gates, always: the charset rule (same as _agent_send) AND live
+        # membership - a crafted-but-clean name must never reach tmux either
+        if not re.fullmatch(r"[a-z0-9_-]{1,32}", name):
+            self._json({"error": "bad session name"}, 400)
+            return
+        if name not in {s["name"] for s in tmux_sessions()}:
+            self._json({"error": "no such session"}, 404)
+            return
+        try:
+            n = max(10, min(int((q.get("lines") or ["200"])[0]), 2000))
+        except ValueError:
+            n = 200
+        try:
+            # capture-pane: read-only by construction - no attach (attaching
+            # would resize the agent's window), no input path of any kind.
+            # target "=name:" = exact session match, its active pane (a bare
+            # "=name" is a valid target-window but NOT a valid target-pane)
+            r = subprocess.run(
+                [TMUX, "capture-pane", "-p", "-e", "-t", "=" + name + ":", "-S", f"-{n}"],
+                capture_output=True, text=True, timeout=5)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            self._json({"error": f"capture failed: {e.__class__.__name__}"}, 500)
+            return
+        if r.returncode != 0:
+            self._json({"error": (r.stderr.strip() or "capture failed")}, 500)
+            return
+        digest = hashlib.sha1(r.stdout.encode()).hexdigest()[:16]
+        if (q.get("h") or [""])[0] == digest:
+            self._json({"session": name, "hash": digest, "unchanged": True})
+            return
+        self._json({"session": name, "hash": digest, "text": r.stdout,
+                    "ts": int(time.time())})
+
+    def _hermes_journal(self, q):
+        try:
+            n = max(20, min(int((q.get("lines") or ["150"])[0]), 500))
+        except ValueError:
+            n = 150
+        with _hermes_lock:  # single-flight: N polling tabs = one ssh per TTL
+            if time.time() - _hermes_cache["ts"] < HERMES_TTL:
+                self._json({**_hermes_cache, "cached": True})
+                return
+            # ControlMaster PASSENGER: -O check fails fast when no master is
+            # up, and we answer stale rather than dial - a fresh ssh session
+            # fires a pam Telegram ping (the 15-min collector timer re-primes)
+            try:
+                chk = subprocess.run([SSH] + CM_OPTS + ["-O", "check", "syd3"],
+                                     capture_output=True, timeout=5)
+            except (OSError, subprocess.TimeoutExpired):
+                chk = None
+            if chk is None or chk.returncode != 0:
+                self._json({**_hermes_cache, "stale": True,
+                            "error": "syd3 ssh master not primed - live tail "
+                                     "resumes with the next 15-min collector cycle"})
+                return
+            try:
+                # remote args deliberately space-free (lib.sh quoting lesson)
+                r = subprocess.run(
+                    [SSH, "-n"] + CM_OPTS
+                    + ["syd3", "sudo", "-n", "journalctl",
+                       "-u", "hermes-gateway.service", f"-n{n}",
+                       "--no-pager", "-o", "short-iso"],
+                    capture_output=True, text=True, timeout=10)
+                _hermes_cache.update(ts=int(time.time()),
+                                     lines=r.stdout.splitlines()[-n:], error=None)
+                self._json(_hermes_cache)
+            except (OSError, subprocess.TimeoutExpired):
+                self._json({**_hermes_cache, "stale": True,
+                            "error": "journal fetch timed out"})
+
     def do_GET(self):
-        if self.path == "/api/reset-terminals/preview":
+        url = urllib.parse.urlsplit(self.path)
+        q = urllib.parse.parse_qs(url.query)
+        if url.path == "/api/reset-terminals/preview":
             childless, live = scan_panels()
             self._json({"stale": childless, "refused_live": live})
+            return
+        if url.path == "/api/term/list":
+            self._json({"sessions": tmux_sessions()})
+            return
+        if url.path == "/api/term/capture":
+            self._term_capture(q)
+            return
+        if url.path == "/api/hermes/journal":
+            self._hermes_journal(q)
             return
         if self.path == "/api/agent-roster":
             try:

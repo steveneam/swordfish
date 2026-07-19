@@ -35,6 +35,7 @@ After=network.target
 
 [Service]
 User=deploy
+Environment=DASH_APP_DIR=/home/deploy/work/swordfish/provisioning/workstation/dashboard-app
 ExecStart=/usr/bin/python3 /home/deploy/work/swordfish/provisioning/workstation/dashboard-server.py
 Restart=always
 RestartSec=5
@@ -129,35 +130,56 @@ if [ "${web_changed:-0}" -eq 1 ] || [[ "$running_exec" != *dashboard-server.py* 
   changed=1
 fi
 
+# the renderer is retired (redesign 2026-07-19): a leftover static index.html
+# would shadow nothing (two-root serving ignores DASH_DIR for /) but a future
+# env regression must 404 loudly, never serve a frozen impostor page
+rm -f /home/deploy/dashboard/index.html
+
 # --- verify ------------------------------------------------------------------
 sudo systemctl start swordfish-dashboard-regen.service
 sleep 1
 page=$(curl -fsS http://127.0.0.1:8090/)
-grep -q 'class="btn"' <<<"$page" \
-  || { echo "FAIL: dashboard not served on 8090"; exit 1; }
-# v3 cockpit sections (dashboard-cockpit-plan-2026-07-13.md) all present
-for sid in needs-steven fleet security money calendar hermes; do
+grep -q 'id="workrail"' <<<"$page" \
+  || { echo "FAIL: dashboard app not served on 8090"; exit 1; }
+grep -q 'src="app.js"' <<<"$page" \
+  || { echo "FAIL: page does not reference app.js - half-served app"; exit 1; }
+# every cockpit section shell is present in the static HTML (the router only
+# toggles visibility, so a plain curl still proves the full set)
+for sid in needs-steven agents terminals projects fleet security money calendar hermes hermes-journal migration; do
   grep -q "section id=\"$sid\"" <<<"$page" \
     || { echo "FAIL: cockpit section '$sid' missing from the page"; exit 1; }
 done
 # leak check asserts on the secret VALUES, not key-name shapes (a key-name
-# grep certifies nothing - security review 2026-07-13): the page must not
-# contain any live credential this pipeline touches
+# grep certifies nothing - security review 2026-07-13). The page is now
+# client-rendered, so the haystack must be page + EVERY served JSON/JSONL -
+# grepping the HTML alone would certify nothing (redesign 2026-07-19).
+haystack="$page"$'\n'"$(cat /home/deploy/dashboard/data/*.json \
+  /home/deploy/dashboard/data/history/*.jsonl 2>/dev/null)"
 SEC=/home/deploy/work/swordfish/inventory/secrets
 for f in beszel-admin.password kuma-admin.password google-calendar-founder.ics.url; do
   [ -f "$SEC/$f" ] || continue
   v=$(tr -d '\r\n' < "$SEC/$f")
-  [ -n "$v" ] && grep -qF -- "$v" <<<"$page" \
-    && { echo "FAIL: content of secret $f is present in the page"; exit 1; }
+  [ -n "$v" ] && grep -qF -- "$v" <<<"$haystack" \
+    && { echo "FAIL: content of secret $f is present in the served surface"; exit 1; }
 done
 for var in BINARYLANE_API_TOKEN VULTR_API_KEY PORKBUN_API_KEY PORKBUN_SECRET_API_KEY; do
   v=$(grep "^${var}[[:space:]]*=" /home/deploy/work/swordfish/.env 2>/dev/null \
       | head -1 | cut -d= -f2- | tr -d '\r"' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
-  [ -n "$v" ] && grep -qF -- "$v" <<<"$page" \
-    && { echo "FAIL: value of $var is present in the page"; exit 1; }
+  [ -n "$v" ] && grep -qF -- "$v" <<<"$haystack" \
+    && { echo "FAIL: value of $var is present in the served surface"; exit 1; }
 done
 ss -ltn | grep -q '127.0.0.1:8090' \
   || { echo "FAIL: 8090 not bound to localhost only"; exit 1; }
+# live-terminal endpoints answer and refuse a traversal-shaped name
+tl=$(curl -fsS --max-time 5 http://127.0.0.1:8090/api/term/list)
+grep -q '"sessions"' <<<"$tl" \
+  || { echo "FAIL: term/list endpoint not answering ($tl)"; exit 1; }
+tc=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+  'http://127.0.0.1:8090/api/term/capture?session=%2e%2e')
+[ "$tc" = 400 ] \
+  || { echo "FAIL: term/capture did not refuse a bad session name (got $tc)"; exit 1; }
+bash /home/deploy/work/swordfish/provisioning/checks/assert-dashboard-term.sh >/dev/null \
+  || { echo "FAIL: term endpoint invariants (assert-dashboard-term.sh)"; exit 1; }
 # the action endpoint answers, and its refusal invariant holds against a stub
 # process tree (the plan's ship-gate: never trust the button before this)
 preview=$(curl -fsS --max-time 5 http://127.0.0.1:8090/api/reset-terminals/preview)
