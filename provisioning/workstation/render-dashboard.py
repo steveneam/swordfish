@@ -167,6 +167,30 @@ RESET_BTN = ('<p><a class="btn" href="#" onclick="resetTerminals();return false"
              'shells only — live agents are refused server-side</span> '
              '<span id="reset-out" class="dim"></span></p>')
 
+# live-comms compose box (founder call 2026-07-19). Sends go through the SAME
+# agent-comm tool the agents use - the server pins provenance to
+# "[Steven via dashboard]" and a parked draft in the target's composer is
+# REFUSED server-side. Roster is fetched live (the collector JSON is 15-min
+# stale by design; composing needs now).
+COMPOSE_BOX = (
+    '<details id="live-comm"><summary class="dim">📡 live message / coordination '
+    '(composer inject — parked drafts are refused)</summary>'
+    '<div class="lc-row"><label class="dim">to <select id="lc-target">'
+    '<option>loading…</option></select></label> '
+    '<label class="dim">coordinate with (optional, ctrl-click for more) '
+    '<select id="lc-with" multiple size="3"></select></label></div>'
+    '<textarea id="lc-text" maxlength="1800" rows="5" '
+    'placeholder="what should happen — sent as [Steven via dashboard] …; '
+    'newlines are collapsed to one line; picking partners appends the '
+    'coordinate-live-via-agent-comm clause automatically"></textarea>'
+    '<p><a class="btn lc-send" href="#" onclick="lcSend();return false">send</a> '
+    '<span id="lc-out" class="dim"></span></p>'
+    '<pre id="lc-ledger" class="mono" style="display:none"></pre>'
+    '<p class="dim"><a href="#" onclick="lcLedger();return false">recent sends</a>'
+    ' · mid-turn messages queue politely; the agent sees them at its next '
+    'boundary · scope changes still go through the agent\'s own queue</p>'
+    '</details>')
+
 
 def agents_html(a):
     if a.get("error"):
@@ -194,7 +218,7 @@ def agents_html(a):
             'work is stopped until you answer it (also raised under Needs Steven). '
             'opaque = the agent runs outside tmux, so blocked is invisible there.</p>')
     return ('<table><tr><th>agent</th><th>state</th><th>evidence</th><th>basis</th></tr>'
-            + "".join(rows) + "</table>" + note + RESET_BTN)
+            + "".join(rows) + "</table>" + note + RESET_BTN + COMPOSE_BOX)
 
 # --- PROJECTS -----------------------------------------------------------------
 
@@ -557,6 +581,15 @@ CSS = """
   #hermes th{color:#c89222}
   #hermes .age{color:#8a7a4a}
   #hermes .age.stale{color:#e0b060}
+  /* live-comm compose: the MESSAGE is the star (founder call 2026-07-19) -
+     full-width textarea, small send button, selects on one row above */
+  #live-comm .lc-row{display:flex;gap:1.2rem;flex-wrap:wrap;margin:.6rem 0}
+  #live-comm select{background:#0e1116;color:#e6e6e6;border:1px solid #2c3c50;
+      border-radius:.4rem;padding:.25rem .4rem;margin-left:.35rem}
+  #live-comm textarea{width:100%;box-sizing:border-box;background:#0e1116;
+      color:#e6e6e6;border:1px solid #2c3c50;border-radius:.5rem;
+      padding:.6rem;font-size:.9rem;resize:vertical;min-height:6rem}
+  #live-comm a.btn.lc-send{display:inline-block;padding:.35rem 1.4rem}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
   .cal .when{display:inline-block;min-width:9rem;color:#9db4c8;margin:0 .4rem 0 0}
   .cal li{list-style:none;margin-left:-1.1rem}
@@ -585,6 +618,46 @@ JS = """
     });
   }
   setInterval(tick, 1000); setInterval(ages, 30000); tick(); ages();
+  async function lcRoster(){
+    const sel = document.getElementById('lc-target');
+    const withSel = document.getElementById('lc-with');
+    try {
+      const r = await (await fetch('api/agent-roster')).json();
+      const live = (r.agents || []).filter(a => a.claude);
+      const opts = live.map(a =>
+        '<option value="' + a.session + '">' + a.session + ' (' + a.state + ')</option>').join('');
+      sel.innerHTML = opts || '<option value="">no live agents</option>';
+      withSel.innerHTML = opts;
+    } catch (e) { sel.innerHTML = '<option value="">roster failed</option>'; }
+  }
+  async function lcSend(){
+    const out = document.getElementById('lc-out');
+    const target = document.getElementById('lc-target').value;
+    const text = document.getElementById('lc-text').value.trim();
+    const partners = [...document.getElementById('lc-with').selectedOptions]
+      .map(o => o.value).filter(v => v && v !== target);
+    if (!target || !text) { out.textContent = 'pick an agent and type a message'; return; }
+    out.textContent = 'sending…';
+    try {
+      const r = await (await fetch('api/agent-send', {method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({target, text, with: partners})})).json();
+      out.textContent = (r.human || r.status) + (r.detail ? ' — ' + r.detail : '');
+      if (r.status === 'ok') document.getElementById('lc-text').value = '';
+    } catch (e) { out.textContent = 'send failed: ' + e; }
+  }
+  async function lcLedger(){
+    const pre = document.getElementById('lc-ledger');
+    try {
+      const r = await (await fetch('api/agent-ledger')).json();
+      pre.textContent = (r.rows || []).join('\\n') || 'no sends yet';
+      pre.style.display = 'block';
+    } catch (e) { pre.textContent = 'ledger failed: ' + e; pre.style.display = 'block'; }
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    const lc = document.getElementById('live-comm');
+    if (lc) lc.addEventListener('toggle', () => { if (lc.open) lcRoster(); });
+  });
   async function resetTerminals(){
     const out = document.getElementById('reset-out');
     try {

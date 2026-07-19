@@ -27,7 +27,22 @@ settings.local.json/uv, vault hardlink re-linked; per-agent env files
 peer-mail lane added; briefings in selom FROM-SWORDFISH + vault
 MIGRATION.local.md; sessions `selom` + `vault` live + sheltered (4/4 gate).
 **Founder's later step: create 2 Telegram topics, `!map selom` /
-`!map walter`** — in NEEDS-STEVEN. Prior wrap summary below stands._
+`!map walter`** — in NEEDS-STEVEN. **~05:30 addendum — LIVE-COMM BUILT
+(founder "build 1 and 2"):** `agent-comm` tool (peek/send/sessions/ledger;
+draft-refusal + mirage probe + claude-pane targeting + newline collapse +
+mandatory provenance prefix + ledger; 16/16 asserts) + user-level
+`live-comm` skill (all agents see it) + dashboard compose box (to +
+coordinate-with multi-select + big textarea; `[Steven via dashboard]`
+pinned server-side; 13/13 endpoint asserts; converge now restarts the web
+service on server-script content drift via sha marker). **Relay bug fixed
+in the same pass:** claude_pane matched pane_current_command only =
+basename(cmdline[0]) — every `bash -c 'claude; …'`-launched session (the
+relay's own!) was invisible; now descendant-aware in BOTH scripts (46/46
+relay tests). Channel notes: selom got its dev-lanes (fe :3152 / be :8152,
+doctor says NOT adopted — their one-liner) + skill pointer; walter got
+vault lanes (:3309/:8309) + skill + portfolio-mirror suggestion; thalon +
+eamos got the skill note. Selom's live ACK still pending (their queue);
+walter's round CLOSED all green. Prior wrap summary below stands._
 
 _Wrap 02:20 UTC. Session = founder's four asks all landed:
 **① cutover step 8 CONFIRMED to thalon (choreography CLOSED)** — but only

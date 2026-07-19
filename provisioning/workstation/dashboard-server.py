@@ -18,19 +18,39 @@ invariant is asserted by provisioning/checks/assert-dashboard-reset.sh).
 GET /api/reset-terminals/preview runs the same scan without signalling - the
 page button uses it for its confirm dialog, the check script for its asserts.
 
+Second action (founder call 2026-07-19, "build 1 and 2"): the live-comms
+compose box. POST /api/agent-send delegates ENTIRELY to agent-comm - one
+enforcement path for the safety rules (draft-refusal, claude-pane targeting,
+newline collapse, ledger); this server only validates shape, pins the
+provenance to "[Steven via dashboard]", and maps agent-comm's exit codes to
+JSON the page can render. GET /api/agent-roster and /api/agent-ledger are
+thin reads over the same tool.
+
 Env seams (for the check script's stub instance; production uses defaults):
-  DASH_PORT / DASH_DIR / PANEL_CGROUP_SUFFIX
+  DASH_PORT / DASH_DIR / PANEL_CGROUP_SUFFIX / AGENT_COMM_BIN
 """
 import http.server
 import json
 import os
+import re
 import signal
+import subprocess
 
 DASH_DIR = os.environ.get("DASH_DIR", "/home/deploy/dashboard")
 PORT = int(os.environ.get("DASH_PORT", "8090"))
 # panel shells live in code-server's cgroup; agent-tmux.service (the shelter)
 # never matches this suffix, so sheltered sessions are structurally out of reach
 CGROUP_SUFFIX = os.environ.get("PANEL_CGROUP_SUFFIX", "/code-server.service")
+AGENT_COMM = os.environ.get("AGENT_COMM_BIN", "/usr/local/bin/agent-comm")
+
+# agent-comm send exit codes -> what the page shows (keep in step with the tool)
+SEND_CODE = {
+    0: ("ok", "sent"),
+    2: ("bad-request", "refused: bad target/usage"),
+    3: ("refused-draft", "refused: a draft is parked in that composer"),
+    4: ("refused-unclear", "refused: composer state unclear - retry shortly"),
+    5: ("sent-unverified", "sent, but composer still shows text - peek to verify"),
+}
 
 
 def scan_panels():
@@ -81,9 +101,89 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             childless, live = scan_panels()
             self._json({"stale": childless, "refused_live": live})
             return
+        if self.path == "/api/agent-roster":
+            try:
+                out = subprocess.run([AGENT_COMM, "sessions", "--json"],
+                                     capture_output=True, text=True, timeout=20)
+                self._json({"agents": json.loads(out.stdout or "[]")})
+            except Exception as e:
+                self._json({"error": str(e)})
+            return
+        if self.path == "/api/agent-ledger":
+            try:
+                out = subprocess.run([AGENT_COMM, "ledger", "8"],
+                                     capture_output=True, text=True, timeout=10)
+                self._json({"rows": out.stdout.splitlines()})
+            except Exception as e:
+                self._json({"error": str(e)})
+            return
         super().do_GET()
 
+    def _agent_send(self):
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(n)) if 0 < n <= 8192 else {}
+        except (ValueError, json.JSONDecodeError):
+            body = {}
+        target = (body.get("target") or "").strip()
+        text = (body.get("text") or "").strip()
+        with_raw = body.get("with") or []
+        # same safe charset as the relay's resolve_project: a typo or crafted
+        # name must never reach tmux as a target
+        if (not target or not text or len(text) > 2000
+                or not re.fullmatch(r"[a-z0-9_-]+", target)):
+            self._json({"status": "bad-request",
+                        "detail": "need a known target and 1..2000 chars of text"})
+            return
+        # optional coordination partners: the founder pairs two (or more)
+        # agents; the standard clause is appended SERVER-side so every pairing
+        # carries the same rules pointer. Partners get the same charset gate,
+        # and target-as-partner is a user mistake worth refusing loudly.
+        if not isinstance(with_raw, list):
+            self._json({"status": "bad-request", "detail": "'with' must be a list"})
+            return
+        partners = []
+        for w in with_raw:
+            w = (w or "").strip() if isinstance(w, str) else ""
+            if not re.fullmatch(r"[a-z0-9_-]+", w):
+                self._json({"status": "bad-request",
+                            "detail": f"bad partner name: {w!r}"})
+                return
+            if w == target:
+                self._json({"status": "bad-request",
+                            "detail": "target cannot be its own coordination partner"})
+                return
+            if w not in partners:
+                partners.append(w)
+        if partners:
+            text += (" — coordinate LIVE with " + ", ".join(partners)
+                     + " on this via agent-comm (you lead the loop; signals"
+                       " not task grants; wrap the outcome in your channel)")
+        if len(text) > 2000:
+            self._json({"status": "bad-request",
+                        "detail": "message too long once the coordination"
+                                  " clause is added - trim it"})
+            return
+        try:
+            r = subprocess.run(
+                [AGENT_COMM, "send", "--from", "Steven", "--channel", "dashboard",
+                 target, text],
+                capture_output=True, text=True, timeout=60,
+                env={**os.environ, "TMUX": "", "TMUX_PANE": ""})
+        except subprocess.TimeoutExpired:
+            self._json({"status": "error", "detail": "agent-comm timed out"})
+            return
+        status, human = SEND_CODE.get(r.returncode,
+                                      ("error", f"agent-comm exit {r.returncode}"))
+        detail = (r.stderr or r.stdout).strip().splitlines()
+        print(f"agent-send: {target} <- Steven(dashboard): {status}", flush=True)
+        self._json({"status": status, "human": human,
+                    "detail": detail[-1] if detail else ""})
+
     def do_POST(self):
+        if self.path == "/api/agent-send":
+            self._agent_send()
+            return
         if self.path != "/api/reset-terminals":
             self.send_error(404)
             return

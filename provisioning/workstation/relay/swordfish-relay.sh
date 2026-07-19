@@ -78,16 +78,39 @@ for r in db.execute(
 PY
 }
 
+has_claude_desc() { # $1 pid -> 0 if a depth<=3 descendant's comm is claude.
+  # ensure_session's own launcher is `bash -c 'claude; ...'` - a NON-interactive
+  # shell keeps one process group, so pane_current_command reports bash while
+  # claude runs as its child. Matching the pane command alone therefore missed
+  # every session this very script cold-started (found 2026-07-19 building
+  # agent-comm; same fix lives there - keep the two in step).
+  local depth=0 gen="$1" next c
+  while [ -n "$gen" ] && [ "$depth" -lt 3 ]; do
+    next=""
+    for c in $(pgrep -P "${gen// /,}" 2>/dev/null); do
+      [ "$(ps -o comm= -p "$c" 2>/dev/null)" = "claude" ] && return 0
+      next="$next $c"
+    done
+    gen="${next# }"; depth=$((depth + 1))
+  done
+  return 1
+}
+
 claude_pane() { # $1 slug -> pane target of the pane RUNNING claude, else the
   # bare session name (= active window). Sessions can hold more than the agent
   # (founder's codex TUI landed as eamos window 1, 2026-07-15): session-level
   # send-keys types into whatever window is focused, so every capture/inject
   # must aim at the claude pane itself. A dead claude leaves a stale ❯ on the
   # old screen - callers must treat the bare-name fallback as NOT-a-claude.
-  local p
-  p=$(tmux list-panes -s -t "$1" -F '#{window_index}.#{pane_index} #{pane_current_command}' 2>/dev/null \
-      | awk '$2=="claude"{print $1; exit}')
-  if [ -n "$p" ]; then printf '%s:%s\n' "$1" "$p"; else printf '%s\n' "$1"; fi
+  local line wp cmd pid
+  while IFS= read -r line; do
+    wp=${line%% *}; line=${line#* }; cmd=${line%% *}; pid=${line##* }
+    if [ "$cmd" = "claude" ] || has_claude_desc "$pid"; then
+      printf '%s:%s\n' "$1" "$wp"; return 0
+    fi
+  done < <(tmux list-panes -s -t "$1" \
+      -F '#{window_index}.#{pane_index} #{pane_current_command} #{pane_pid}' 2>/dev/null)
+  printf '%s\n' "$1"
 }
 
 ensure_session() { # $1 slug $2 dir -> 0 when the claude pane's composer is ready

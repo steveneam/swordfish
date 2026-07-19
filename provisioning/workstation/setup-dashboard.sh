@@ -113,11 +113,18 @@ done
 
 # converge gap fix (2026-07-19): install_if_changed never restarts an
 # already-running service, so a changed ExecStart kept serving the OLD process.
-# Restart on unit drift, or when the running unit is not dashboard-server.py.
+# Restart on unit drift, or when the running unit is not dashboard-server.py,
+# or (second gap, same day) when dashboard-server.py's CONTENT changed - the
+# unit execs the repo file directly, so a code edit needs a restart the unit
+# file can't signal. A sha marker makes that drift visible and idempotent.
 running_exec=$(systemctl show swordfish-dashboard-web.service -p ExecStart --value 2>/dev/null || true)
-if [ "${web_changed:-0}" -eq 1 ] || [[ "$running_exec" != *dashboard-server.py* ]]; then
+server_sha=$(sha256sum /home/deploy/work/swordfish/provisioning/workstation/dashboard-server.py | cut -d' ' -f1)
+sha_marker=/var/lib/swordfish/dashboard-server.sha256
+if [ "${web_changed:-0}" -eq 1 ] || [[ "$running_exec" != *dashboard-server.py* ]] \
+   || [ "$server_sha" != "$(sudo cat "$sha_marker" 2>/dev/null)" ]; then
   sudo systemctl daemon-reload
   sudo systemctl restart swordfish-dashboard-web.service
+  echo "$server_sha" | sudo tee "$sha_marker" >/dev/null
   sleep 1
   changed=1
 fi
@@ -158,6 +165,10 @@ grep -q '"refused_live"' <<<"$preview" \
   || { echo "FAIL: reset-terminals preview endpoint not answering ($preview)"; exit 1; }
 bash /home/deploy/work/swordfish/provisioning/checks/assert-dashboard-reset.sh \
   || { echo "FAIL: reset-terminals refusal invariant"; exit 1; }
+# live-comms compose: provenance pinning + input refusals + code mapping,
+# proven against a stub agent-comm on a throwaway instance (2026-07-19)
+bash /home/deploy/work/swordfish/provisioning/checks/assert-dashboard-send.sh >/dev/null \
+  || { echo "FAIL: agent-send endpoint asserts"; exit 1; }
 # event-driven projects refresh: the fast service must rewrite projects.json
 # (the inotify trigger itself was proven end-to-end at install, 2026-07-13:
 # git add -> dirty count up within seconds -> unstage -> back to clean)
