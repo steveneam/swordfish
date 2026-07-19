@@ -79,6 +79,9 @@ check "unattended-upgrades: 18:30 UTC" "apt-config dump Unattended-Upgrade::Auto
 # + compose/edge via edge-apply.yml - keep versions/names in lockstep with both)
 check "edge: swordfish-traefik running"  "docker inspect -f '{{.State.Running}}' swordfish-traefik | grep -qx true"
 check "edge: socket-proxy running"       "docker inspect -f '{{.State.Running}}' swordfish-socket-proxy | grep -qx true"
+# 2026-07-18 outage: restart=always cannot survive overlay-race + cleanup-prune;
+# the boot unit (phase3-edge.sh 7b) is what actually guarantees the edge returns
+check "edge: boot unit enabled"          "systemctl is-enabled swordfish-edge-up.service"
 check "edge: no stock dokploy-traefik"   "! docker ps -a --format '{{.Names}}' | grep -qx dokploy-traefik"
 check "edge: traefik has no raw socket"  "! docker inspect swordfish-traefik -f '{{range .Mounts}}{{.Source}} {{end}}' | grep -q docker.sock"
 check "edge: socket-proxy socket is ro"  "docker inspect swordfish-socket-proxy -f '{{range .Mounts}}{{.Source}}={{.RW}} {{end}}' | grep -q 'docker.sock=false'"

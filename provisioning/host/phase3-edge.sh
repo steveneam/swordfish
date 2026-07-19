@@ -288,6 +288,43 @@ elif [ "$traefik_restart" -eq 1 ]; then
     note "CHANGED: swordfish-traefik restarted (static config drift)"
 fi
 
+# --- 7b. edge survives reboot (systemd unit, not restart-policy) ----------------
+# OUTAGE 2026-07-18/19: at boot traefik lost the race against swarm overlay
+# init ("network dokploy-network not found"), the hard failure aborted its
+# restart=always policy, and Dokploy's scheduled docker cleanup (23:50) then
+# pruned the stopped container AND its digest-pinned image. A restart policy
+# cannot resurrect a REMOVED container, and the only other recreator is CI
+# edge-apply - which was billing-blocked. Edge down 18:30->01:46 (~7h15m).
+# This unit re-runs compose up at every boot AFTER waiting out the overlay
+# race, so the edge returns even from "container does not exist".
+if sync_content /etc/systemd/system/swordfish-edge-up.service "edge boot-up unit" <<EOF
+[Unit]
+Description=swordfish: bring the edge stack up at boot (traefik + socket-proxy)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# the attachable overlay appears only after swarm init completes - poll up to 2 min
+ExecStartPre=/bin/bash -c 'for i in \$(seq 1 24); do docker network inspect dokploy-network >/dev/null 2>&1 && exit 0; sleep 5; done; echo "dokploy-network never appeared"; exit 1'
+ExecStart=/usr/bin/docker compose --project-directory $EDGE_DIR up -d
+
+[Install]
+WantedBy=multi-user.target
+EOF
+then
+    sudo systemctl daemon-reload
+fi
+if systemctl is-enabled swordfish-edge-up.service >/dev/null 2>&1; then
+    note "OK: swordfish-edge-up.service enabled"
+else
+    sudo systemctl daemon-reload
+    sudo systemctl enable swordfish-edge-up.service >/dev/null 2>&1
+    note "CHANGED: swordfish-edge-up.service enabled"
+    changed=1
+fi
+
 # --- 8. acme storage perms (traefik creates it 600; belt-and-braces) ------------
 if [ -f "$DYN/acme.json" ] && [ "$(sudo stat -c %a "$DYN/acme.json")" != "600" ]; then
     sudo chmod 600 "$DYN/acme.json"
