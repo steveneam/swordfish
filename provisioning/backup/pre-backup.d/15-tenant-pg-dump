@@ -45,7 +45,13 @@ fi
 # write complete, then move into place - a snapshot can never catch a torn dump
 docker exec "$cid" pg_dumpall -U swordfish | gzip > "$out.tmp"
 [ -s "$out.tmp" ] || { echo "FAIL: dump came out empty"; exit 1; }
-zcat "$out.tmp" | head -5 | grep -q 'PostgreSQL database cluster dump' \
+# capture-then-compare: a zcat|head|grep verdict pipe SIGPIPEs zcat (exit 141)
+# under pipefail once the dump outgrows the pipe buffer - false FAIL the first
+# night real data lands (2026-07-18 15:00, aborted the whole nightly run).
+# sed reads the stream to EOF (no early close) and doubles as a gzip
+# integrity pass over the full artifact.
+header=$(zcat "$out.tmp" | sed -n '1,5p')
+[[ "$header" == *'PostgreSQL database cluster dump'* ]] \
     || { echo "FAIL: dump does not look like a pg_dumpall artifact"; exit 1; }
 mv -f "$out.tmp" "$out"
 echo "OK: tenant-pg dumped ($(stat -c%s "$out") bytes)"
