@@ -110,6 +110,21 @@ refusal invariant proven)**._
 
 ## Next
 
+0. **⭐ RESIZE FIRED ~02:35 UTC 2026-07-19 on the founder's in-session "go
+   syd4 16gg [sic]"** (fresh rule-10 confirm of the 07-18-approved spend:
+   std-6vcpu = 16 GiB / 6 vCPU / 180 GB, AUD 78.40/mo, +39.20). **If you are
+   reading this after a reboot, the resize likely LANDED — verify:**
+   ① `free -h` ≈ 15Gi total · `nproc` = 6 · `df -h /` grown toward 180G (if
+   not: `sudo growpart /dev/vda 1 && sudo resize2fs /dev/vda1`) ② units:
+   `agent-tmux.service` · `postgresql@17-main` (thalon's two) ·
+   `code-server` · `swordfish-relay.service` · dashboard web+timer ③ swap
+   both files active (`swapon --show`) ④ syd2 edge quick-probe from here
+   (hello/status/deploy — unrelated box, but outside-in habit) ⑤ post the
+   landed-confirm + post-reboot glance in thalon's FROM-SWORDFISH (their
+   docs assume 8 GB — tell them the ceiling moved) ⑥ NEEDS-STEVEN resize
+   line → accounted with final price. **If the box is still 8 GiB / 4 vCPU:
+   the fire 400'd again — NEEDS-STEVEN ticket paste stands; note the
+   attempt, nothing changed.**
 1. **Watch tonight's 15:00 UTC syd2 backup** — first unattended run on the
    fixed hooks: service Result=success, dump re-stamped ~15:00, new restic
    snapshot, healthchecks+kuma success pings. Green = the incident is fully
