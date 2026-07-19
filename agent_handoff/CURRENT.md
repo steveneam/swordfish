@@ -15,11 +15,19 @@
 > decision below, incl. AGENTS.md rule-10 founder-gate list). If the box state
 > and this file disagree, the box wins — say so, then fix the file.
 
-_Stamped: 2026-07-19 03:05 UTC. Post-wrap continuation: **syd4 16 GB resize
-FIRED + LANDED (both halves — see NEEDS-STEVEN accounted line)** and
-**thalon's s61 film import is DONE** (58 takes / 5 cuts / 3 lineage stamps
-into tenant-pg, media route 206 from the stored root; full record in their
-FROM-SWORDFISH ~03:00). Prior wrap summary below stands._
+_Stamped: 2026-07-19 03:35 UTC. Post-wrap continuation: **syd4 16 GB resize
+FIRED + LANDED (both halves — see NEEDS-STEVEN accounted line)**,
+**thalon's s61 film import DONE** (58 takes / 5 cuts / 3 lineage stamps
+into tenant-pg, media route 206 from the stored root; record in their
+FROM-SWORDFISH ~03:00), and **SELOM + WALTER ARE AWAKE** (founder-directed:
+checklist verified + gaps fixed — selom hooksPath/noreply-email/
+settings.local.json/uv, vault hardlink re-linked; per-agent env files
+`~/.config/agent-env/{selom,vault}.env` now sourced by the relay launcher
+(ratchet in `swordfish-relay.sh`, 46/46 tests, service restarted); walter
+peer-mail lane added; briefings in selom FROM-SWORDFISH + vault
+MIGRATION.local.md; sessions `selom` + `vault` live + sheltered (4/4 gate).
+**Founder's later step: create 2 Telegram topics, `!map selom` /
+`!map walter`** — in NEEDS-STEVEN. Prior wrap summary below stands._
 
 _Wrap 02:20 UTC. Session = founder's four asks all landed:
 **① cutover step 8 CONFIRMED to thalon (choreography CLOSED)** — but only

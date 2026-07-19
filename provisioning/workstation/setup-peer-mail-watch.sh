@@ -60,7 +60,8 @@ install_if_changed 0755 /usr/local/bin/swordfish-peer-mail-watch.sh <<'WATCH'
 set -u
 WATCHES="thalon:/home/deploy/work/thalon/agent_handoff/ASK-BACKS-FOR-SWORDFISH.md
 eamos:/home/deploy/work/eamos/agent_handoff/ASK-BACKS-FOR-SWORDFISH.md
-selom:/home/deploy/work/selom/agent_handoff/ASK-BACKS-FOR-SWORDFISH.md"
+selom:/home/deploy/work/selom/agent_handoff/ASK-BACKS-FOR-SWORDFISH.md
+walter:/home/deploy/vault/ASK-BACKS-FOR-SWORDFISH.local.md"
 
 
 # guarded-name peers ride the untracked local list (see setup script header)

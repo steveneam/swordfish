@@ -91,8 +91,11 @@ claude_pane() { # $1 slug -> pane target of the pane RUNNING claude, else the
 }
 
 ensure_session() { # $1 slug $2 dir -> 0 when the claude pane's composer is ready
+  # Per-project env (MCP keys etc.) rides ~/.config/agent-env/<slug>.env (0600,
+  # optional) - without it a cold-started selom loses its .mcp.json ${VAR}
+  # interpolation SILENTLY. slug charset is enforced by resolve_project.
   tmux has-session -t "$1" 2>/dev/null || tmux new-session -d -s "$1" -c "$2" \
-    'claude; echo; echo "[claude exited - type claude to relaunch, or claude --continue to resume]"; exec bash'
+    "set -a; [ -f \"\$HOME/.config/agent-env/$1.env\" ] && . \"\$HOME/.config/agent-env/$1.env\"; set +a; claude; echo; echo '[claude exited - type claude to relaunch, or claude --continue to resume]'; exec bash"
   for _ in $(seq 1 40); do
     local tgt pane; tgt=$(claude_pane "$1")
     pane=$(tmux capture-pane -t "$tgt" -p 2>/dev/null || true)
