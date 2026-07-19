@@ -47,9 +47,9 @@ laned._
   or their agents' to land, as ever.
 - **All four project agents are AWAKE on syd4** (swordfish · thalon · selom ·
   vault/walter), sheltered in agent-tmux (gate 4/4). Cryosleep is over;
-  captain-of-the-ship memory updated. Founder's `!map selom` / `!map walter`
-  Telegram step is queued in NEEDS-STEVEN (relay side is ready — the
-  claude_pane fix was the blocker nobody knew about).
+  captain-of-the-ship memory updated. **Founder `!map`'d selom + walter
+  in-session (~06:00)** — both bindings verified in the relay map; every
+  project now has a Telegram lane.
 - **Live coordination:** `agent-comm` on PATH (ledger at
   `/var/lib/swordfish/agent-comm/`), `live-comm` skill user-level, dashboard
   compose live on 8090 behind the tunnel. Never fire `[Steven via dashboard]`
