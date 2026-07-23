@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# 40-nango-postgres-dump - pre-backup hook: consistent dump of the self-hosted
+# Nango OAuth broker's Postgres (selom tenant, compose selom-nango on syd2)
+# before the snapshot. Nango stores OAuth connection tokens (encrypted with
+# NANGO_ENCRYPTION_KEY) + integration configs here; file-level backup of the
+# live volume is not consistent, so the raw volume stays OUT of the set
+# (profiles.yaml never lists it) and THIS dump is what restores. The
+# NANGO_ENCRYPTION_KEY itself lives off-box in inventory/secrets/ - a dump
+# without it decrypts to nothing, so both must survive a disaster.
+#
+# SELF-ARMING rot guard (pattern: 15-tenant-pg-dump): a missing container is a
+# loud SKIP until the first dump lands (backups-before-workloads); after that,
+# absence is a hard FAIL - removing Nango must be an explicit, tracked edit
+# here, never silent rot.
+# Runs as root (systemd system unit) via profiles.yaml run-before.
+
+set -euo pipefail
+
+# SELF-ARM: phase7-backups.sh ships EVERY hook to EVERY box, so a hook must
+# no-op where its dependency is absent rather than hard-fail. This one needs
+# Docker; cockpit-class boxes (syd3/syd4) have none by charter. A SKIP is
+# correct and must be loud; a hard failure here is a self-inflicted backup
+# outage on a box that simply has nothing of this kind to dump.
+command -v docker >/dev/null 2>&1 || { echo "SKIP: no docker on $(hostname -s) (cockpit-class) - nothing of this kind to dump"; exit 0; }
+
+# The PRODUCTION Nango runs as a Dokploy tenant on the edge/workload box (syd2).
+# syd4 now has Docker too (selom's dev Nango, localhost-only) - the bare
+# `command -v docker` guard no longer distinguishes them. Gate on the Dokploy
+# control-plane being present so this hook dumps ONLY the production instance
+# and never arms (FAIL-if-gone) on a workspace box's transient dev container.
+docker ps --filter name=dokploy-postgres --format '{{.ID}}' | grep -q . \
+    || { echo "SKIP: no Dokploy control-plane on $(hostname -s) - not the production Nango box"; exit 0; }
+
+dump_dir=/var/backups/swordfish
+out="$dump_dir/nango-postgres.sql.gz"
+mkdir -p "$dump_dir"
+
+# resolved by name fragment - Dokploy suffixes the immutable compose name
+# (selom-nango-qmolev-nango-db-1 on syd2). Only the DB matches 'nango-db'
+# (redis/server are 'nango-redis'/'nango-server').
+cid=$(docker ps --filter name=nango-db --format '{{.ID}}' | head -n1)
+if [ -z "$cid" ]; then
+    if [ -e "$out" ]; then
+        echo "FAIL: no container matching 'nango-db' but a previous dump exists - workload gone? edit this hook rather than letting backups rot"
+        exit 1
+    fi
+    echo "SKIP: no container matching 'nango-db' yet - Nango not deployed on this box (guard arms at its first successful dump)"
+    exit 0
+fi
+
+# write complete, then move into place - a snapshot can never catch a torn dump
+docker exec "$cid" pg_dump -U nango -d nango | gzip > "$out.tmp"
+[ -s "$out.tmp" ] || { echo "FAIL: dump came out empty"; exit 1; }
+# capture-then-compare (15-tenant-pg-dump lesson): a zcat|head|grep verdict pipe
+# SIGPIPEs zcat (exit 141) under pipefail once the dump outgrows the pipe
+# buffer. sed reads the stream to EOF (no early close) and doubles as a gzip
+# integrity pass over the full artifact.
+header=$(zcat "$out.tmp" | sed -n '1,8p')
+[[ "$header" == *'PostgreSQL database dump'* ]] \
+    || { echo "FAIL: dump does not look like a pg_dump artifact"; exit 1; }
+mv -f "$out.tmp" "$out"
+echo "OK: nango-postgres dumped ($(stat -c%s "$out") bytes)"
