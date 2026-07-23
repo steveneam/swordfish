@@ -25,6 +25,12 @@ v=$("$AC" _classify "❯ " "❯ " x);                    [ "$v" = empty ]   && o
 v=$("$AC" _classify "❯ old submitted msg" "❯ x" x);  [ "$v" = empty ]   && ok "classify: probe replaced = mirage/empty" || bad "classify mirage: got $v"
 v=$("$AC" _classify "❯ parked" "❯ parkedx" x);       [ "$v" = draft ]   && ok "classify: probe appended = real draft"   || bad "classify draft: got $v"
 v=$("$AC" _classify "❯ parked" "❯ something else" x);[ "$v" = unclear ] && ok "classify: mutation = unclear"            || bad "classify unclear: got $v"
+# NBSP regression (2026-07-23): the claude composer pads the ❯ prompt with a
+# non-breaking space (U+00A0), not ASCII space - a plain-space strip left it as
+# phantom draft text and every send to a busy agent false-refused.
+nbsp=$'\xc2\xa0'
+v=$("$AC" _classify "❯$nbsp" "❯$nbsp" x);                  [ "$v" = empty ] && ok "classify: NBSP-padded bare prompt = empty" || bad "classify NBSP empty: got $v"
+v=$("$AC" _classify "❯${nbsp}parked" "❯${nbsp}parkedx" x); [ "$v" = draft ] && ok "classify: NBSP-padded real draft = draft" || bad "classify NBSP draft: got $v"
 
 # --- 2 · stub sessions on the throwaway server -------------------------------
 # fake claude: comm becomes the script basename, so pane_current_command=claude

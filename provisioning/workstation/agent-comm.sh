@@ -39,16 +39,30 @@ die() { echo "agent-comm: $1" >&2; exit "${2:-1}"; }
 
 tm() { "${TMUX_CMD[@]}" "$@"; }
 
-# --- composer classification (pure - the sharpest edge, unit-asserted) -------
+# --- composer text extraction + classification (pure - unit-asserted) --------
+# composer_text <❯-line> -> the real unsent draft text (empty if idle).
+# Strips the ❯ prompt glyph AND its padding. CRITICAL (2026-07-23): the
+# claude-code composer pads the prompt with a NON-BREAKING space (U+00A0,
+# bytes C2 A0), NOT an ASCII space - stripping a plain " " left the NBSP as
+# phantom "draft" text, so every send to a busy agent (empty composer =
+# "❯ ") false-refused. Normalise NBSP -> space, then trim, so a bare
+# prompt reads as empty.
+composer_text() {
+  local s="${1#❯}"
+  s="${s//$'\xc2\xa0'/ }"                 # NBSP (U+00A0) -> plain space
+  s="${s#"${s%%[![:space:]]*}"}"          # ltrim ASCII whitespace
+  s="${s%"${s##*[![:space:]]}"}"          # rtrim ASCII whitespace
+  printf '%s' "$s"
+}
+
 # classify <before-line> <after-probe-line> <probe-char> -> empty|draft|unclear
 #   empty  : probe REPLACED the shown text (it was a dimmed echo; composer
 #            was empty) or both sides show a bare prompt
 #   draft  : probe APPENDED to the shown text (a real unsent draft is parked)
 #   unclear: anything else (screen moved mid-probe, running turn, etc.)
 classify() {
-  local before="$1" after="$2" probe="$3"
-  local btxt="${before#❯}" atxt="${after#❯}"
-  btxt="${btxt# }" atxt="${atxt# }"
+  local probe="$3" btxt atxt
+  btxt=$(composer_text "$1"); atxt=$(composer_text "$2")
   if [ -z "$btxt" ] && [ -z "$atxt" ]; then echo empty; return; fi
   if [ "$atxt" = "$probe" ]; then echo empty; return; fi
   if [ "$atxt" = "${btxt}${probe}" ]; then echo draft; return; fi
@@ -125,8 +139,7 @@ cmd_sessions() {
         || printf '%-12s no live claude pane\n' "$s"
       continue
     fi
-    st=$(pane_state "$pane"); act=$(pane_activity "$pane"); comp=$(composer_line "$pane")
-    comp="${comp#❯}"; comp="${comp# }"
+    st=$(pane_state "$pane"); act=$(pane_activity "$pane"); comp=$(composer_text "$(composer_line "$pane")")
     if [ "$json" = 1 ]; then
       out+=("$(jq -cn --arg s "$s" --arg st "$st" --arg a "$act" --arg c "$comp" \
         '{session:$s,claude:true,state:$st,activity:$a,composer:$c}')")
@@ -184,7 +197,7 @@ cmd_send() {
   # peek -> probe -> classify: refuse a real parked draft, always
   local before after verdict
   before=$(composer_line "$pane")
-  if [ -n "${before#❯}" ] && [ "${before#❯ }" != "" ]; then
+  if [ -n "$(composer_text "$before")" ]; then
     tm send-keys -t "$pane" -l -- 'x'
     sleep 1
     after=$(composer_line "$pane")
@@ -192,7 +205,7 @@ cmd_send() {
     verdict=$(classify "$before" "$after" "x")
     case "$verdict" in
       empty)  ;;
-      draft)  die "REFUSED: a real unsent draft is parked in '$target' composer: ${before#❯ } - wait or use the file channel" 3 ;;
+      draft)  die "REFUSED: a real unsent draft is parked in '$target' composer: $(composer_text "$before") - wait or use the file channel" 3 ;;
       *)      die "REFUSED: '$target' composer state unclear (screen changed mid-probe) - retry in a moment" 4 ;;
     esac
   fi
@@ -204,7 +217,7 @@ cmd_send() {
   sleep 2
 
   # verify: composer cleared or the message left the input (queued/submitted)
-  local post; post=$(composer_line "$pane"); post="${post#❯}"; post="${post# }"
+  local post; post=$(composer_text "$(composer_line "$pane")")
   ledger_append "$from" "$target" "$oneline"
   if [ -n "$post" ] && [ "$post" != "Press up to edit queued messages" ]; then
     echo "WARN: sent but composer still shows text - verify with: agent-comm peek $target" >&2
