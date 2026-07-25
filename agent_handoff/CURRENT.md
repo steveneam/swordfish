@@ -51,6 +51,10 @@ thalon replied in-channel. Also committed the orphaned 07-23 wrap stamp
   (Dokploy project `selom`, compose `nango` `mFzE2Wuw_fr0hoi3DMjv_`);
   provisioning capture at `provisioning/dokploy/selom-nango/`. Secrets:
   `inventory/secrets/dokploy-tenant-selom-nango.env` (0600, off-git).
+  **Founder call 07-25: swordfish OWNS Nango portfolio-wide** (fleet +
+  integration wiring assistance; per-project instances, never a shared
+  account) — runbook `INTEGRATION-RUNBOOK.md` in the capture dir, memory
+  `nango-ownership`. Selom's drive OAuth verified end-to-end on it 07-25.
 - **thalon units live on syd4:** `thalon-preview` + `thalon-sweeper`
   (`systemctl --user`), linger on for deploy. Source of truth:
   `provisioning/workstation/thalon-units/` (installer idempotent).
@@ -100,6 +104,10 @@ thalon replied in-channel. Also committed the orphaned 07-23 wrap stamp
    c. **Rotation pass** (thalon GO'd; needs founder one-line yes — in
       NEEDS-STEVEN).
    d. **Kuma alerting gap** (07-19 7h edge-down produced zero alerts).
+   d2. **Nango owner hygiene: pin the image** — compose rides floating
+      `nangohq/nango-server:hosted` (0.71.2 live 07-25); pin at a quiet
+      window (compose edit + redeploy = brief broker blip, coordinate with
+      selom), then deliberate bumps only.
    e. syd1 destroy-vs-warm (founder gate) · `fwupd` failed-units cosmetic ·
       Dokploy key hygiene · tenant-pg collation refresh · Gmail re-auth ·
       thalon founder-gated basicauth rotation + `DB_DUMP_TOKEN` retirement
