@@ -1,0 +1,18 @@
+# thalon-preview.service - systemd USER unit (deploy@syd4)
+# Thalon's 8899 preview server, previously `setsid nohup python3
+# scripts/preview-server.py 8899` - died on every 18:30Z kernel reboot and
+# restarted only by hand (thalon s65 ask, 2026-07-19). Installed by
+# install.sh in this directory; survives reboots via loginctl linger.
+[Unit]
+Description=Thalon 8899 preview server (thalon s65 ask - reboot-fragile proc)
+
+[Service]
+WorkingDirectory=/home/deploy/work/thalon
+ExecStart=/usr/bin/python3 scripts/preview-server.py 8899
+Restart=on-failure
+RestartSec=5
+# blast containment (house rule): a runaway preview OOMs itself, not the box
+MemoryMax=512M
+
+[Install]
+WantedBy=default.target

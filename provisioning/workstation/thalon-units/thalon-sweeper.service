@@ -1,0 +1,25 @@
+# thalon-sweeper.service - systemd USER unit (deploy@syd4)
+# Thalon's intel sweep scheduler, previously a tmux window `thalon:sweeper`
+# running `set -a; . apps/web/.env.local; set +a; npx tsx
+# scripts/run-sweep-scheduler.ts 2>&1 | tee -a .context/logs/sweeper.log` -
+# found silently dead at their s65 opener after the weekly reboot (the exact
+# failure class a unit retires). The ExecStart mirrors thalon's own live
+# invocation verbatim (env exported from apps/web/.env.local, relative to
+# WorkingDirectory); the log lands where their runbooks expect it.
+# Installed by install.sh in this directory; survives reboots via linger.
+[Unit]
+Description=Thalon intel sweep scheduler (thalon s65 ask - reboot-fragile proc)
+
+[Service]
+WorkingDirectory=/home/deploy/work/thalon
+ExecStart=/bin/bash -c 'set -a; . apps/web/.env.local; set +a; exec npx tsx scripts/run-sweep-scheduler.ts'
+StandardOutput=append:/home/deploy/work/thalon/.context/logs/sweeper.log
+StandardError=append:/home/deploy/work/thalon/.context/logs/sweeper.log
+Restart=on-failure
+RestartSec=30
+# blast containment (house rule): generous vs the 16 GiB box, but a leak
+# OOMs the sweeper (which then restarts), not the agents
+MemoryMax=2G
+
+[Install]
+WantedBy=default.target
