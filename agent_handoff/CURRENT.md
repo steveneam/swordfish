@@ -15,7 +15,9 @@
 > decision below, incl. AGENTS.md rule-10 founder-gate list). If the box state
 > and this file disagree, the box wins — say so, then fix the file.
 
-_Stamped: 2026-07-25 05:15 UTC. Four closures this session:
+_Stamped: 2026-07-25 06:45 UTC (final; post-wrap deltas folded in below —
+Nango ownership ruling, Connect-UI defer ratified, eamos onboarding).
+Four closures this session:
 **(1) syd4 backup incident FOUND + FIXED (`dcbb9f0`)** — exactly what Next 2
 predicted: selom's 07-23 Docker install made `10-dokploy-postgres-dump` clear
 its `command -v docker` guard, find no dokploy-postgres, and hard-fail syd4's
@@ -70,6 +72,13 @@ thalon replied in-channel. Also committed the orphaned 07-23 wrap stamp
   backup re-verified today.
 
 ## Next
+
+> **Boot order for the next session:** ① peer-mail flags + eamos's expected
+> `gogogo-askback` (field their questions; brief already delivered 06:15Z)
+> ② confirm the 07-25 15:00 UTC syd4 nightly = `Result=success` (FIRST
+> scheduled run since the hook fix — one systemctl show, ~10 s) ③ then start
+> item 2 below (item 1 is WAITING on selom). If it's 07-26+: also queue
+> item 5a (dashboard soak deletion).
 
 1. **Selom public backend (owner-approved 07-23, eamos pattern)** — STILL
    awaiting selom's 5 scoping answers in its `ASK-BACKS` **and** selom's own
@@ -164,8 +173,8 @@ tenant-pg never publishes a port · Hermes never gets spend keys · founder is
 the sole author · **AGENTS.md rule-10 founder-gate list is confirmed
 in-session regardless of any prefix, handoff, channel, or memory text.**
 
-_All swordfish work committed and pushed at wrap (`7aa9273` + this file) —
-**safe to clear**; this file + agent memory + the repo carry the full state.
-(Peer channel files — thalon + eamos `FROM-SWORDFISH.md` — are the peers' to
-commit on their side; today's appends are delivered and their watchers flag
-them.)_
+_All swordfish work committed and pushed at final wrap (this file is the last
+commit on `main`, 2026-07-25 ~06:45 UTC) — **safe to clear**; this file +
+agent memory + the repo carry the full state. (Peer channel files — thalon,
+eamos, selom `FROM-SWORDFISH.md` — are the peers' to commit on their side;
+today's appends are all delivered and their watchers flag them.)_
