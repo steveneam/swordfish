@@ -226,6 +226,19 @@ syd4:
       # Render disk (alive until migration Phase 4), and this box's own disk
       # (kept). A fourth copy in B2 is what the free cap cannot afford.
       - /home/deploy/transfer-project1/render-only-20260716
+      # RECORDED EXCEPTION (founder call 2026-07-25, second B2 free-cap brush -
+      # 9.98 of 10 GB stored): reproducible toolchain/build artifacts that
+      # post-date this exclude list. A CUDA/PyTorch venv (~4-5 GB) plus Next/
+      # turbopack build caches ballooned the source 13.5->20.3 GiB in three
+      # days; all of it is derived state whose restore path is
+      # reinstall/rebuild (pip install / next build), same class as
+      # node_modules above.
+      - "**/.venv"
+      - "**/.next"
+      - "**/.next-dev"
+      # Claude Code retains every downloaded version binary (~0.25 GB each,
+      # accretes forever); restore path = the installer re-downloads current.
+      - /home/deploy/.local/share/claude/versions
     exclude-caches: true
     # 2026-07-17: syd4 gained its FIRST stateful workload - thalon's native dev
     # Postgres 17 (founder-approved live; provisioning/host/setup-dev-postgres.sh).
