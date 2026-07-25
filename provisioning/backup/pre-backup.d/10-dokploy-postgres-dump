@@ -21,14 +21,31 @@ set -euo pipefail
 # backup outage on a box that simply has nothing of this kind to dump.
 command -v docker >/dev/null 2>&1 || { echo "SKIP: no docker on $(hostname -s) (cockpit-class) - nothing of this kind to dump"; exit 0; }
 
+# SELF-ARMING rot guard (2026-07-25, pattern: 15-tenant-pg-dump): syd4 gained
+# Docker on 07-23 (selom's localhost-only dev Nango), so `command -v docker`
+# alone no longer separates control-plane boxes from workspace boxes - this
+# hook cleared the guard above, found no dokploy-postgres, and hard-failed
+# syd4's WHOLE nightly chain two nights running (07-23/07-24, zero snapshots).
+# A missing container is a loud SKIP until the first dump lands; after that,
+# absence stays a hard FAIL - on the real control-plane box a vanished
+# dokploy-postgres means the control plane is DOWN, and snapshotting a stale
+# dump as if fresh would be silent rot.
 
 dump_dir=/var/backups/swordfish
+out="$dump_dir/dokploy-postgres.sql.gz"
 cid=$(docker ps --filter label=com.docker.swarm.service.name=dokploy-postgres --format '{{.ID}}' | head -n1)
-[ -n "$cid" ] || { echo "FAIL: dokploy-postgres container not running - refusing to snapshot without a fresh dump"; exit 1; }
+if [ -z "$cid" ]; then
+    if [ -e "$out" ]; then
+        echo "FAIL: dokploy-postgres container not running but a previous dump exists - control-plane down? refusing to snapshot a stale dump"
+        exit 1
+    fi
+    echo "SKIP: no dokploy-postgres container - not a Dokploy control-plane box (guard arms at its first successful dump)"
+    exit 0
+fi
 
 mkdir -p "$dump_dir"
 # write complete, then move into place - a snapshot can never catch a torn dump
-docker exec "$cid" pg_dump -U dokploy -d dokploy | gzip > "$dump_dir/dokploy-postgres.sql.gz.tmp"
-[ -s "$dump_dir/dokploy-postgres.sql.gz.tmp" ] || { echo "FAIL: dump came out empty"; exit 1; }
-mv -f "$dump_dir/dokploy-postgres.sql.gz.tmp" "$dump_dir/dokploy-postgres.sql.gz"
-echo "OK: dokploy-postgres dumped ($(stat -c%s "$dump_dir/dokploy-postgres.sql.gz") bytes)"
+docker exec "$cid" pg_dump -U dokploy -d dokploy | gzip > "$out.tmp"
+[ -s "$out.tmp" ] || { echo "FAIL: dump came out empty"; exit 1; }
+mv -f "$out.tmp" "$out"
+echo "OK: dokploy-postgres dumped ($(stat -c%s "$out") bytes)"
