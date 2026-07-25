@@ -38,6 +38,21 @@ at rest; the DB dump decrypts to nothing without exactly this key.
    founder-held off-box). Stack + data + key → connections survive; any two
    without the third → broker works but every OAuth grant must be redone.
 
+## Multi-project pattern (founder Q 2026-07-25)
+
+Other projects wanting Nango get their **own instance, not a share of this
+one**. The `:hosted` community image is single-account — sharing would put
+every project's OAuth connections in selom's account, readable with selom's
+secret key (a cross-tenant boundary break). Clone instead: copy this
+directory, change PROJECT/SERVICE/HOSTNAME_PUB + mint a fresh secrets file
+(fresh `NANGO_ENCRYPTION_KEY` — per-instance, each one never-rotate), run
+`provision.sh`. Ports never conflict: 3003/3009 are internal to each stack's
+own network; the public face is a distinct hostname behind 443. Each instance
+idles ~300-400 MB (server capped 1G) — syd2 carries 2-3 comfortably, more
+feeds the standing resize gate. Each new instance also needs a sibling of
+`40-nango-postgres-dump` (or that hook generalized) BEFORE real connections
+land: backups-before-workloads.
+
 ## Boundaries
 
 Swordfish owns box + edge + this broker's uptime/backups. **Selom owns the app

@@ -81,8 +81,9 @@ thalon replied in-channel. Also committed the orphaned 07-23 wrap stamp
    available (backups-apply is GH-Actions-gated = WAIT; syd2 ssh is read-only
    by posture). Zero urgency — old and new behave identically where
    dokploy-postgres runs; this is drift hygiene only.
-4. **Nango Connect-UI public host (selom ask 07-25, FOUNDER-GATED both sides,
-   not urgent):** `connect.nango.swordfish.cfd` → compose domain attach
+4. **Nango Connect-UI public host (selom ask 07-25; founder RATIFIED the
+   defer 07-25 — execute on his go when selom's FE slice nears, don't re-ask
+   the queueing):** `connect.nango.swordfish.cfd` → compose domain attach
    (serviceName `nango-server`, port 3009, LE) + porkbun A record + verify
    (UI serves, server API stays 401-gated) + check whether
    `NANGO_PUBLIC_CONNECT_URL` must flip to the new host (docs first — that's
