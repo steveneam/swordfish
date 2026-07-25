@@ -1,0 +1,100 @@
+name: selom-nango
+
+services:
+  nango-db:
+    image: postgres:16.0-alpine
+    environment:
+      POSTGRES_USER: ${NANGO_DB_USER:?required}
+      POSTGRES_PASSWORD: ${NANGO_DB_PASSWORD:?required}
+      POSTGRES_DB: ${NANGO_DB_NAME:?required}
+    volumes:
+      - nango-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NANGO_DB_USER:-nango} -d ${NANGO_DB_NAME:-nango}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [nango]
+
+  nango-redis:
+    image: redis:7.2.4
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [nango]
+
+  nango-server:
+    image: nangohq/nango-server:hosted
+    platform: linux/amd64
+    environment:
+      NANGO_DB_HOST: nango-db
+      NANGO_DB_PORT: "5432"
+      NANGO_DB_USER: ${NANGO_DB_USER:?required}
+      NANGO_DB_PASSWORD: ${NANGO_DB_PASSWORD:?required}
+      NANGO_DB_NAME: ${NANGO_DB_NAME:?required}
+      RECORDS_DATABASE_URL: postgresql://${NANGO_DB_USER}:${NANGO_DB_PASSWORD}@nango-db:5432/${NANGO_DB_NAME}
+      NANGO_DATABASE_URL: postgresql://${NANGO_DB_USER}:${NANGO_DB_PASSWORD}@nango-db:5432/${NANGO_DB_NAME}
+      NANGO_REDIS_URL: redis://nango-redis:6379
+      NANGO_ENCRYPTION_KEY: ${NANGO_ENCRYPTION_KEY:?required}
+      SERVER_PORT: "3003"
+      CONNECT_UI_PORT: "3009"
+      FLAG_SERVE_CONNECT_UI: "true"
+      CSP_REPORT_ONLY: "true"
+      NANGO_SERVER_URL: https://nango.swordfish.cfd
+      NANGO_PUBLIC_SERVER_URL: https://nango.swordfish.cfd
+      NANGO_PUBLIC_CONNECT_URL: https://nango.swordfish.cfd
+      FLAG_AUTH_ENABLED: "true"
+      NANGO_DASHBOARD_USERNAME: selom-admin
+      NANGO_DASHBOARD_PASSWORD: ${NANGO_DASHBOARD_PASSWORD:?required}
+      LOG_LEVEL: info
+    expose:
+      - "3003"
+      - "3009"
+    depends_on:
+      nango-db:
+        condition: service_healthy
+      nango-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 45s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [nango, dokploy-network]
+
+volumes:
+  nango-db-data:
+
+networks:
+  nango:
+    name: selom-nango
+  dokploy-network:
+    external: true
