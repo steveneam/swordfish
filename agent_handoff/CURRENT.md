@@ -81,7 +81,16 @@ thalon replied in-channel. Also committed the orphaned 07-23 wrap stamp
    available (backups-apply is GH-Actions-gated = WAIT; syd2 ssh is read-only
    by posture). Zero urgency — old and new behave identically where
    dokploy-postgres runs; this is drift hygiene only.
-4. **Carried queue:**
+4. **Nango Connect-UI public host (selom ask 07-25, FOUNDER-GATED both sides,
+   not urgent):** `connect.nango.swordfish.cfd` → compose domain attach
+   (serviceName `nango-server`, port 3009, LE) + porkbun A record + verify
+   (UI serves, server API stays 401-gated) + check whether
+   `NANGO_PUBLIC_CONNECT_URL` must flip to the new host (docs first — that's
+   a compose-env change + redeploy) + mirror into
+   `provisioning/dokploy/selom-nango/`. Their direct-link flow works
+   meanwhile; nothing blocked. Selom's drive-OAuth loop is CLOSED (verified
+   live on syd2; our banner/env confirm delivered 07-25).
+5. **Carried queue:**
    a. **Dashboard soak: 07-26 (TOMORROW) delete `render-dashboard.py`** if no
       fallback used.
    b. **eamos `preview-api` edge rate-limit** — confirm-intent gate (JWT-aware
