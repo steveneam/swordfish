@@ -58,6 +58,11 @@ thalon replied in-channel. Also committed the orphaned 07-23 wrap stamp
 - **thalon units live on syd4:** `thalon-preview` + `thalon-sweeper`
   (`systemctl --user`), linger on for deploy. Source of truth:
   `provisioning/workstation/thalon-units/` (installer idempotent).
+- **eamos agent ONBOARDED 07-25 (founder-directed):** full brief (box map,
+  Render-cancelled, GH-WAIT, gogogo/wrap, channels + live-comm rules, open
+  cross-team items) in their `FROM-SWORDFISH.md` 06:15Z + live ping; they
+  were already drafting `swordfish-gogogo-askback` — expect ask-backs in
+  their ask file.
 - **Carried (still true):** syd2 edge ratchet live · **GH Actions = WAIT** ·
   eamos LIVE on syd2 (`preview-api.`; Render rollback path GONE by design as
   of today) · dashboard cockpit `localhost:8080/proxy/8090/` · relay +
