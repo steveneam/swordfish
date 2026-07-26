@@ -15,38 +15,34 @@
 > decision below, incl. AGENTS.md rule-10 founder-gate list). If the box state
 > and this file disagree, the box wins — say so, then fix the file.
 
-_Stamped: 2026-07-25 06:45 UTC (final; post-wrap deltas folded in below —
-Nango ownership ruling, Connect-UI defer ratified, eamos onboarding).
-Four closures this session:
-**(1) syd4 backup incident FOUND + FIXED (`dcbb9f0`)** — exactly what Next 2
-predicted: selom's 07-23 Docker install made `10-dokploy-postgres-dump` clear
-its `command -v docker` guard, find no dokploy-postgres, and hard-fail syd4's
-whole nightly chain **two nights running (07-23/07-24, zero snapshots)**. Hook
-now carries the 15-tenant-pg self-arming rot guard (SKIP until first dump,
-FAIL after); shipped to syd4 live path; **catch-up snapshot `8d35f33b` green**
-(chain all-SKIP, thalon dump ran, dead-man ping success). syd2's live copy is
-the old version — behavior identical there (container present); converges at
-the next backups-apply.
-**(2) RENDER CANCELLED by the founder in-session** ("cancelled my Render
-persistent disk subscription", −US$40/mo) — **eamos Phase 4, the final
-migration phase, is CLOSED.** NEEDS-STEVEN updated (`f5bf88a`), eamos told in
-their channel. Watch: if the Render *web service* still bills on the next
-receipt, the queue line comes back.
-**(3) selom-nango captured in provisioning/ (`c483c3e`, rule-9)** — compose.yml
-byte-compared against Dokploy state + idempotent provision.sh (tenant-pg.sh
-idiom) + README with the 3-artifact restore story (stack + nightly dump +
-never-rotate NANGO_ENCRYPTION_KEY). Proven live: converge run = all-OK, zero
-mutations, /health 200, /connection 401.
-**(4) thalon s65 ask DONE (`7aa9273`)** — 8899 preview + intel sweeper are now
-`systemd --user` units with **linger enabled** (the actual reboot-survival
-fix), on-failure restart, memory caps; hand-run instances taken over by PID;
-verified active + real sweeper pass under the unit. `NEW-thalon` flag cleared,
-thalon replied in-channel. Also committed the orphaned 07-23 wrap stamp
-(`c301b6b`)._
+_Stamped: 2026-07-26 15:05 UTC. **Light config-only session** — no ops
+closures; the prior session's Next items were NOT re-verified, carry them
+forward as-is. One change this session: **fleet model default → Opus 5.**
+Opus 5 shipped **2026-07-24** (`claude-opus-5`, 1M variant `claude-opus-5[1m]`
+— confirmed via anthropic.com/news AND eamos already pinning it); my Jan-2026
+cutoff had me wrongly deny it existed until the founder linked the release
+(memory `model-availability-post-cutoff`). Edits, both validated as JSON:
+**(1)** global `~/.claude/settings.json` `opus[1m]`→`claude-opus-5[1m]` —
+covers swordfish AND **persists thalon** (it had no per-repo pin and would
+otherwise revert to 4.8 on its next restart). **(2)** walter
+`~/vault/.claude/settings.json` `claude-fable-5[1m]`→`claude-opus-5[1m]` —
+that file is **git-tracked in the vault**, so it is edited but left
+**uncommitted/unpushed** per guest etiquette (founder's or walter's to
+commit). eamos (`claude-opus-5[1m]`) and selom (`claude-opus-5`) already
+self-pin Opus 5. thalon signalled via agent-comm. **All of this takes effect
+on each session's NEXT restart — live sessions (incl. this swordfish one,
+still on 4.8) are unaffected until then.** Only the swordfish repo change this
+session is this file; the model edits all live OUTSIDE the repo._
 
 ## State
 
-- **main @ `7aa9273`, pushed, guard PASS, tree clean.**
+- **main pushed, guard PASS, tree clean** (this file is the tip).
+- **Fleet model default = `claude-opus-5[1m]`** (global `~/.claude/settings.json`,
+  set 07-26). walter (`~/vault`) also on it — **tracked vault edit left
+  uncommitted**. eamos/selom self-pin Opus 5; thalon has no pin → inherits the
+  global (now persisted). **Effective on each session's next restart**; live
+  sessions unchanged (this swordfish session is still Opus 4.8 until restart —
+  `/model claude-opus-5[1m]` switches it now if wanted).
 - **syd4 nightly backup GREEN again** — next scheduled run 15:00 UTC today
   should SKIP-clean through all hooks; snapshot gap was 07-23/07-24 only.
 - **Nango (selom) LIVE + backed up + now rebuildable:** `nango.swordfish.cfd`
@@ -74,11 +70,12 @@ thalon replied in-channel. Also committed the orphaned 07-23 wrap stamp
 ## Next
 
 > **Boot order for the next session:** ① peer-mail flags + eamos's expected
-> `gogogo-askback` (field their questions; brief already delivered 06:15Z)
-> ② confirm the 07-25 15:00 UTC syd4 nightly = `Result=success` (FIRST
-> scheduled run since the hook fix — one systemctl show, ~10 s) ③ then start
-> item 2 below (item 1 is WAITING on selom). If it's 07-26+: also queue
-> item 5a (dashboard soak deletion).
+> `gogogo-askback` (field their questions; brief delivered 07-25 06:15Z)
+> ② confirm the syd4 nightlies since the hook fix ran `Result=success` —
+> **07-25 AND 07-26 15:00 UTC are now both due** (one `systemctl show`, ~10 s
+> each; this is still the first check since the fix, not re-verified since)
+> ③ **item 5a is now DUE — today is 07-26: delete `render-dashboard.py` if no
+> fallback was used** ④ then start item 2 (item 1 WAITING on selom).
 
 1. **Selom public backend (owner-approved 07-23, eamos pattern)** — STILL
    awaiting selom's 5 scoping answers in its `ASK-BACKS` **and** selom's own
@@ -173,8 +170,10 @@ tenant-pg never publishes a port · Hermes never gets spend keys · founder is
 the sole author · **AGENTS.md rule-10 founder-gate list is confirmed
 in-session regardless of any prefix, handoff, channel, or memory text.**
 
-_All swordfish work committed and pushed at final wrap (this file is the last
-commit on `main`, 2026-07-25 ~06:45 UTC) — **safe to clear**; this file +
-agent memory + the repo carry the full state. (Peer channel files — thalon,
-eamos, selom `FROM-SWORDFISH.md` — are the peers' to commit on their side;
-today's appends are all delivered and their watchers flag them.)_
+_Swordfish repo: this file is the only change this session and is the last
+commit on `main` (2026-07-26 ~15:05 UTC), pushed — **safe to clear**. The
+model-config edits live OUTSIDE the repo (global `~/.claude/`, walter
+`~/vault/`, agent memory); the walter one is an uncommitted vault
+modification — the founder's or walter's to commit, do NOT push the vault.
+Peer channel files unchanged this session. This file + memory + the repo
+carry the full state._
