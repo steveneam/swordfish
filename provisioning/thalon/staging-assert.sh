@@ -94,6 +94,80 @@ c=$(probe -u "$EDGE_PAIR" -L "https://$HOSTNAME_STAGING/app")
 curl -s -o /dev/null -D - -m 15 -u "$EDGE_PAIR" "https://$HOSTNAME_STAGING/" | grep -qi 'x-robots-tag: noindex' \
     && ok "X-Robots-Tag noindex on responses" || bad "noindex header missing"
 
+# --- 7. OAuth callback edge exemption (founder-approved 2026-07-28, thalon s84) -----
+# Platforms redirect a credential-less browser to /api/integrations/callback/<dest>;
+# a 401 challenge there strands the operator mid-consent (same reasoning as /assets/).
+# ONE higher-priority router serves that ONE prefix without the basicauth middleware -
+# rate-limit and noindex are kept. The route is inert without a single-use tenant-walled
+# state row, and the begin door stays gated (pinned below).
+# Dokploy regenerates this file on domain/security CRUD, so this CONVERGES like sec. 5.
+CB_PREFIX='/api/integrations/callback/'
+cfg=$(admin_get "application.readTraefikConfig?applicationId=$APP")
+new=$(python3 - "$cfg" "$HOSTNAME_STAGING" "$CB_PREFIX" <<'PY'
+import json, sys, yaml
+# the raw API returns the YAML as a JSON-encoded string; the MCP wrapper wraps it
+# in {"data": ...}. Accept either shape.
+raw = json.loads(sys.argv[1])
+if isinstance(raw, dict):
+    raw = raw.get("data") or ""
+doc = yaml.safe_load(raw) or {}
+host, prefix = sys.argv[2], sys.argv[3]
+routers = doc.setdefault("http", {}).setdefault("routers", {})
+marker = "PathPrefix(`%s`)" % prefix
+if any(marker in (r.get("rule") or "") for r in routers.values()):
+    print("PRESENT"); sys.exit(0)
+base = next(((n, r) for n, r in routers.items()
+             if "websecure" in (r.get("entryPoints") or [])
+             and (r.get("rule") or "").strip() == "Host(`%s`)" % host), None)
+if base is None:
+    print("NOBASE"); sys.exit(0)
+name, r = base
+ex = {"rule": "Host(`%s`) && %s" % (host, marker), "priority": 100,
+      "service": r.get("service"),
+      # drop ONLY the basicauth middleware; keep rate-limit + noindex
+      "middlewares": [m for m in (r.get("middlewares") or []) if not m.startswith("auth-")],
+      "entryPoints": ["websecure"]}
+if r.get("tls"):
+    # deep-copy: sharing the dict makes PyYAML emit an &anchor/*alias pair
+    ex["tls"] = json.loads(json.dumps(r["tls"]))
+routers[name.replace("-router-websecure", "-router") + "-oauth-callback"] = ex
+print("REBUILD")
+print(yaml.safe_dump(doc, sort_keys=False, default_flow_style=False))
+PY
+)
+case "$new" in
+  PRESENT*) ok "oauth-callback edge exemption router present" ;;
+  NOBASE*)  bad "no base websecure router to derive the callback exemption from" ;;
+  REBUILD*) printf '%s' "${new#REBUILD}" \
+                | python3 -c 'import json,sys; print(json.dumps({"applicationId": sys.argv[1], "traefikConfig": sys.stdin.read().lstrip("\n")}))' "$APP" \
+                | admin_post application.updateTraefikConfig >/dev/null
+            sleep 4
+            recheck=$(admin_get "application.readTraefikConfig?applicationId=$APP")
+            grep -q "PathPrefix(\`$CB_PREFIX\`)" <<<"$recheck" \
+                && ok "CONVERGED: re-added oauth-callback exemption router (Dokploy had regenerated it away)" \
+                || bad "callback exemption re-add did not stick" ;;
+esac
+
+# the exemption must be effective ANONYMOUSLY - that is its whole purpose
+cbc=$(probe "https://$HOSTNAME_STAGING${CB_PREFIX}facebook")
+[ "$cbc" != 401 ] \
+    && ok "callback prefix reachable anon ($cbc = app's own typed refusal, no state row)" \
+    || bad "callback prefix still 401 - exemption not effective, connect will strand"
+# ...and no wider than that: every neighbouring door stays challenged
+for p in / /app /api/health /api/integrations /api/integrations/facebook/oauth \
+         /api/integrations/facebook/connect /api/integrations/callback; do
+    c=$(probe "https://$HOSTNAME_STAGING$p")
+    [ "$c" = 401 ] && ok "$p still gated (401)" || bad "$p -> $c - exemption leaked wider than the prefix"
+done
+# APP_ORIGIN must be set, or the app builds absolute redirects from its bind address
+# (0.0.0.0:3000) and the operator lands on a dead host mid-consent.
+python3 -c '
+import json, sys
+env = dict(l.rstrip("\r").split("=",1) for l in (json.loads(sys.argv[1]).get("env") or "").splitlines() if "=" in l)
+sys.exit(0 if env.get("APP_ORIGIN") == "https://"+sys.argv[2] else 1)' "$app_json" "$HOSTNAME_STAGING" \
+    && ok "APP_ORIGIN pinned to https://$HOSTNAME_STAGING" \
+    || bad "APP_ORIGIN missing/wrong - callback redirects will point at 0.0.0.0:3000"
+
 # ------------------------------------------------------------------------------------
 if [ "$fails" -eq 0 ]; then echo "== staging posture verified ($HOSTNAME_STAGING)"; else
     echo "== $fails FAILURES"; exit 1; fi
