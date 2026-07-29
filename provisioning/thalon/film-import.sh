@@ -69,13 +69,36 @@ git -C "$THALON_REPO" cat-file -e "${COMMIT}^{commit}" 2>/dev/null \
 SHA=$(git -C "$THALON_REPO" rev-parse "$COMMIT")
 echo "== checkout commit : $SHA"
 
-# The image carries no commit label (checked 2026-07-29), so this is an
-# assertion the operator makes, not one this script can verify. Print the digest
-# the operator should have matched it against.
-RUNNING=$(ssh_syd2 "sudo docker inspect -f '{{.Image}}' \
-  \$(sudo docker ps --format '{{.ID}} {{.Names}}' | grep -i thalon-web | head -1 | awk '{print \$1}')")
+# Verify the commit against the RUNNING image where we can. Thalon landed
+# org.opencontainers.image.revision on the pushing build (their s85 note 6), so
+# a labelled image lets this be a real check instead of a printed assertion.
+#
+# Deliberately THREE outcomes, not two. "Label absent" must NOT fail: images
+# built before that change (including the digest running on 2026-07-29) carry no
+# label, and failing closed there would look like a regression on a box where
+# nothing is wrong - thalon flagged this explicitly and they are right. Absent
+# degrades to the old print-and-assert; only a MISMATCH refuses.
+read -r RUNNING REVISION < <(ssh_syd2 "bash -s" <<'EOS'
+cid=$(sudo docker ps --format '{{.ID}} {{.Names}}' | grep -i thalon-web | head -1 | awk '{print $1}')
+img=$(sudo docker inspect -f '{{.Image}}' "$cid")
+rev=$(sudo docker image inspect "$img" \
+        --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' 2>/dev/null)
+echo "$img ${rev:-NONE}"
+EOS
+)
 echo "== running image   : $RUNNING"
-echo "   (no commit label on the image - verify $SHA built THIS digest yourself)"
+case "$REVISION" in
+  NONE|"<no value>"|"")
+    echo "== commit check    : UNVERIFIABLE - image carries no org.opencontainers.image.revision"
+    echo "   (pre-dates thalon's label change; $SHA built THIS digest is YOURS to assert)" ;;
+  "$SHA")
+    echo "== commit check    : VERIFIED - image revision label == $SHA" ;;
+  *)
+    echo "FAIL: commit mismatch. You passed $SHA, but the RUNNING image was built from $REVISION." >&2
+    echo "      Importing through a checkout that is not the running schema risks writing rows" >&2
+    echo "      the app cannot read. Pass $REVISION, or deploy the image built from $SHA." >&2
+    exit 1 ;;
+esac
 
 # --- 2. duplicate guard - the failure mode their ask 1 is about ---------------
 # The DB role is whatever the container was built with ($POSTGRES_USER), not
