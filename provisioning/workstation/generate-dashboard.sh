@@ -9,7 +9,8 @@ set -uo pipefail
 #                            (parallel, individually timeboxed, individually
 #                            fail-safe: a dead collector = an UNAVAILABLE card
 #                            + the previous JSON stays for its age display)
-#   render-dashboard.py      composes ~/dashboard/index.html from the JSON
+#   dashboard-app/           tracked static app; reads data/*.json client-side
+#                            (served by dashboard-server.py via DASH_APP_DIR)
 #
 # The systemd timer (setup-dashboard.sh) runs THIS file every 15 min; the
 # static server on 8090 (localhost-only, the Mac tunnel is the auth) serves
@@ -63,8 +64,7 @@ done
 # event-driven refresh must not pollute the 15-min cadence)
 [ -z "$only" ] && python3 "$DIR/history-append.py"
 
-# NOTE (redesign 2026-07-19): render-dashboard.py is RETIRED - the page is now
-# the tracked static app in dashboard-app/, which reads data/*.json client-side
-# (dashboard-server.py serves it via DASH_APP_DIR). Collectors + history are
-# this script's whole job now. Delete render-dashboard.py after the soak week.
+# Rendering moved client-side 2026-07-19 (dashboard-app/); render-dashboard.py
+# deleted 2026-07-29 after the soak. Collectors + history are this script's
+# whole job now.
 exit 0
