@@ -8,7 +8,17 @@ set -uo pipefail
 # B2 cap, subscriptions) is computed client-side from JSON the page already
 # fetches - this file carries ONLY the queue lines.
 #
-# Line contract (unchanged from render-dashboard.py): `- [YYYY-MM-DD] text`.
+# Line contract: `- [YYYY-MM-DD] text`, and ALSO `- [YYYY-MM-DD→DD] text`.
+#
+# 2026-07-29 FIX: the original regex demanded `]` immediately after the date, so
+# every line written in the date-RANGE form agents actually use - `[2026-07-13→17]`
+# for "raised then updated" - silently never reached the founder's dashboard.
+# It was not a rendering glitch: those items were invisible to him entirely.
+# 21 lines fleet-wide were being dropped when this was found (4 swordfish,
+# 17 thalon), including swordfish's syd2 SPEND GATE. A queue that silently
+# drops entries is worse than no queue - it reads as "nothing pending".
+# The date is still the first 10 chars; the text is now everything after the
+# FIRST `]`, so both forms parse and neither depends on a fixed offset.
 
 . "$(dirname "$0")/lib.sh"
 
@@ -19,9 +29,9 @@ main() {
     [ -f "$qf" ] || continue
     proj=$(basename "$(dirname "$(dirname "$qf")")")
     items=$(jq --arg p "$proj" --slurpfile new <(
-      grep -E '^- \[[0-9]{4}-[0-9]{2}-[0-9]{2}\]' "$qf" | while IFS= read -r line; do
+      grep -E '^- \[[0-9]{4}-[0-9]{2}-[0-9]{2}[^]]*\]' "$qf" | while IFS= read -r line; do
         d=${line:3:10}
-        jq -n --arg d "$d" --arg t "${line:15}" \
+        jq -n --arg d "$d" --arg t "${line#*\]}" \
           --argjson e "$(date -u -d "$d" +%s 2>/dev/null || echo 0)" \
           '{date: $d, epoch: $e, text: ($t | ltrimstr(" "))}'
       done | jq -s .
