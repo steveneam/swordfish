@@ -168,6 +168,39 @@ sys.exit(0 if env.get("APP_ORIGIN") == "https://"+sys.argv[2] else 1)' "$app_jso
     && ok "APP_ORIGIN pinned to https://$HOSTNAME_STAGING" \
     || bad "APP_ORIGIN missing/wrong - callback redirects will point at 0.0.0.0:3000"
 
+# --- 8. credential-vault KEK (minted 2026-07-29 for thalon s85) ---------------------
+# THALON_VAULT_MASTER_KEY seals every credential staging stores; the engine wants
+# exactly 32 bytes, base64. This is a KEY-encryption key, not a password: once staging
+# has sealed a row under it, losing or rotating it makes that row permanently
+# undecryptable. So the invariant is not just "set" - it is "set AND still equal to the
+# durable off-repo copy", which is what a restore would put back. A silent UI rotation
+# or a lost inventory file is exactly the failure this catches. Values never printed.
+VAULT_FILE=inventory/secrets/thalon-staging-vault-master.env
+if [ ! -s "$VAULT_FILE" ]; then
+    bad "$VAULT_FILE missing - the durable copy of staging's KEK is GONE (sealed rows unrecoverable if the app env is also lost)"
+else
+    python3 -c '
+import base64, json, sys
+env = dict(l.rstrip("\r").split("=",1) for l in (json.loads(sys.argv[1]).get("env") or "").splitlines() if "=" in l)
+live = env.get("THALON_VAULT_MASTER_KEY")
+if not live: print("UNSET"); sys.exit(1)
+try:
+    n = len(base64.b64decode(live, validate=True))
+except Exception: print("NOTB64"); sys.exit(1)
+if n != 32: print("LEN%d" % n); sys.exit(1)
+disk = dict(l.rstrip().split("=",1) for l in open(sys.argv[2]) if "=" in l).get("THALON_VAULT_MASTER_KEY")
+print("OK" if live == disk else "DIVERGED"); sys.exit(0 if live == disk else 1)' "$app_json" "$VAULT_FILE" >/tmp/.vaultchk 2>&1
+    case "$(cat /tmp/.vaultchk)" in
+      OK)       ok "THALON_VAULT_MASTER_KEY set, 32 bytes, matches the durable inventory copy" ;;
+      UNSET)    bad "THALON_VAULT_MASTER_KEY unset - every connect 503s at the vault" ;;
+      NOTB64)   bad "THALON_VAULT_MASTER_KEY is not valid base64" ;;
+      LEN*)     bad "THALON_VAULT_MASTER_KEY decodes to $(sed 's/^LEN/ /' /tmp/.vaultchk) bytes - engine requires exactly 32" ;;
+      DIVERGED) bad "THALON_VAULT_MASTER_KEY on the app != $VAULT_FILE - one of them was changed out of band; do NOT overwrite either until you know which sealed the live rows" ;;
+      *)        bad "vault KEK check errored: $(cat /tmp/.vaultchk)" ;;
+    esac
+    rm -f /tmp/.vaultchk
+fi
+
 # ------------------------------------------------------------------------------------
 if [ "$fails" -eq 0 ]; then echo "== staging posture verified ($HOSTNAME_STAGING)"; else
     echo "== $fails FAILURES"; exit 1; fi
