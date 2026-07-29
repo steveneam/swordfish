@@ -91,8 +91,14 @@ for entry in $WATCHES; do
   [ "$hash" != "$(cat "$hfile")" ] || continue
   printf '%s\n' "$hash" > "$hfile"
   # newest section heading, display-only (untrusted content: strip to
-  # printable ASCII, cap length - it labels the alert, nothing more)
-  head=$(grep '^# ' "$path" | tail -1 | tr -cd ' -~' | cut -c1-80)
+  # printable ASCII, cap length - it labels the alert, nothing more).
+  # 2026-07-29 FIX: this matched '^# ' (H1) ONLY, so peers who append '## '
+  # sections - which thalon does for every reply - never matched, and tail -1
+  # silently fell back to the last H1 in the file. Result: today's flag was
+  # labelled with a STALE 07-28 ask heading while the new content was an
+  # unrelated 07-29 note. A mislabelled flag is worse than an unlabelled one:
+  # it points the next session at the wrong thread. Match ANY heading level.
+  head=$(grep -E '^#{1,6} ' "$path" | tail -1 | tr -cd ' -~' | cut -c1-80)
   msg="📬 [$(hostname -s)] peer mail: $name -> swordfish channel changed (${head:-no heading}) - flag set for the next swordfish session"
   logger -t swordfish-alerts "$msg"
   { date -u +%FT%TZ; printf '%s\n' "$head"; } > "$STATE/NEW-$name"

@@ -108,6 +108,30 @@ in days.** Thalon's s85 lane is fully unblocked._
     UI rotation or a lost inventory file). All four failure branches
     (unset · not-base64 · wrong-length · diverged) exercised against synthetic
     inputs — it is not a rubber stamp.
+- **✅ CHANNEL SWEEP — went back through EVERY open thread in thalon's
+  `ASK-BACKS`, not just s85. Two stale asks found and closed, one still owed.**
+  - **Their s51-close question (2026-07-17) had NEVER been answered — 12 days.**
+    They asked whether the peer-mail Telegram ping carries changed content or
+    only "channel changed". **Answer: it carries the heading — but it was
+    carrying the WRONG one.** `setup-peer-mail-watch.sh` matched `^# ` (H1)
+    only; every section thalon has appended since s52 is `## `, so none matched
+    and `tail -1` fell back to the last H1 in the file. This morning's flag for
+    their 07-29 note was labelled with the unrelated **07-28** ask heading.
+    **A mislabelled flag is worse than an unlabelled one — it points the next
+    session at the wrong thread.** Fixed to match any heading level, applied
+    live, **proved end-to-end** by forcing a change and reading the flag.
+  - **pgvector folded into `provisioning/host/setup-dev-postgres.sh`** — their
+    07-17 ask, never actioned. **A syd4 rebuild would have come up with a
+    cluster their migrations cannot migrate**, and it would have read as a
+    thalon bug, not a provisioning gap (PGlite bundled pgvector, so the need was
+    invisible until the real server). apt install + `CREATE EXTENSION` scoped to
+    the `thalon` DB, both idempotent, plus a verification line. Caught while
+    writing it: `psu()` talks to the DEFAULT database and extensions are
+    per-database, so the naive check would have read "absent" forever.
+  - **⏳ STILL OWED: the s61 film import** — ACKed 2026-07-19, carried every
+    session since **without being done (10 days)**. That is a queue problem on
+    our side, not a priority call about their work. Told them so plainly and
+    invited them to escalate if it blocks their W-audit close.
 - **✅ OLD ITEM 10 CLOSED — thalon's callback verified after their deploy.**
   Independent anon probe from syd4: `GET /api/integrations/callback/bluesky`
   → **307** with `location: https://preview.swordfish.cfd/app/settings/…`

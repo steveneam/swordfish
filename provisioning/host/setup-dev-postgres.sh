@@ -129,6 +129,28 @@ if [ "$(psu "SELECT 1 FROM pg_database WHERE datname='$DB'")" != "1" ]; then
   changed=1
 fi
 
+# pgvector: thalon's migrations need it, and PGlite BUNDLED it - so the need was
+# invisible until this real server and only surfaced when their migrations ran.
+# They installed it by hand on 2026-07-17 and asked us to fold it in so a
+# re-provision carries it (their ASK-BACKS note, same date). Without this, a
+# rebuild of this box comes up with a cluster their migrations cannot migrate.
+# CREATE EXTENSION is superuser-only - the owning role rightly cannot do it -
+# so it belongs here rather than in their app. Both steps idempotent.
+if ! dpkg -l "postgresql-$PGVER-pgvector" 2>/dev/null | grep -q '^ii'; then
+  log "installing postgresql-$PGVER-pgvector from PGDG"
+  sudo -n NEEDRESTART_MODE=l DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+      "postgresql-$PGVER-pgvector" || { echo "FAIL: apt install pgvector"; exit 1; }
+  changed=1
+fi
+# NB: psu() talks to the DEFAULT database - an extension lives per-database, so
+# this check must be scoped to $DB or it would always read "absent" and re-run.
+if [ "$(sudo -n -u postgres psql -tAd "$DB" -c "SELECT 1 FROM pg_extension WHERE extname='vector'" 2>/dev/null)" != "1" ]; then
+  log "creating extension vector in $DB"
+  sudo -n -u postgres psql -qd "$DB" -c 'CREATE EXTENSION IF NOT EXISTS vector' >/dev/null \
+    || { echo "FAIL: CREATE EXTENSION vector"; exit 1; }
+  changed=1
+fi
+
 # --- 4. BACKUPS BEFORE WORKLOADS: dump-before-snapshot hook ---------------------
 # PGDATA is not in the restic set and a file copy of a live cluster is not
 # consistent. The dump is the restore path. It lands under /home/deploy, which
@@ -181,6 +203,7 @@ ck "ufw still 22-only (no 5432)"   "! sudo -n ufw status | grep -q 5432"
 ck "role $ROLE exists"             "[ \"\$(sudo -n -u postgres psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='$ROLE'\")\" = 1 ]"
 ck "db $DB exists"                 "[ \"\$(sudo -n -u postgres psql -tAc \"SELECT 1 FROM pg_database WHERE datname='$DB'\")\" = 1 ]"
 ck "role can actually connect"     "PGPASSWORD='$PGPW' psql -h 127.0.0.1 -U '$ROLE' -d '$DB' -tAc 'SELECT 1' | grep -q 1"
+ck "pgvector usable in $DB"        "[ \"\$(sudo -n -u postgres psql -tAd '$DB' -c \"SELECT 1 FROM pg_extension WHERE extname='vector'\")\" = 1 ]"
 ck "password file 0600"            "[ \"\$(stat -c %a '$PWFILE')\" = 600 ]"
 ck "dump hook installed+executable" "sudo -n test -x '$HOOK'"
 ck "dump hook runs clean"          "sudo -n run-parts --exit-on-error /etc/resticprofile/pre-backup.d"
