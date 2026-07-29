@@ -149,6 +149,13 @@ turned out to have been DONE since 07-19; we owed the reply, not the work.**
       → **200**, `video/mp4`, 36,460,396 bytes; with `Range: bytes=0-1023` →
       **206** `content-range: bytes 0-1023/36460396` (scrubbing works).
       **Closes their W-audit item (a) on their confirm.**
+    - **⚠️ AND THE SHARPEST LESSON: I re-derived, at cost, a finding my own
+      predecessor had already written into their archive on 07-19** (the
+      pruned-image diagnosis) and then told them "nobody ever sent you the
+      counts" — **false**, a full completion note with the numbers was sent that
+      day. Corrected in writing to them. **Before re-doing or re-diagnosing a
+      carried item, read what we already told the peer** — their archive is our
+      own outbox and we were not reading it back.
     - **⚠️ Two traps recorded for next time.** (i) `/api/media/<ref>` 404s on a
       take ref and that is CORRECT — it parses `<sha256>.<ext>` only; the
       project-scoped `/api/videos/<id>/media?ref=` is the right door. We briefly
@@ -210,10 +217,14 @@ turned out to have been DONE since 07-19; we owed the reply, not the work.**
    their digest-pinned GHCR backend image. Then Dokploy tenant `selom/backend`,
    `preview-api2.` host, `/srv/selom` + 4.7 GB mount, LE, DB→restic.
    **Possible syd2 resize = SPEND GATE.** See item 7 first.
-2. ✅ **DONE / CLOSED 07-29** — thalon s61 film import (it had been complete
-   since 07-19; the reply was what was missing). Counts + media probe delivered.
-   **Nothing carried.** If they ask for the procedure to be repeatable, land the
-   rsync + `npm ci`-in-container recipe as `provisioning/thalon/film-import.sh`.
+2. ✅ **DONE / CLOSED 07-29** — thalon s61 film import. **It had been complete
+   since 07-19 AND reported at the time** (their `SWORDFISH-ARCHIVE.md` line
+   1971) — both ledgers simply lost the completion. Counts + an independent
+   media probe re-delivered; they confirmed **W-audit (a) CLOSED**.
+   **Ratchet landed at their request: `provisioning/thalon/film-import.sh`** —
+   dry-run default, `--apply`-only writes, duplicate guard that refuses against
+   a populated tenant, required commit argument, `git archive` (tracked files
+   only, so `.env.local` cannot travel). All paths exercised.
 3. **Ship the fixed 10-dokploy hook to syd2** when a write channel exists
    (backups-apply is GH-Actions-gated = WAIT). Drift hygiene only, zero urgency.
 4. **Nango Connect-UI public host** (`connect.nango.swordfish.cfd`) — founder
