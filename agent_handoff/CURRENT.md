@@ -217,99 +217,120 @@ turned out to have been DONE since 07-19; we owed the reply, not the work.**
     new rule is in the board's own header: **resolved ⇒ archive in the SAME
     wrap**, never left sitting wearing a ✅.
 
-## Next
+## Next — the plan for the coming session
 
-> **Boot order:** ① **item 5a — OVERDUE: delete `render-dashboard.py`** (soak
-> ended 07-26, no fallback used, nothing blocks it — and it carries the SAME
-> date-regex bug just fixed in `collect-needs.sh`, so deleting it removes a
-> second copy of a known defect rather than needing its own fix) ② **item 6 — reply to eamos
-> closing their ledger item 3** (they answered; our close is owed) ③ item 7
-> (syd2 disk before the selom backend) ④ item 8 (`deploy2.` + stale comments).
-> _(Old item 10 is DONE — closed by probe this session.)_
+> **BOOT: start at A1 and work down lane A. Do not ask which.** Lane A is
+> unblocked end to end and is the standing approval. Stop only at a founder gate
+> (lane B) or where a peer has not answered (lane C).
 >
-> **Peer-mail: `NEW-thalon` was read + acted + cleared 07-29; no `NEW-*` flags
-> open** (verified by `ls`, not from memory). Their s85 asks are discharged:
-> ask 1 applied, ask 2 parked on the founder, ask 3 informational.
-> **Thalon: ZERO open asks in either direction** (whole channel swept 07-29,
-> not just the newest thread).** Ask 1 applied AND deployed, ask 2 parked
-> on the founder, ask 3 informational, the pin assertion fixed on their
-> argument. `staging-assert.sh` = 25 PASS / 0 FAIL. **Expect one thing when
-> GitHub billing is restored:** their first successful build re-tags `:staging`
-> to a NEW digest and auto-deploys ~9 commits of s85 code — read that as
-> expected, not as drift. The new ref assertion holds across it unchanged.
+> **Realistic scope: lane A is roughly a full session.** A1–A4 are the core; A5
+> and A6 are the natural overflow if time runs short. Do not start lane D work
+> while lane A has items left.
+>
+> **Peer state at this wrap: thalon ZERO open asks both directions · eamos owes
+> us nothing, we owe them A3 · selom owes us answers (lane C).**
+> **No `NEW-*` peer-mail flags open** (verified by `ls`, not from memory).
 
-1. **Selom public backend** — STILL awaiting selom's 5 scoping answers **and**
-   their digest-pinned GHCR backend image. Then Dokploy tenant `selom/backend`,
-   `preview-api2.` host, `/srv/selom` + 4.7 GB mount, LE, DB→restic.
-   **Possible syd2 resize = SPEND GATE.** See item 7 first.
-2. ✅ **DONE / CLOSED 07-29** — thalon s61 film import. **It had been complete
-   since 07-19 AND reported at the time** (their `SWORDFISH-ARCHIVE.md` line
-   1971) — both ledgers simply lost the completion. Counts + an independent
-   media probe re-delivered; they confirmed **W-audit (a) CLOSED**.
-   **Ratchet landed at their request: `provisioning/thalon/film-import.sh`** —
-   dry-run default, `--apply`-only writes, duplicate guard that refuses against
-   a populated tenant, required commit argument, `git archive` (tracked files
-   only, so `.env.local` cannot travel). All paths exercised.
-   **Then thalon added `org.opencontainers.image.revision` to their build and
-   asked for the printed assertion to become a real check — done.** It reads the
-   label off the RUNNING image with **three** outcomes: match = VERIFIED,
-   mismatch = **FAIL exit 1** (names both commits), **absent = UNVERIFIABLE and
-   PROCEEDS**. That third case is deliberate — no labelled image exists yet
-   (billing), so failing closed would read as a regression on a healthy box.
-   **The check tightens by itself when their first labelled image deploys; no
-   follow-up is owed by either side.**
-3. **Ship the fixed 10-dokploy hook to syd2** when a write channel exists
-   (backups-apply is GH-Actions-gated = WAIT). Drift hygiene only, zero urgency.
-4. **Nango Connect-UI public host** (`connect.nango.swordfish.cfd`) — founder
-   ratified the defer 07-25; execute on his go when selom's FE slice nears.
-5. **Carried queue:**
-   a. **DELETE `render-dashboard.py`** — soak ended 07-26, now overdue.
-   b. eamos `preview-api` edge rate-limit — needs a **JWT-aware
-      `sourceCriterion`** (IP-keyed would bucket all users behind one proxy IP;
-      eamos independently agrees). Awaiting founder's call only.
-   c. Rotation pass (thalon GO'd; needs founder one-line yes — in NEEDS-STEVEN).
-   d. **Kuma alerting gap** — confirmed still open 07-28: its last state-change
-      event is **07-19** and its only notification is ntfy→founder phone.
-   d2. Nango owner hygiene: pin the floating `nangohq/nango-server:hosted` image
-      at a quiet window (coordinate the blip with selom).
-   e. syd1 destroy-vs-warm (founder gate) · `fwupd` cosmetic · Dokploy key
-      hygiene · tenant-pg collation · Gmail re-auth · thalon basicauth rotation
-      + `DB_DUMP_TOKEN` retirement (waits on the rotation pass).
-6. **Close eamos ledger item 3 — they ANSWERED it.** The 65-vs-55 env-name delta
-   is benign and load-bearing: `app/backend/Dockerfile:18-19` bakes absolute
-   `PROTEIN_ANNOTATION_HMMSCAN_PATH` / `..._HMMPRESS_PATH` so
-   `host_binary_autodiscovery_allowed: false` is true **in the image**, not
-   PATH-dependent. **Action:** write the close into their `FROM-SWORDFISH.md`,
-   drop the item, and ACK two more: (i) the GHCR-vs-syd2 **digest divergence is
-   EXPECTED** under `autoDeploy false` — do not let monitoring read it as
-   accidental drift, and it is **not** a deploy request; (ii) their side agrees
-   on 5b.
-7. **syd2 disk headroom — decide BEFORE provisioning the selom backend.**
-   Measured **07-28: 72% used, 28G free** of 99G (was 75%/25G on 07-26).
-   `docker image prune` reclaims ~4.9GB with no spend — do that first. Only if
-   insufficient does a syd2 resize become a **fresh SPEND GATE** (memory
-   `syd4-resize-ruled-no`: do not re-pitch spend casually). **Re-measure at
-   provision time.**
-8. **Retire the `deploy2.swordfish.cfd` leftover** (404s at `/`, still holds a
-   renewing LE cert). Check `status2.`/`metrics2.` at the same time (both still
-   answer — 302/200 — so may still be wanted). **Same pass, two stale-string
-   fixes:** (i) `~/.ssh/config` line 1 still claims "BL blocks all egress-22 from
-   syd4" — untrue since 07-16; (ii) **NEW 07-28: `h.swordfish.cfd` resolves to
-   Porkbun parking IPs** (`pixie.porkbun.com`) so it curls `000` — a parked
-   leftover, not an outage; drop the record or point it somewhere real so it
-   stops reading as a dead host in sweeps.
-9. **syd1 is STILL UP and still billing** — 443 **and** 22 both answer as of
-   07-28, ~12 days past soak end. Nothing depends on it. **Destroy is a FOUNDER
-   GATE** — surface, never auto-run. One-line yes retires it.
-10. ✅ **DONE 07-29** — thalon's callback re-verified after their deploy (probe
-   in State above). Nothing carried.
-11. **NEW — thalon staging OAuth pairs, FOUNDER-GATED.** When the founder says
-   he has registered `https://preview.swordfish.cfd/api/integrations/callback/<p>`
-   on the Meta / LinkedIn / Reddit developer apps (now on NEEDS-STEVEN), set
-   `SOCIAL_{FACEBOOK,LINKEDIN,REDDIT}_CLIENT_ID/_SECRET` on app
-   `jh_UI2lErDwykJG6FcFBD` the same way today's key went in — **the values come
-   from him**, minted in those consoles. Do not set them before the URLs are
-   registered; that only moves the failure one step later.
+### Lane A — unblocked, sequenced, nothing gates these
+
+**A1. Fleet checkup + outside-in reboot verify. (~10 min, do FIRST.)**
+The 18:30 UTC auto-reboot and the ~06:2x apt re-exec will both have fired since
+this wrap, and **every other item below assumes the fleet is where we left it.**
+Verify that assumption before building on it. Probe public routes **from another
+box** (memory `reboot-verify-outside-in`: syd2's edge was once dead 7h with every
+on-box signal green). Check `/var/run/reboot-required` on all three. Run
+`provisioning/thalon/staging-assert.sh` (was 25 PASS / 0 FAIL) and
+`checks/who-is-live.sh --gate` before touching anything.
+
+**A2. Delete `render-dashboard.py`. (~5 min. OVERDUE since 07-26.)**
+Soak ended, no fallback ever used, `collect-needs.sh` is the live path. It also
+carries **the same date-regex bug fixed in the collector on 07-29**, so deleting
+it removes a second copy of a known defect rather than needing its own fix.
+Confirm nothing still references it before removing.
+
+**A3. Close eamos ledger item 3 — we owe them a reply. (~15 min.)**
+They ANSWERED; our close is owed. **This is the same debt class that made the
+thalon film import look 10 days overdue when it was actually done** — an
+unreported close is indistinguishable from neglect. The 65-vs-55 env-name delta
+is benign and load-bearing: `app/backend/Dockerfile:18-19` bakes absolute
+`PROTEIN_ANNOTATION_HMMSCAN_PATH` / `..._HMMPRESS_PATH`, so
+`host_binary_autodiscovery_allowed: false` is true **in the image**, not
+PATH-dependent. **Action:** write the close into their `FROM-SWORDFISH.md`, drop
+the item, and ACK two more — (i) the GHCR-vs-syd2 **digest divergence is
+EXPECTED** under `autoDeploy false`; do not let monitoring read it as accidental
+drift, and it is **not** a deploy request; (ii) their side agrees on B7.
+
+**A4. Kuma alerting gap — investigate and fix what is fixable. (~30–45 min.)**
+**The highest-consequence item in lane A.** Its last state-change event is
+**07-19**, and its only notification path is ntfy→his phone. This is the gap
+that hid the 7h15m syd2 edge outage on 07-18. Find out whether it is monitoring
+nothing, or monitoring and not notifying — those are different bugs. **The
+posture half (option c) is his call in B5, but the diagnosis is not gated:** do
+it, and hand him a fixed thing to approve rather than a question.
+
+**A5. syd2 disk headroom. (~10 min.)**
+`docker image prune` reclaims ~5 GB at no cost. Measured 68% / 31 G free on
+07-29 (improved from 72% after today's work). **Do this before selom's backend
+is ever scoped**, so a resize question never arises spuriously. Only if pruning
+is insufficient does a resize become a fresh spend gate — memory
+`syd4-resize-ruled-no`: do not re-pitch spend casually. **Re-measure at
+provision time, never from this number.**
+
+**A6. Retire `deploy2.swordfish.cfd` + two stale strings. (~20 min.)**
+`deploy2.` 404s at `/` but still renews an LE cert. Check `status2.`/`metrics2.`
+in the same pass (both still answer, 302/200, so may still be wanted — do not
+assume). Two stale strings while in there: (i) `~/.ssh/config` line 1 still
+claims "BL blocks all egress-22 from syd4", **untrue since 07-16**; (ii)
+`h.swordfish.cfd` resolves to Porkbun parking IPs so it curls `000` — a parked
+leftover, **not an outage**; drop the record or point it somewhere real so it
+stops reading as a dead host in every sweep.
+
+### Lane B — unlocks the moment he says a word. Map answer → action, do not re-ask.
+
+| his word | do this |
+|---|---|
+| **"destroy syd1"** | Destroy it (irreversible — confirm in-session, price live). **"keep warm"** → record the decision and offer the powered-off-snapshot middle option. |
+| **"re-issue thalon's deploy key"** | Write `inventory/secrets/dokploy-tenant-thalon-deploy.env`'s value into their `.context/` per the staging-secrets pattern, verify they can consume it, tell them. Removes swordfish from their release loop. |
+| **"callback URLs registered"** | Set the four `SOCIAL_{FACEBOOK,LINKEDIN,REDDIT}_CLIENT_ID/_SECRET` on app `jh_UI2lErDwykJG6FcFBD` the way the vault key went in (fetch-merge-write, values from him, never echoed). **Then it needs a redeploy** — theirs if their credential is live by then, else `film-import.sh`-style via ours. |
+| **"go" on rotations** | Run the pass in the ranked order already on his board: ① Porkbun ② BinaryLane + both Dokploy keys ③ B2 + GHCR PAT ④ Vultr ⑤ UptimeRobot. Spreadable over days. **Unblocks thalon's basicauth rotation + `DB_DUMP_TOKEN` retirement**, which waits on it. |
+| **auto-reboot (a) / (b) / (c)** | (b) = disable auto-*reboot* on syd2+syd4, keep auto-patching. (c) = (b) + close the Kuma gap, which A4 should have already diagnosed. Config-only, reversible. |
+| **Dokploy admin-key posture (a/b/c)** | (b) is the cheap real improvement: swordfish's own MCP uses **scoped tenant keys** for tenant reads where one exists, admin key for fleet ops only. |
+| **syd4→syd2 SSH: "close"** | Drop syd4's key from syd2's `authorized_keys`; probes move back to CI. **Note the cost honestly: today's thalon evidence-gathering used that path**, so closing it makes fleet-health checks slower, not impossible. |
+| **eamos rate-limit call** | Apply the **JWT-aware `sourceCriterion`** — IP-keyed would bucket every user behind one proxy IP. Eamos independently agrees. |
+
+### Lane C — blocked on peers. Nothing to do until they move.
+
+- **selom — the big one.** Awaiting **5 scoping answers + a digest-pinned GHCR
+  backend image**. When both land: Dokploy tenant `selom/backend`,
+  `preview-api2.` host, `/srv/selom` + 4.7 GB mount, LE, DB→restic. **Do A5
+  first**, and re-measure disk at provision time.
+- **GitHub Actions billing restore** — the single event that unblocks the most:
+  eamos builds/deploys, swordfish's CI-as-hands (edge-apply / backups-apply /
+  hardening-smoke / project1-apply), thalon's CI, and shipping the fixed
+  **10-dokploy hook** to syd2 (drift hygiene, zero urgency). Watch for it on the
+  date from his GitHub receipt — **which is one of the `subscriptions.yml` fills
+  still on his board.**
+- **thalon — nothing owed either way.** Two things to *expect*, not chase:
+  their first post-billing build re-tags `:staging` to a new digest and
+  auto-deploys ~9 commits (read as expected, not drift), and that same build is
+  the first to carry `org.opencontainers.image.revision` — at which point
+  `film-import.sh`'s commit check **tightens by itself**. No action either way.
+  Their 18 resolved-but-present NEEDS-STEVEN lines are theirs to prune; told,
+  not touched.
+
+### Lane D — standing hygiene. Only when lane A is clear.
+
+- **Run `checks/needs-steven-hygiene.sh` at EVERY wrap** and act on what it says
+  — resolved lines move to `archive/NEEDS-STEVEN-closed.md` in the *same* wrap.
+  That rule exists because the board silently rotted for weeks.
+- **Nango owner hygiene:** pin the floating `nangohq/nango-server:hosted` image
+  at a quiet window (coordinate the blip with selom — swordfish owns the Nango
+  fleet, memory `nango-ownership`).
+- **Nango Connect-UI public host** (`connect.nango.swordfish.cfd`) — he ratified
+  the defer 07-25; execute on his go when selom's FE slice nears.
+- Long tail, none urgent: `fwupd` cosmetic failures · tenant-pg **collation
+  version mismatch** (surfaced again in today's psql output) · Dokploy key
+  hygiene.
 
 ## Protocol notes
 
