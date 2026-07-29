@@ -194,10 +194,35 @@ turned out to have been DONE since 07-19; we owed the reply, not the work.**
   (selom) live + backed up · thalon units live on syd4 · dashboard cockpit
   `localhost:8080/proxy/8090/` · relay + live-comm lanes live.
 
+- **✅ NEEDS-STEVEN BOARD REBUILT — he said it was "building up with stale
+  notifications" and he was right, in two ways at once.**
+  - **The collector was SILENTLY DROPPING LINES.** `collect-needs.sh` required
+    `]` immediately after the date, so the raised-then-updated form agents
+    naturally write (`[2026-07-13→17]`, `[2026-07-28k]`) **never reached his
+    dashboard at all** — 21 lines fleet-wide (4 swordfish incl. the **syd2 SPEND
+    GATE**, 17 thalon). Fixed: date = first 10 chars, text = everything after
+    the first `]`. **A queue that silently drops entries reads as "nothing
+    pending" — worse than no queue.**
+  - **Board pruned 14 → 10 open**, each compressed to phone-readable and grouped
+    by *how long it takes him* (quick · browser · money · decisions). Four
+    resolved/standing items moved to `archive/NEEDS-STEVEN-closed.md` with full
+    reasoning (the *why* outlives the action).
+  - **Ratchet: `provisioning/checks/needs-steven-hygiene.sh`** (read-only,
+    advisory) reports per project: droppable lines · done-but-still-present ·
+    >21 days. First run: **swordfish clean; thalon carrying 18
+    resolved-but-present** — now the biggest source of clutter on his card.
+    Told them in their channel; **did not touch their file.**
+  - **Answer to his question:** nothing is automatic. Agents maintain these by
+    hand and the dashboard renders them verbatim, never retiring anything. The
+    new rule is in the board's own header: **resolved ⇒ archive in the SAME
+    wrap**, never left sitting wearing a ✅.
+
 ## Next
 
 > **Boot order:** ① **item 5a — OVERDUE: delete `render-dashboard.py`** (soak
-> ended 07-26, no fallback used, nothing blocks it) ② **item 6 — reply to eamos
+> ended 07-26, no fallback used, nothing blocks it — and it carries the SAME
+> date-regex bug just fixed in `collect-needs.sh`, so deleting it removes a
+> second copy of a known defect rather than needing its own fix) ② **item 6 — reply to eamos
 > closing their ledger item 3** (they answered; our close is owed) ③ item 7
 > (syd2 disk before the selom backend) ④ item 8 (`deploy2.` + stale comments).
 > _(Old item 10 is DONE — closed by probe this session.)_
