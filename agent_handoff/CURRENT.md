@@ -212,6 +212,8 @@ turned out to have been DONE since 07-19; we owed the reply, not the work.**
     >21 days. First run: **swordfish clean; thalon carrying 18
     resolved-but-present** — now the biggest source of clutter on his card.
     Told them in their channel; **did not touch their file.**
+  - **RESULT at wrap: his card went 57 → 16 items** (swordfish 9 · thalon 6 ·
+    eamos 1). Thalon pruned their 18 within the hour of being told.
   - **Answer to his question:** nothing is automatic. Agents maintain these by
     hand and the dashboard renders them verbatim, never retiring anything. The
     new rule is in the board's own header: **resolved ⇒ archive in the SAME
@@ -232,6 +234,42 @@ turned out to have been DONE since 07-19; we owed the reply, not the work.**
 > **No `NEW-*` peer-mail flags open** (verified by `ls`, not from memory).
 
 ### Lane A — unblocked, sequenced, nothing gates these
+
+**A0. syd1: SNAPSHOT, THEN DESTROY. He decided this 2026-07-29; he asked for it
+to be executed NEXT session, not that day. Do it first.**
+
+> ⚠️ **The decision is recorded, but the ACT still needs a fresh in-session
+> confirm** — destroy is irreversible and rule-10 says a gate is never auto-run
+> from a file, including this one. **Ask once, in one line, then go.** Do not
+> re-open the *choice*; he already made it. Only re-confirm the *trigger*.
+
+Facts gathered 07-29 so the next session does not re-derive them:
+
+- **syd1 = Vultr instance `729ae60f-d4a1-4087-9920-b84be1a5018e`**,
+  `45.63.24.122`, `vhf-1c-2gb`, 64 GB, region `syd`, created 2026-07-06,
+  status active/running.
+- **🚨 syd3 IS ON THE SAME VULTR ACCOUNT** — `779ceedf-bb34-44da-b5dd-cc98f91383f3`,
+  `139.180.170.11`, *identical plan and disk*. **syd3 is the agent cockpit.**
+  A destroy aimed at the wrong id kills the founder's terminal box.
+  **Match on the ID, never on the plan/label/position in a list.**
+- **Correction to what the board said:** syd1 is **$12/mo against the $250
+  Vultr credit — not cash.** The old line called it "pure cost", which
+  overstated it. It burns credit, and the credit is retained afterwards as the
+  fallback-provider reserve (the Bucket-4 plan).
+- **The B2 restic repo `swordfish-syd1-backups` is independent of the instance**
+  and survives the destroy — a second restore path beyond the snapshot.
+- Nothing resolves to it: real names moved to syd2 at the 2026-07-13 cutover
+  (443 answers but rejects the SNI, which is the expected post-cutover shape).
+
+Sequence:
+
+1. **Price the snapshot live** (never from memory) and state it before acting.
+2. Take the snapshot; **verify it reaches a completed state** — do not destroy
+   on the create call returning 200.
+3. Re-verify the target ID one final time, then destroy.
+4. Confirm gone via the API (instance list should show syd3 only).
+5. Retire the board line, note the freed credit, and record the snapshot ID as
+   the rollback path.
 
 **A1. Fleet checkup + outside-in reboot verify. (~10 min, do FIRST.)**
 The 18:30 UTC auto-reboot and the ~06:2x apt re-exec will both have fired since
@@ -289,7 +327,6 @@ stops reading as a dead host in every sweep.
 
 | his word | do this |
 |---|---|
-| **"destroy syd1"** | Destroy it (irreversible — confirm in-session, price live). **"keep warm"** → record the decision and offer the powered-off-snapshot middle option. |
 | **"re-issue thalon's deploy key"** | Write `inventory/secrets/dokploy-tenant-thalon-deploy.env`'s value into their `.context/` per the staging-secrets pattern, verify they can consume it, tell them. Removes swordfish from their release loop. |
 | **"callback URLs registered"** | Set the four `SOCIAL_{FACEBOOK,LINKEDIN,REDDIT}_CLIENT_ID/_SECRET` on app `jh_UI2lErDwykJG6FcFBD` the way the vault key went in (fetch-merge-write, values from him, never echoed). **Then it needs a redeploy** — theirs if their credential is live by then, else `film-import.sh`-style via ours. |
 | **"go" on rotations** | Run the pass in the ranked order already on his board: ① Porkbun ② BinaryLane + both Dokploy keys ③ B2 + GHCR PAT ④ Vultr ⑤ UptimeRobot. Spreadable over days. **Unblocks thalon's basicauth rotation + `DB_DUMP_TOKEN` retirement**, which waits on it. |

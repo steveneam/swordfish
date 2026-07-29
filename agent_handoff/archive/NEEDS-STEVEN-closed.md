@@ -32,3 +32,13 @@ storage). Phase-4 blocker retired rather than carried; the alternative —
 editing a passing safety test to accept the gap — was declined. Egress
 readout that unblocked the gate: Pro, 25 Jun–25 Jul cycle, 0.014 of 250 GB
 used._
+
+## Closed 2026-07-29 — decided by him, execution is swordfish's
+
+- **syd1: he chose SNAPSHOT-THEN-DESTROY on 2026-07-29** and asked for it to be
+  executed the following session rather than that day. Nothing further is owed by
+  him; the execution sequence, the instance IDs and the safety notes live in
+  `CURRENT.md` lane **A0**. Kept off the live board deliberately — a founder queue
+  should carry only what he still owes, and he owes nothing here.
+
+  - [2026-07-29] ✅ **syd1 — YOU DECIDED: snapshot, then destroy** (asked 2026-07-29, you chose the snapshot path and asked for it to run *next* session). **Nothing is owed by you now.** Swordfish executes it at the top of next session, with one short in-session confirm first because destroy is irreversible and a gate is never auto-run from a file. Recorded so it is not re-litigated: instance `729ae60f-…`, `45.63.24.122`, snapshot first and verified complete *before* the destroy, and the B2 restic repo survives regardless as a second restore path. _(Correction to the old line, which said "pure cost": syd1 bills $12/mo **against the $250 Vultr credit, not cash** — the credit is retained afterwards as the fallback-provider reserve.)_

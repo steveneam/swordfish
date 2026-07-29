@@ -28,7 +28,6 @@
 
 ## 💸 Money
 
-- [2026-07-26] 💸 **syd1 is STILL RUNNING and still billing — now ~13 days past its soak end, and nothing uses it.** Both 443 and 22 answer. The cutover to syd2 completed 2026-07-13; syd1 was kept warm only as a rollback path through a ≈72 h soak that ended ≈07-16, and every fleet checkup since has been green without it. **This is the only line on the board that is pure cost with no remaining function.** Destroy is irreversible = founder gate, so swordfish will not touch it. Say **"destroy syd1"** to retire it, or **"keep warm"** and this line records that decision instead. Middle option: a powered-off snapshot keeps the rollback image for a fraction of the running cost. _(Price live at the gate, never from memory.)_
 - [2026-07-13] **SPEND GATE — resize syd2. Standing recommendation: DON'T, not yet.** Measured, not guessed: ffmpeg worker 2.26 GiB, app+render concurrent 4.09 GiB, against 5.90 GiB available — so even after Eamos's backend cut over, ONE render worker still fits with ~1.6 GiB spare. Only a SECOND overlapping render would OOM, and renders are operator-triggered and minutes long. The resize buys concurrency headroom you are not using yet. Trigger is a future condition (overlapping renders on syd2, or memory pressure eating the margin), not present pain. If/when taken: `std-6vcpu` = AUD 78.40/mo (+39.20) priced 07-16 — **re-price live** — and it needs a power-off (Dokploy + thalon + tenant-pg briefly down) with the disk growing 100→180 GB **one-way**.
 
 ## 🤔 Decisions — nothing broken, no rush, but they are yours
