@@ -97,8 +97,12 @@ for entry in $WATCHES; do
   # silently fell back to the last H1 in the file. Result: today's flag was
   # labelled with a STALE 07-28 ask heading while the new content was an
   # unrelated 07-29 note. A mislabelled flag is worse than an unlabelled one:
-  # it points the next session at the wrong thread. Match ANY heading level.
-  head=$(grep -E '^#{1,6} ' "$path" | tail -1 | tr -cd ' -~' | cut -c1-80)
+  # it points the next session at the wrong thread.
+  # Refined same day: match SECTION level (H1/H2) only. Matching any level
+  # picked up '### ' subsections, so the flag read '### (2) pgvector...' - true,
+  # but the subsection rather than the thread it belongs to. Section titles are
+  # what identify a thread.
+  head=$(grep -E '^#{1,2} ' "$path" | tail -1 | tr -cd ' -~' | cut -c1-80)
   msg="📬 [$(hostname -s)] peer mail: $name -> swordfish channel changed (${head:-no heading}) - flag set for the next swordfish session"
   logger -t swordfish-alerts "$msg"
   { date -u +%FT%TZ; printf '%s\n' "$head"; } > "$STATE/NEW-$name"
