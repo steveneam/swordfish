@@ -43,7 +43,19 @@ read -r pin status pair envkeys mount < <(python3 -c '
 import json, sys, re
 a = json.loads(sys.argv[1])
 img = a.get("dockerImage") or ""
-pin_ok = bool(re.fullmatch(r"ghcr\.io/steveneam/thalon-web:[0-9a-f]{40}@sha256:[0-9a-f]{64}", img))
+# 2026-07-29: this used to demand a <sha40>@sha256:<digest> pin, and it had been
+# FAILING for days - which is worse than useless, because a permanently-red check
+# trains everyone to stop reading the exit code of this script. Thalon argued it
+# was asserting the wrong invariant and they are right, structurally:
+#   their deploy key deliberately carries NO application.update grant (s37), so
+#   the only lever CI has is re-tag :staging + application.deploy. Against a
+#   DIGEST-pinned app that call is a silent no-op - it reports success and ships
+#   nothing. Pinning would trade a false alarm for a real, silent outage.
+# The floating tag IS the design here. What is still worth asserting is the safety
+# half of the original intent - never :latest, never some other repo, never a
+# widened reference - so pin the REFERENCE exactly instead of the digest.
+# (opinion, not invariant: revisit if their key ever gains application.update.)
+pin_ok = img == "ghcr.io/steveneam/thalon-web:staging"
 sec = a.get("security") or []
 pair = (sec[0]["username"] + ":" + sec[0]["password"]) if sec else "-"
 env = dict(l.split("=",1) for l in (a.get("env") or "").splitlines() if "=" in l)
@@ -55,7 +67,8 @@ doms = [(d.get("host"), d.get("port"), d.get("https")) for d in a.get("domains")
 dom_ok = (sys.argv[2], 3000, True) in doms
 print(int(pin_ok), a.get("applicationStatus"), int(bool(sec)), int(ws_is_pair and "DB_DUMP_TOKEN" in env), int(mount_ok and dom_ok))
 ' "$app_json" "$HOSTNAME_STAGING")
-[ "$pin"   = 1 ]    && ok "image pinned sha-tag@digest (never latest)" || bad "image pin drifted"
+[ "$pin"   = 1 ]    && ok "image ref is exactly :staging (never latest, never another repo)" \
+                    || bad "image ref widened - expected ghcr.io/steveneam/thalon-web:staging"
 [ "$status" = done ] && ok "applicationStatus done"                    || bad "applicationStatus=$status"
 [ "$pair"  = 1 ]    && ok "edge BasicAuth entry armed"                 || bad "no security entry - staging is OPEN"
 [ "$envkeys" = 1 ]  && ok "env: WORKSPACE_BASIC_AUTH == edge pair, DB_DUMP_TOKEN present" || bad "env drifted from unified-pair posture"

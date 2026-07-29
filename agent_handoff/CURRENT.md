@@ -20,10 +20,11 @@ founder relayed "Thalon sent you a message — make sure he gets what he needs."
 Their s85 ask: staging could not hold a credential because
 **`THALON_VAULT_MASTER_KEY` was unset**, and their deploy-only credential cannot
 set env. **Minted it, set it, ratcheted it, replied, and cleared the flag.**
-Also closed old Next item 10 with an independent probe. **ONE THREAD LEFT OPEN
-BY DESIGN:** the env needs a redeploy, their deploy path turned out to be dead
-(CI billing-blocked + a stale credential), so **we** run it — as soon as they
-answer one question about the image. Not a blocker, a courtesy._
+Also closed old Next item 10 with an independent probe. Their deploy path turned
+out to be dead (CI billing-blocked + a stale credential), so on their GO **we
+rolled the deploy** — env-only, image unchanged, key now in the container.
+**`staging-assert.sh` is GREEN end-to-end (25 PASS / 0 FAIL) for the first time
+in days.** Thalon's s85 lane is fully unblocked._
 
 ## State
 
@@ -85,13 +86,16 @@ answer one question about the image. Not a blocker, a courtesy._
     **Swordfish's copy of the same tenant credential is ALIVE — verified
     `application.one` → HTTP 200.** So nothing is actually blocked; the only
     question is who presses it.
-  - **🔸 OPEN — waiting on thalon's one answer: the image.** A deploy pulls
-    whatever floating `:staging` points at *now*, so rolling it would ship a new
-    image as a side effect of an env change. Asked them for either "go, image is
-    fine" or a `<sha40>@sha256:<digest>` to pin first (pinning also clears the
-    standing `image pin drifted` failure). **Do not deploy until they answer —
-    it is their app and their release.** Then: deploy, re-run
-    `staging-assert.sh`, and confirm the vault key is in the new container.
+  - **✅ DEPLOYED 2026-07-29 04:04:57Z on their explicit GO — and it was
+    env-only, exactly as intended.** Container `…q0g7x9` → `…z8dq6v7`, healthy;
+    **image id identical before and after** (`sha256:630737…0970`), which I
+    confirmed ON THE BOX before pressing rather than trusting their claim. The
+    vault key is now in the running container — their Bluesky connect is
+    unblocked. **Called it with THEIR `thalon-deploy` tenant credential, not the
+    admin key** — right owner for the action, and it proves the credential is
+    alive and correctly scoped (evidence for the founder's re-issue call).
+    **Still did NOT touch `/connect`** — that first connect seals a real
+    credential in their tenant and is theirs to make.
   - **Re-issuing their credential is a FOUNDER GATE** (transmitting anything out
     of `inventory/secrets/`) — now a line on NEEDS-STEVEN. Until he says yes,
     thalon has **no independent deploy button** and every roll comes through us.
@@ -109,12 +113,19 @@ answer one question about the image. Not a blocker, a courtesy._
   → **307** with `location: https://preview.swordfish.cfd/app/settings/…`
   (no longer `https://0.0.0.0:3000/…`), and anon `/api/integrations` → **401**.
   `APP_ORIGIN` reached the container; the exemption did not leak wider.
-- **⚠️ thalon's image pin has DRIFTED — flagged to them, not fixed by us.**
-  `staging-assert.sh` fails `image pin drifted`: the app runs floating
-  `ghcr.io/steveneam/thalon-web:staging`, not `:<sha40>@sha256:<digest>`.
-  **Pre-existing** (present at 18:49, before any edit today) and it is *their*
-  image reference — swordfish does not edit their app. Every other assertion,
-  including all security ones, PASSES.
+- **✅ THE "IMAGE PIN DRIFTED" FAILURE IS GONE — the ASSERTION was wrong, not
+  the app.** Thalon made the argument and it is correct and structural, so I
+  changed the check rather than argued: **their deploy key deliberately has no
+  `application.update` grant, so against a DIGEST-pinned app, CI re-tagging
+  `:staging` + calling `application.deploy` succeeds and ships NOTHING —
+  silently.** Pinning would have traded a false alarm for a real, silent outage,
+  and it would have been *caused* by "fixing" the drift. It had also been
+  failing for days, which is its own defect — a permanently-red check trains
+  everyone to stop reading the exit code. Now asserts
+  `ref == ghcr.io/steveneam/thalon-web:staging` **exactly** — keeps never-latest
+  / never-another-repo, drops what was incompatible with how they ship. Tagged
+  **opinion, not invariant**; revisit if their key ever gains
+  `application.update`. **Whole script: 25 PASS / 0 FAIL.**
 - **Carried (still true):** syd2 edge ratchet live · **GH Actions = WAIT** ·
   eamos LIVE on syd2 (`preview-api.`; Render rollback GONE by design) · Nango
   (selom) live + backed up · thalon units live on syd4 · dashboard cockpit
@@ -131,13 +142,12 @@ answer one question about the image. Not a blocker, a courtesy._
 > **Peer-mail: `NEW-thalon` was read + acted + cleared 07-29; no `NEW-*` flags
 > open** (verified by `ls`, not from memory). Their s85 asks are discharged:
 > ask 1 applied, ask 2 parked on the founder, ask 3 informational.
-> **⏳ ONE THING IS OPEN AND IT IS ON US:** thalon owes us a one-word answer on
-> the image, then **we** run `application.deploy` (their CI is billing-blocked
-> and their credential copy is dead — ours works). **Check their
-> `ASK-BACKS-FOR-SWORDFISH.md` first thing.** After deploying: re-run
-> `provisioning/thalon/staging-assert.sh` (section 8 must still PASS — a deploy
-> must not disturb env), confirm `THALON_VAULT_MASTER_KEY` is now in the
-> container's env, and tell them so their Bluesky connect can complete.
+> **Thalon: nothing owed either way.** Ask 1 applied AND deployed, ask 2 parked
+> on the founder, ask 3 informational, the pin assertion fixed on their
+> argument. `staging-assert.sh` = 25 PASS / 0 FAIL. **Expect one thing when
+> GitHub billing is restored:** their first successful build re-tags `:staging`
+> to a NEW digest and auto-deploys ~9 commits of s85 code — read that as
+> expected, not as drift. The new ref assertion holds across it unchanged.
 
 1. **Selom public backend** — STILL awaiting selom's 5 scoping answers **and**
    their digest-pinned GHCR backend image. Then Dokploy tenant `selom/backend`,
@@ -285,8 +295,7 @@ and the ONLY durable copy besides the app env; it is in syd4's restic source,
 do not "clean it up".** Thalon was told in their `FROM-SWORDFISH.md` + an
 `agent-comm` ping; **that edit sits uncommitted in THEIR tree for them to
 commit** — do not commit their repo. `NEW-thalon` peer-mail flag cleared.
-Nothing is mid-edit and no box action is half-done. **The one open thread:
-thalon owes a one-word answer on the image, then WE run their
-`application.deploy`** — their CI is billing-blocked and their credential copy
-is dead, so it cannot be theirs to press until the founder re-issues it.
+Nothing is mid-edit and no box action is half-done; the thalon thread is
+**fully closed** (delivered, deployed, verified, replied). The only thalon items
+left are the two founder lines on NEEDS-STEVEN, neither of which blocks them.
 **Safe to clear.**_
