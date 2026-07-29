@@ -24,7 +24,9 @@ Also closed old Next item 10 with an independent probe. Their deploy path turned
 out to be dead (CI billing-blocked + a stale credential), so on their GO **we
 rolled the deploy** — env-only, image unchanged, key now in the container.
 **`staging-assert.sh` is GREEN end-to-end (25 PASS / 0 FAIL) for the first time
-in days.** Thalon's s85 lane is fully unblocked._
+in days.** Then swept the whole channel and **closed the s61 film import — which
+turned out to have been DONE since 07-19; we owed the reply, not the work.**
+**Thalon now has zero open asks with us.**_
 
 ## State
 
@@ -128,10 +130,40 @@ in days.** Thalon's s85 lane is fully unblocked._
     the `thalon` DB, both idempotent, plus a verification line. Caught while
     writing it: `psu()` talks to the DEFAULT database and extensions are
     per-database, so the naive check would have read "absent" forever.
-  - **⏳ STILL OWED: the s61 film import** — ACKed 2026-07-19, carried every
-    session since **without being done (10 days)**. That is a queue problem on
-    our side, not a priority call about their work. Told them so plainly and
-    invited them to escalate if it blocks their W-audit close.
+  - **✅ s61 FILM IMPORT — CLOSED, and the queue was WRONG about it.** It was
+    **already done: the import ran 2026-07-19 02:53:23Z**, four days after the
+    ACK. Nobody ever sent the row counts, so it read as open on their board and
+    ours for 10 days. **We owed the reply, not the work** — an unreported
+    success is indistinguishable from neglect (memory
+    `peer-ack-queue-mirror` sharpened). **Check the end state before reporting a
+    carried item as outstanding.**
+    - **Transfer verified byte-identical** to syd4 by sha256-of-manifest
+      (`1b93fa4d…`), 744M / 125 files, all sidecars present.
+    - **Rows** (`thalon` DB on tenant-pg, project `393bfb42-…`): **58 takes**
+      (keeper 31 / reject 27) · motion 34 + still 23 + audio 1 · provenance on
+      58/58 · **rejects without a reason = 0** (their contract held across all
+      27) · **5 cuts, all `rendered`**. A fresh `--dry-run` today planned
+      exactly 58 takes, so source and rows still agree.
+    - **Media probe: 200 + working ranges.**
+      `/api/videos/<proj>/media?ref=cuts/thalon-concept-film-9x16-master.mp4`
+      → **200**, `video/mp4`, 36,460,396 bytes; with `Range: bytes=0-1023` →
+      **206** `content-range: bytes 0-1023/36460396` (scrubbing works).
+      **Closes their W-audit item (a) on their confirm.**
+    - **⚠️ Two traps recorded for next time.** (i) `/api/media/<ref>` 404s on a
+      take ref and that is CORRECT — it parses `<sha256>.<ext>` only; the
+      project-scoped `/api/videos/<id>/media?ref=` is the right door. We briefly
+      mis-read this as breakage. (ii) **Their "run from the deployed web
+      workdir" instruction is IMPOSSIBLE** — the staging image is a pruned
+      runtime bundle: the script ships in it but `@thalon/contracts`/`engine`/
+      `platform` exist nowhere in the image (`/app/packages` = `db` only,
+      `/app/node_modules` = 32 traced deps, no `@thalon` scope).
+      **What works:** source-only rsync (43 MB, excluding `node_modules`,
+      `.next`, `.next-dev`, `.data`, and deliberately NOT their `.env.local`)
+      to a syd2 temp dir → `npm ci` in a container off the same image →
+      mount `thalon-data:/data` + attach `dokploy-network` + the app's own env.
+      **Temp workspace deleted, 1.9 GB reclaimed, syd2 back to 68%, their
+      running container never touched.** Offered to land it as a script in
+      `provisioning/thalon/` if they want it repeatable.
 - **✅ OLD ITEM 10 CLOSED — thalon's callback verified after their deploy.**
   Independent anon probe from syd4: `GET /api/integrations/callback/bluesky`
   → **307** with `location: https://preview.swordfish.cfd/app/settings/…`
@@ -166,7 +198,8 @@ in days.** Thalon's s85 lane is fully unblocked._
 > **Peer-mail: `NEW-thalon` was read + acted + cleared 07-29; no `NEW-*` flags
 > open** (verified by `ls`, not from memory). Their s85 asks are discharged:
 > ask 1 applied, ask 2 parked on the founder, ask 3 informational.
-> **Thalon: nothing owed either way.** Ask 1 applied AND deployed, ask 2 parked
+> **Thalon: ZERO open asks in either direction** (whole channel swept 07-29,
+> not just the newest thread).** Ask 1 applied AND deployed, ask 2 parked
 > on the founder, ask 3 informational, the pin assertion fixed on their
 > argument. `staging-assert.sh` = 25 PASS / 0 FAIL. **Expect one thing when
 > GitHub billing is restored:** their first successful build re-tags `:staging`
@@ -177,12 +210,10 @@ in days.** Thalon's s85 lane is fully unblocked._
    their digest-pinned GHCR backend image. Then Dokploy tenant `selom/backend`,
    `preview-api2.` host, `/srv/selom` + 4.7 GB mount, LE, DB→restic.
    **Possible syd2 resize = SPEND GATE.** See item 7 first.
-2. **thalon s61 film-import (ACKED 07-19, still owed):** transfer
-   `~/work/thalon/.context/design/film-storyboard-s41/` to syd2, run
-   `npm run videos:import -w @thalon/web -- --root <path> --name
-   "thalon-concept-film" --reasons … --provenance … --cuts …
-   --exclude v1-reference` from the deployed web workdir against tenant-pg +
-   staging object volume, reply row counts + one media-probe status.
+2. ✅ **DONE / CLOSED 07-29** — thalon s61 film import (it had been complete
+   since 07-19; the reply was what was missing). Counts + media probe delivered.
+   **Nothing carried.** If they ask for the procedure to be repeatable, land the
+   rsync + `npm ci`-in-container recipe as `provisioning/thalon/film-import.sh`.
 3. **Ship the fixed 10-dokploy hook to syd2** when a write channel exists
    (backups-apply is GH-Actions-gated = WAIT). Drift hygiene only, zero urgency.
 4. **Nango Connect-UI public host** (`connect.nango.swordfish.cfd`) — founder
@@ -319,7 +350,10 @@ and the ONLY durable copy besides the app env; it is in syd4's restic source,
 do not "clean it up".** Thalon was told in their `FROM-SWORDFISH.md` + an
 `agent-comm` ping; **that edit sits uncommitted in THEIR tree for them to
 commit** — do not commit their repo. `NEW-thalon` peer-mail flag cleared.
-Nothing is mid-edit and no box action is half-done; the thalon thread is
-**fully closed** (delivered, deployed, verified, replied). The only thalon items
-left are the two founder lines on NEEDS-STEVEN, neither of which blocks them.
+Nothing is mid-edit and no box action is half-done. **Thalon has ZERO open asks
+with us** — s85 delivered + deployed + verified, s61 film import closed with
+counts and a media probe, their s51 question answered 12 days late, pgvector
+folded in. The only thalon-adjacent items left are the two founder lines on
+NEEDS-STEVEN, neither of which blocks them. The syd2 temp workspace used for the
+import re-verification was deleted (1.9 GB reclaimed, disk 68%).
 **Safe to clear.**_
