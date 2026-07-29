@@ -225,6 +225,14 @@ turned out to have been DONE since 07-19; we owed the reply, not the work.**
    dry-run default, `--apply`-only writes, duplicate guard that refuses against
    a populated tenant, required commit argument, `git archive` (tracked files
    only, so `.env.local` cannot travel). All paths exercised.
+   **Then thalon added `org.opencontainers.image.revision` to their build and
+   asked for the printed assertion to become a real check — done.** It reads the
+   label off the RUNNING image with **three** outcomes: match = VERIFIED,
+   mismatch = **FAIL exit 1** (names both commits), **absent = UNVERIFIABLE and
+   PROCEEDS**. That third case is deliberate — no labelled image exists yet
+   (billing), so failing closed would read as a regression on a healthy box.
+   **The check tightens by itself when their first labelled image deploys; no
+   follow-up is owed by either side.**
 3. **Ship the fixed 10-dokploy hook to syd2** when a write channel exists
    (backups-apply is GH-Actions-gated = WAIT). Drift hygiene only, zero urgency.
 4. **Nango Connect-UI public host** (`connect.nango.swordfish.cfd`) — founder
@@ -367,4 +375,6 @@ counts and a media probe, their s51 question answered 12 days late, pgvector
 folded in. The only thalon-adjacent items left are the two founder lines on
 NEEDS-STEVEN, neither of which blocks them. The syd2 temp workspace used for the
 import re-verification was deleted (1.9 GB reclaimed, disk 68%).
-**Safe to clear.**_
+**Thalon's channel is closed in BOTH directions — zero open asks either way,
+verified by reading their file, not from memory. Nothing is owed, nothing is
+mid-flight, no box action is half-done. Safe to clear.**_
