@@ -95,6 +95,33 @@ one source of truth); resticprofile is the `no_self_update` build on purpose.
 Bump = edit pins → `backups-apply` → drill. **Dokploy upgrades are unblocked as
 of Bucket 3** (its config + DB dump are in the set) — protocol in `runbooks/edge.md`.
 
+## Free-cap playbook (incidents 2026-07-17 · 07-25 · 08-01)
+
+The 10 GB B2 free cap **fails closed, account-wide**: at cap `b2_get_upload_url`
+403s, restic cannot upload even its own lock file, so backups AND the prune
+that would free space both wedge (catch-22, proven live). Every box's nightly
+fails at once — one bucket's balloon takes down all four.
+
+- **Early warning (the ratchet):** `provisioning/backup/setup-b2-watch.sh`
+  arms a daily 11:00 UTC timer on syd4 (`swordfish-b2-watch.timer`) that sums
+  all bucket bytes via the B2 master key and ntfy-pages the founder at
+  ≥ 8 GiB — while forget/prune/exclude all still work.
+- **Still under cap** (the 07-25 shape): identify the balloon (`restic
+  snapshots --compact` sizes, `restic diff` the jump, `find -newermt` on
+  disk), add the exclude (recorded exception in `profiles.yaml`), then
+  `forget` per policy + no-repack prune.
+- **Over cap** (the 07-17 and 08-01 shape — founder gate: destroy): prune is
+  wedged; the ruling both times was **exclude + hard-delete every version in
+  the ballooned box's bucket via the B2 API (deletes still work at cap) +
+  re-seed immediately** (`systemctl start resticprofile-backup@profile-<box>`;
+  `initialize: true` re-creates the repo). Never syd1's bucket. Cost = that
+  box's snapshot history; run the seed in the same session so the no-backup
+  window stays minutes wide.
+- **Balloon classes on record:** migration staging copies (07-17) ·
+  CUDA/venv + Next build caches (07-25) · **Chrome component-updater on-device
+  AI models, 2.7 GiB dropped into a profile dir unprompted** (08-01). New
+  derived-state bloat goes in `profiles.yaml` as a recorded-exception exclude.
+
 ## Watch-items
 
 - The bucket-scoped key can hard-delete file versions (`deleteFiles` — restic

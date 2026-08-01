@@ -239,6 +239,18 @@ syd4:
       # Claude Code retains every downloaded version binary (~0.25 GB each,
       # accretes forever); restore path = the installer re-downloads current.
       - /home/deploy/.local/share/claude/versions
+      # RECORDED EXCEPTION (B2 free-cap incident #3, 2026-08-01): Chrome's
+      # component updater silently downloaded its on-device AI model
+      # (OptGuideOnDeviceModel/weights.bin, 2.7 GiB) into thalon's portal
+      # profile on 07-29 - the +2.9 GiB one-day balloon that pushed the
+      # account to 11.2 GiB and hard-blocked all uploads. All four dirs are
+      # Chrome-managed re-downloadable component/model stores (same class as
+      # node_modules); the ~50 MiB of real profile state (logins/prefs)
+      # stays in the set.
+      - /home/deploy/.config/thalon-portal-chrome/OptGuideOnDeviceModel
+      - /home/deploy/.config/thalon-portal-chrome/optimization_guide_model_store
+      - /home/deploy/.config/thalon-portal-chrome/component_crx_cache
+      - /home/deploy/.config/thalon-portal-chrome/WasmTtsEngine
     exclude-caches: true
     # 2026-07-17: syd4 gained its FIRST stateful workload - thalon's native dev
     # Postgres 17 (founder-approved live; provisioning/host/setup-dev-postgres.sh).
