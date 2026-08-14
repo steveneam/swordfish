@@ -2,7 +2,7 @@ name: selom-nango
 
 services:
   nango-db:
-    image: postgres:16.0-alpine
+    image: postgres:16.15-alpine
     environment:
       POSTGRES_USER: ${NANGO_DB_USER:?required}
       POSTGRES_PASSWORD: ${NANGO_DB_PASSWORD:?required}
