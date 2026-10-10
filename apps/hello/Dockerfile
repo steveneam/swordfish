@@ -1,7 +1,7 @@
 # apps/hello - image bar per CHARTER Bucket 4: multi-stage, minimal base,
 # non-root, HEALTHCHECK. Built ONLY in CI (hello-build.yml) -> GHCR; the dev
 # laptop never builds images. amd64-only by design (the fleet is x86 Vultr).
-FROM golang:1.26-alpine@sha256:3ad57304ad93bbec8548a0437ad9e06a455660655d9af011d58b993f6f615648 AS build
+FROM golang:1.26-alpine@sha256:3082400e369fa24d5fc60bca20edab3f6d604e0c5a690ec66b295eff4dd87ade AS build
 ARG VERSION=dev
 WORKDIR /src
 COPY go.mod main.go index.html ./
