@@ -41,7 +41,7 @@ services:
     # no ports: reachable only from the internal socket network
 
   traefik:
-    image: traefik:v3.6.7@sha256:a9890c898f379c1905ee5b28342f6b408dc863f08db2dab20e46c267d1ff463a
+    image: traefik:v3.7.17@sha256:f4bb143d1135a579b630ed491e17ec50f6f7c9c6a30585ff3d385471d2a86f5a
     container_name: swordfish-traefik
     restart: always
     depends_on:
